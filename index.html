@@ -55,9 +55,20 @@
             const data = await response.json();
 
             if (response.ok && data.autorizado) {
-                status.innerText = "Acesso autorizado!";
+                console.log("Payload recebido do n8n:", data);
+                
+                if (!data.usuario || Object.keys(data.usuario).length === 0) {
+                    alert("Atenção: O n8n autorizou, mas o objeto 'usuario' veio vazio. Verifique o nó Respond to Webhook.");
+                    return;
+                }
+
                 localStorage.setItem('midiabot_user', JSON.stringify(data.usuario));
-                window.location.assign('dashboard.html');               
+                status.innerText = "Acesso autorizado! Redirecionando...";
+                
+                // Pequeno delay para garantir o salvamento no storage em alguns browsers
+                setTimeout(() => {
+                    window.location.assign('dashboard.html');
+                }, 100);              
 
 
             } else {
