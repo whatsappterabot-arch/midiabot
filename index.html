@@ -31,7 +31,7 @@
                 document.getElementById('status').innerText = `Olá, ${user.displayName}! Validando acesso...`;
                 
                 // Envia o Token para o seu n8n
-                const response = await fetch('SUA_URL_WEBHOOK_N8N', {
+                const response = await fetch('https://awkwardgiantpanda-n8n.cloudfy.live/webhook-test/f9f1ae2e-018c-4d02-b121-b346d641bbf1', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ token: token, email: user.email })
