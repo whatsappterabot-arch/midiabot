@@ -3,41 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MidiaBot - Gestão Inteligente</title>
+    <title>MidiaBot - Gestão</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC3G7lgHMj6l_GiRWuPbo082eyzPQiqO6k",
+            authDomain: "midiabot-fe4d5.firebaseapp.com",
+            projectId: "midiabot-fe4d5",
+            storageBucket: "midiabot-fe4d5.firebasestorage.app",
+            messagingSenderId: "193828659008",
+            appId: "1:193828659008:web:25c8e11b1e303274e8e4a5"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+
+        window.loginGoogle = async () => {
+            try {
+                const result = await signInWithPopup(auth, provider);
+                const user = result.user;
+                const token = await user.getIdToken();
+                
+                document.getElementById('status').innerText = `Olá, ${user.displayName}! Validando acesso...`;
+                
+                // Envia o Token para o seu n8n
+                const response = await fetch('SUA_URL_WEBHOOK_N8N', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: token, email: user.email })
+                });
+
+                if (response.ok) {
+                    alert('Acesso liberado pelo n8n!');
+                    // Aqui o n8n retornará os dados para a tabela
+                }
+            } catch (error) {
+                console.error(error);
+                alert('Erro no login: ' + error.message);
+            }
+        };
+    </script>
 </head>
-<body class="bg-gray-100 h-screen flex flex-col items-center justify-center">
+<body class="bg-gray-50 h-screen flex items-center justify-center">
+    <div class="bg-white p-10 rounded-2xl shadow-xl max-w-sm w-full text-center border-t-4 border-[#00b34d]">
+        <img src="logo.png" alt="MidiaBot" class="w-24 mx-auto mb-6">
+        <h1 class="text-2xl font-bold text-[#001f3f] mb-2">Mídia Bot</h1>
+        <p class="text-gray-500 mb-8 text-sm">Painel de Controle de Automações</p>
 
-    <div class="bg-white p-8 rounded-lg shadow-lg max-w-md w-full text-center">
-        <!-- Seu Símbolo -->
-        <img src="logo.png" alt="MidiaBot Logo" class="w-24 h-24 mx-auto mb-6 rounded-full shadow-sm">
-        
-        <h1 class="text-2xl font-bold text-gray-800 mb-2">Painel MidiaBot</h1>
-        <p class="text-gray-600 mb-8">Gerencie suas bases de dados e automações em um só lugar.</p>
-
-        <!-- Botão de Login (Simulação) -->
-        <button onclick="loginGoogle()" class="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 text-gray-700 font-semibold py-2 px-4 rounded-md hover:bg-gray-50 transition duration-300">
-            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/action/google.svg" class="w-5 h-5">
+        <button onclick="loginGoogle()" class="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 py-2.5 px-4 rounded-lg hover:bg-gray-50 transition font-medium text-gray-700">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/action/google.svg" class="w-5">
             Entrar com Google
         </button>
-
-        <div id="status" class="mt-6 text-sm text-blue-600 hidden">
-            Comunicando com n8n...
-        </div>
+        <div id="status" class="mt-4 text-xs text-gray-400"></div>
     </div>
-
-    <script>
-        function loginGoogle() {
-            const status = document.getElementById('status');
-            status.classList.remove('hidden');
-            
-            // Aqui futuramente entrará a lógica do Firebase/Google
-            alert('Iniciando integração com Google Auth via n8n...');
-            
-            // Exemplo de como você chamará o n8n no futuro:
-            // fetch('SUA_URL_WEBHOOK_N8N', { method: 'POST', body: JSON.stringify({acao: 'login'}) })
-        }
-    </script>
-
 </body>
 </html>
