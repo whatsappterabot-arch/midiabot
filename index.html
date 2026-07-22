@@ -56,17 +56,9 @@
 
             if (response.ok && data.autorizado) {
                 status.innerText = "Acesso autorizado!";
-                
-                // --- INÍCIO DA ALTERAÇÃO ESPECÍFICA ---
-                // 1. Persistimos o objeto 'usuario' que o n8n nos devolveu (contendo ID do banco, plano, etc)
                 localStorage.setItem('midiabot_user', JSON.stringify(data.usuario));
-                
-                // 2. Alertamos o sucesso (mantendo seu fluxo original)
-                alert('Sucesso!');
-                
-                // 3. Redirecionamos para a nova arquitetura de Dashboard
-                window.location.href = 'dashboard.html';
-                // --- FIM DA ALTERAÇÃO ESPECÍFICA ---
+                window.location.assign('dashboard.html');               
+
 
             } else {
                 status.innerText = "Acesso negado.";
