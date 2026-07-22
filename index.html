@@ -9,6 +9,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getAuth, signInWithPopup, GoogleAuthProvider, getAdditionalUserInfo } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
     
+    // Sua configuração do Firebase
     const firebaseConfig = {
         apiKey: "AIzaSyC3G7lgHMj6l_GiRWuPbo082eyzPQiqO6k",
         authDomain: "midiabot-fe4d5.firebaseapp.com",
@@ -21,35 +22,50 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const provider = new GoogleAuthProvider();
-    provider.addScope('profile');
-    provider.addScope('email');
+    
+    // Escopos necessários para garantir que o Google libere o nome e e-mail
+    provider.addScope('https://www.googleapis.com/auth/userinfo.profile');
+    provider.addScope('https://www.googleapis.com/auth/userinfo.email');
 
     window.loginGoogle = async () => {
         const status = document.getElementById('status');
         try {
+            // 1. Abre o popup do Google
             const result = await signInWithPopup(auth, provider);
+            const user = result.user;
             
-            // Extração robusta dos dados do perfil do Google
-            const details = getAdditionalUserInfo(result);
-            const nomeGoogle = details?.profile?.name || result.user.displayName || "Usuário";
-            
+            // 2. Extrai informações adicionais do perfil (onde o nome costuma estar mais acessível)
+            const additionalInfo = getAdditionalUserInfo(result);
+            const nomeCapturado = additionalInfo?.profile?.name || user.displayName || user.email.split('@')[0];
+
+            // 3. Obtém as credenciais originais do Google (Tokens)
             const credential = GoogleAuthProvider.credentialFromResult(result);
-            const token = credential.idToken; 
+            const idToken = credential.idToken;      // Usado para o tokeninfo (Identidade)
+            const accessToken = credential.accessToken; // Usado para o userinfo (Autorização)
     
-            if (!token) throw new Error("Token não gerado.");
+            if (!idToken) {
+                throw new Error("Não foi possível obter o ID Token do Google.");
+            }
     
             status.innerText = "Validando acesso..."; 
             
-            console.log("Enviando:", { email: result.user.email, nome: nomeGoogle });
+            // Console log para você validar no F12 antes do envio
+            console.log("Enviando para o n8n:", { 
+                email: user.email, 
+                nome: nomeCapturado,
+                hasAccessToken: !!accessToken 
+            });
 
+            // 4. Envia os dados para o seu Webhook do n8n
             const response = await fetch('https://awkwardgiantpanda-n8n.cloudfy.live/webhook-test/f9f1ae2e-018c-4d02-b121-b346d641bbf1', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     acao: 'login', 
-                    token: token, 
-                    email: result.user.email, 
-                    nome: nomeGoogle // Garantido que não é undefined
+                    token: idToken,
+                    access_token: accessToken, // Enviando a chave de acesso para o n8n usar no HTTP Request
+                    email: user.email, 
+                    nome: nomeCapturado 
                 })
             });
     
@@ -57,12 +73,13 @@
             if (response.ok && data.autorizado) {
                 status.innerText = "Acesso autorizado!";
                 alert('Sucesso!');
+                // Aqui você pode redirecionar ou carregar a tabela de gestão
             } else {
                 status.innerText = "Acesso negado.";
-                alert(data.mensagem || 'Não autorizado.');
+                alert(data.mensagem || 'Usuário não autorizado.');
             }
         } catch (error) {
-            console.error(error);
+            console.error("Erro no processo de login:", error);
             alert('Erro: ' + error.message);
         }
     };
