@@ -94,14 +94,27 @@
         // 1. HIDRATAÇÃO: Recupera os dados salvos no index.html
         document.addEventListener('DOMContentLoaded', () => {
             const userData = localStorage.getItem('midiabot_user');
-            if (userData) {
-                const user = JSON.parse(userData);
-                document.getElementById('user-name').innerText = user.nome || 'Usuário';
+            console.log("Conteúdo do LocalStorage:", userData); // Debug
+
+            if (userData && userData !== "undefined") {
+                try {
+                    const user = JSON.parse(userData);
+                    // O n8n/Postgres envia um Array [{}]. Pegamos o primeiro índice:
+                    const dados = Array.isArray(user) ? user[0] : user;
+                    
+                    document.getElementById('user-name').innerText = dados.nome || dados.email || 'Usuário';
+                } catch (e) {
+                    console.error("Erro ao processar JSON do usuário:", e);
+                }
             } else {
-                // Segurança: Se não houver dados, volta para o login
-                window.location.href = 'index.html';
+                console.error("Erro: midiabot_user não encontrado. Redirecionamento pausado para debug.");
+                // window.location.href = 'index.html'; // Comentado para você ver o console
             }
         });
+
+
+
+        
 
         // 2. LOGICA DE ESTADOS: Alternância de Contexto
         function alternarCanal(canal) {
