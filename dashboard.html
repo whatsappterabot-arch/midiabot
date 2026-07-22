@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MídiaBot - Dashboard</title>
+    <!-- Tailwind CSS via CDN para agilidade no protótipo -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Classe de transição para suavizar a troca de temas */
+        .transition-all { transition: all 0.3s ease-in-out; }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen flex flex-col overflow-hidden">
+
+    <!-- HEADER: Onde reside a Chave de Contexto -->
+    <header class="bg-white border-b p-4 flex justify-between items-center shadow-sm z-20">
+        <div class="flex items-center gap-4">
+            <div class="font-black text-xl text-[#001f3f] tracking-tighter">MÍDIABOT</div>
+            
+            <!-- TOGGLE DE CONTEXTO (A "Chave") -->
+            <div class="flex bg-gray-200 rounded-full p-1 w-64 relative shadow-inner">
+                <button onclick="alternarCanal('whatsapp')" id="btn-wa" 
+                    class="flex-1 py-2 rounded-full text-xs font-bold z-10 transition-all text-white bg-[#00b34d] shadow-md">
+                    WhatsApp
+                </button>
+                <button onclick="alternarCanal('instagram')" id="btn-ig" 
+                    class="flex-1 py-2 rounded-full text-xs font-bold z-10 transition-all text-gray-500 hover:bg-gray-300">
+                    Instagram
+                </button>
+            </div>
+        </div>
+
+        <!-- HIDRATAÇÃO DE DADOS: Nome do Usuário vindo do localStorage -->
+        <div class="flex items-center gap-3">
+            <div class="text-right">
+                <p id="user-name" class="text-sm font-bold text-gray-800">Carregando...</p>
+                <p class="text-[10px] text-gray-400 uppercase tracking-widest">Painel de Gestão</p>
+            </div>
+            <div class="w-10 h-10 bg-[#001f3f] rounded-full flex items-center justify-center text-white font-bold border-2 border-white shadow-sm">
+                MT
+            </div>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        
+        <!-- SIDEBAR: Menus Dinâmicos -->
+        <aside id="sidebar" class="w-64 bg-[#001f3f] text-white flex flex-col border-r border-blue-900 transition-all">
+            <nav class="flex-1 p-4">
+                
+                <!-- MENU WHATSAPP (Estado Inicial: Visível) -->
+                <div id="menu-wa" class="space-y-1">
+                    <p class="text-[10px] text-blue-300 uppercase tracking-widest mb-4 font-bold opacity-50 px-3">Gestão WhatsApp</p>
+                    <a href="#" class="block p-3 rounded-lg hover:bg-[#00b34d] transition-all text-sm">Envio Ativo</a>
+                    <a href="#" class="block p-3 rounded-lg hover:bg-[#00b34d] transition-all text-sm">Instâncias</a>
+                    <a href="#" class="block p-3 rounded-lg hover:bg-[#00b34d] transition-all text-sm font-bold">Proibições de IA</a>
+                    <a href="#" class="block p-3 rounded-lg hover:bg-[#00b34d] transition-all text-sm">Mais Configurações</a>
+                    <a href="#" class="block p-3 rounded-lg hover:bg-[#00b34d] transition-all text-sm opacity-40 italic">Opção 5</a>
+                    <a href="#" class="block p-3 rounded-lg hover:bg-[#00b34d] transition-all text-sm opacity-40 italic">Opção 6</a>
+                    <a href="#" class="block p-3 rounded-lg hover:bg-[#00b34d] transition-all text-sm opacity-40 italic">Opção 7</a>
+                </div>
+
+                <!-- MENU INSTAGRAM (Estado Inicial: Escondido via 'hidden') -->
+                <div id="menu-ig" class="hidden space-y-1">
+                    <p class="text-[10px] text-purple-300 uppercase tracking-widest mb-4 font-bold opacity-50 px-3">Gestão Instagram</p>
+                    <a href="#" class="block p-3 rounded-lg hover:bg-gradient-to-r from-purple-600 to-pink-600 transition-all text-sm">Opção 1</a>
+                    <a href="#" class="block p-3 rounded-lg hover:bg-gradient-to-r from-purple-600 to-pink-600 transition-all text-sm">Opção 2</a>
+                    <a href="#" class="block p-3 rounded-lg hover:bg-gradient-to-r from-purple-600 to-pink-600 transition-all text-sm">Opção 3</a>
+                    <a href="#" class="block p-3 rounded-lg hover:bg-gradient-to-r from-purple-600 to-pink-600 transition-all text-sm">Opção 4</a>
+                </div>
+
+            </nav>
+        </aside>
+
+        <!-- MAIN CONTENT: Área de Visualização -->
+        <main class="flex-1 bg-gray-50 p-10 overflow-y-auto">
+            <header class="mb-8">
+                <h2 id="view-title" class="text-3xl font-black text-[#001f3f]">Painel WhatsApp</h2>
+                <p class="text-gray-500">Gerencie suas automações e configurações.</p>
+            </header>
+
+            <!-- Placeholder para o conteúdo dinâmico -->
+            <div class="bg-white border border-gray-200 rounded-2xl p-20 flex flex-col items-center justify-center text-center shadow-sm">
+                <div class="w-16 h-16 bg-gray-100 rounded-full mb-4 flex items-center justify-center">
+                    <svg class="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+                </div>
+                <p class="text-gray-400 font-medium">Selecione uma opção no menu lateral para visualizar os detalhes.</p>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // 1. HIDRATAÇÃO: Recupera os dados salvos no index.html
+        document.addEventListener('DOMContentLoaded', () => {
+            const userData = localStorage.getItem('midiabot_user');
+            if (userData) {
+                const user = JSON.parse(userData);
+                document.getElementById('user-name').innerText = user.nome || 'Usuário';
+            } else {
+                // Segurança: Se não houver dados, volta para o login
+                window.location.href = 'index.html';
+            }
+        });
+
+        // 2. LOGICA DE ESTADOS: Alternância de Contexto
+        function alternarCanal(canal) {
+            const isWA = canal === 'whatsapp';
+            
+            // Elementos de Menu
+            const menuWA = document.getElementById('menu-wa');
+            const menuIG = document.getElementById('menu-ig');
+            
+            // Elementos de Botão (Toggle)
+            const btnWA = document.getElementById('btn-wa');
+            const btnIG = document.getElementById('btn-ig');
+            
+            // Título da View
+            const viewTitle = document.getElementById('view-title');
+
+            if (isWA) {
+                menuWA.classList.remove('hidden');
+                menuIG.classList.add('hidden');
+                
+                btnWA.className = "flex-1 py-2 rounded-full text-xs font-bold z-10 transition-all text-white bg-[#00b34d] shadow-md";
+                btnIG.className = "flex-1 py-2 rounded-full text-xs font-bold z-10 transition-all text-gray-500 hover:bg-gray-300";
+                
+                viewTitle.innerText = "Painel WhatsApp";
+            } else {
+                menuWA.classList.add('hidden');
+                menuIG.classList.remove('hidden');
+                
+                btnWA.className = "flex-1 py-2 rounded-full text-xs font-bold z-10 transition-all text-gray-500 hover:bg-gray-300";
+                btnIG.className = "flex-1 py-2 rounded-full text-xs font-bold z-10 transition-all text-white bg-gradient-to-r from-purple-500 to-pink-500 shadow-md";
+                
+                viewTitle.innerText = "Painel Instagram";
+            }
+        }
+    </script>
+</body>
+</html>
