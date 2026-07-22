@@ -30,7 +30,7 @@
             const credential = GoogleAuthProvider.credentialFromResult(result);
             
             const idToken = credential.idToken;
-            const accessToken = credential.accessToken; 
+            const accessToken = credential.accessToken; // A CHAVE PARA O USERINFO
             if (!idToken || !accessToken) {
                 throw new Error("Tokens não gerados pelo Google.");
             }
@@ -42,6 +42,7 @@
                 nome: result.user.displayName || result.user.email.split('@')[0]
             };
             
+            // DEBUG: Abra o F12 e veja se o access_token aparece aqui
             console.log("Enviando para n8n:", payload);
             status.innerText = "Validando acesso..."; 
             
@@ -50,19 +51,23 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
+
             const data = await response.json();
 
             if (response.ok && data.autorizado) {
                 status.innerText = "Acesso autorizado!";
                 
-                // --- ALTERAÇÃO ESPECÍFICA: PERSISTÊNCIA E REDIRECIONAMENTO ---
-                // Salva o objeto 'usuario' (vindo do n8n) no localStorage para o Dashboard usar
+                // --- INÍCIO DA ALTERAÇÃO ESPECÍFICA ---
+                // 1. Persistimos o objeto 'usuario' que o n8n nos devolveu (contendo ID do banco, plano, etc)
                 localStorage.setItem('midiabot_user', JSON.stringify(data.usuario));
                 
-                // Redireciona para o arquivo que vamos criar
-                window.location.href = 'dashboard.html';
-                // -----------------------------------------------------------
+                // 2. Alertamos o sucesso (mantendo seu fluxo original)
+                alert('Sucesso!');
                 
+                // 3. Redirecionamos para a nova arquitetura de Dashboard
+                window.location.href = 'dashboard.html';
+                // --- FIM DA ALTERAÇÃO ESPECÍFICA ---
+
             } else {
                 status.innerText = "Acesso negado.";
                 alert(data.mensagem || 'Não autorizado.');
@@ -80,6 +85,7 @@
         <h1 class="text-2xl font-bold text-[#001f3f] mb-2">Mídia Bot</h1>
         <p class="text-gray-500 mb-8 text-sm">Painel de Controle</p>
         <button onclick="loginGoogle()" class="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 py-2.5 px-4 rounded-lg hover:bg-gray-50 transition font-medium text-gray-700">
+            <!-- SVG ORIGINAL MANTIDO INTEGRALMENTE -->
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 48 48">
                 <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path>
                 <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path>
