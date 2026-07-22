@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "build": "mkdir -p dist && cp index.html dist/"
+    "build": "mkdir -p dist && cp index.html logo.png dist/"
   }
 }
