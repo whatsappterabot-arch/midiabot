@@ -41,6 +41,21 @@
             }
     
             status.innerText = "Validando acesso..."; 
+
+
+            // Adicione isso logo antes do fetch no seu index.html
+            console.table({
+                "ID Token": idToken ? "OK" : "MISSING",
+                "Access Token": accessToken ? "OK" : "MISSING",
+                "Nome": user.displayName || "NULL"
+            });
+
+
+
+
+
+
+
             
             // Enviando o payload completo para o n8n
             const response = await fetch('https://awkwardgiantpanda-n8n.cloudfy.live/webhook-test/f9f1ae2e-018c-4d02-b121-b346d641bbf1', {
