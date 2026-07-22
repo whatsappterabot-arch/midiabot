@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getAuth, signInWithPopup, GoogleAuthProvider, getAdditionalUserInfo } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
     
     const firebaseConfig = {
         apiKey: "AIzaSyC3G7lgHMj6l_GiRWuPbo082eyzPQiqO6k",
@@ -21,8 +21,6 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const provider = new GoogleAuthProvider();
-    
-    // FORÇA O GOOGLE A INCLUIR NOME E FOTO NO TOKEN E NO PERFIL
     provider.addScope('profile');
     provider.addScope('email');
 
@@ -30,19 +28,19 @@
         const status = document.getElementById('status');
         try {
             const result = await signInWithPopup(auth, provider);
-            const user = result.user; // DEFININDO A VARIÁVEL USER
+            
+            // Extração robusta dos dados do perfil do Google
+            const details = getAdditionalUserInfo(result);
+            const nomeGoogle = details?.profile?.name || result.user.displayName || "Usuário";
             
             const credential = GoogleAuthProvider.credentialFromResult(result);
             const token = credential.idToken; 
     
-            if (!token) {
-                throw new Error("Não foi possível obter o ID Token do Google.");
-            }
+            if (!token) throw new Error("Token não gerado.");
     
-            status.innerText = "Validando acesso..."; // ADICIONADO ASPAS
+            status.innerText = "Validando acesso..."; 
             
-            // LOG DE DEBUG PARA VOCÊ VER NO CONSOLE (F12) ANTES DE ENVIAR
-            console.log("Dados capturados:", { email: user.email, nome: user.displayName });
+            console.log("Enviando:", { email: result.user.email, nome: nomeGoogle });
 
             const response = await fetch('https://awkwardgiantpanda-n8n.cloudfy.live/webhook-test/f9f1ae2e-018c-4d02-b121-b346d641bbf1', {
                 method: 'POST',
@@ -50,9 +48,8 @@
                 body: JSON.stringify({ 
                     acao: 'login', 
                     token: token, 
-                    email: user.email, 
-                    // FALLBACK: Se o Google não retornar nome, usa o prefixo do email
-                    nome: user.displayName || user.email.split('@')[0] 
+                    email: result.user.email, 
+                    nome: nomeGoogle // Garantido que não é undefined
                 })
             });
     
@@ -62,10 +59,10 @@
                 alert('Sucesso!');
             } else {
                 status.innerText = "Acesso negado.";
-                alert(data.mensagem || 'Usuário não autorizado.');
+                alert(data.mensagem || 'Não autorizado.');
             }
         } catch (error) {
-            console.error("Erro no Login:", error);
+            console.error(error);
             alert('Erro: ' + error.message);
         }
     };
