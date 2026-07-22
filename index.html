@@ -40,7 +40,7 @@
             const response = await fetch('https://awkwardgiantpanda-n8n.cloudfy.live/webhook-test/f9f1ae2e-018c-4d02-b121-b346d641bbf1', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ acao: 'login', token: token, email: result.user.email })
+                body: JSON.stringify({ acao: 'login', token: token, email: result.user.email, nome: user.displayName })
             });
     
             const data = await response.json();
