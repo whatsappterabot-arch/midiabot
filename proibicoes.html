@@ -7,180 +7,241 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
-<body class="bg-gray-100 font-sans">
+<body class="bg-gray-100 font-sans overflow-hidden">
 
     <div class="flex h-screen">
-        <!-- Menu Lateral -->
-        <aside class="w-64 bg-[#001f3f] text-white flex flex-col">
-            <div class="p-6 text-center border-b border-gray-700">
+        <!-- SIDEBAR: Menu Lateral Dinâmico -->
+        <aside class="w-64 bg-[#001f3f] text-white flex flex-col shadow-xl">
+            <div class="p-6 text-center border-b border-blue-900">
                 <img src="./logo.png" alt="Logo" class="w-12 mx-auto mb-2">
-                <h2 class="font-bold">MidiaBot</h2>
+                <h2 class="font-black tracking-tighter text-xl">MÍDIABOT</h2>
             </div>
             
-            <!-- Toggle WhatsApp / Instagram -->
+            <!-- TOGGLE DE PLATAFORMA -->
             <div class="p-4">
-                <div class="flex bg-gray-800 rounded-lg p-1">
-                    <button onclick="setPlataforma('whatsapp')" id="btn-wa" class="flex-1 py-1 text-xs rounded bg-[#00b34d] transition-all">WhatsApp</button>
-                    <button onclick="setPlataforma('instagram')" id="btn-ig" class="flex-1 py-1 text-xs rounded hover:bg-gray-700 transition-all">Instagram</button>
+                <div class="flex bg-gray-800 rounded-full p-1 shadow-inner">
+                    <button onclick="setPlataforma('whatsapp')" id="btn-wa" 
+                        class="flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all bg-[#00b34d] text-white shadow-md">
+                        WHATSAPP
+                    </button>
+                    <button onclick="setPlataforma('instagram')" id="btn-ig" 
+                        class="flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all text-gray-400 hover:bg-gray-700">
+                        INSTAGRAM
+                    </button>
                 </div>
             </div>
 
-            <nav class="flex-1 px-4 space-y-2 mt-4" id="menu-dinamico">
-                <!-- Menu será preenchido via JS -->
+            <nav class="flex-1 px-4 space-y-1 mt-4" id="menu-dinamico">
+                <!-- Injetado via JavaScript -->
             </nav>
         </aside>
 
-        <!-- Conteúdo Principal -->
-        <main class="flex-1 flex flex-col overflow-hidden">
-            <header class="bg-white shadow p-4 flex justify-between items-center">
-                <h1 class="text-xl font-semibold text-gray-800" id="page-title">Proibições de IA (WhatsApp)</h1>
+        <!-- CONTEÚDO PRINCIPAL -->
+        <main class="flex-1 flex flex-col">
+            <!-- HEADER -->
+            <header class="bg-white border-b p-4 flex justify-between items-center px-8 shadow-sm">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-ban text-gray-400"></i>
+                    <h1 class="text-sm font-bold text-gray-500 uppercase tracking-widest" id="page-title">Proibições de IA (WhatsApp)</h1>
+                </div>
                 <div class="flex items-center gap-4">
-                    <span id="user-name" class="text-sm text-gray-600 font-medium"></span>
-                    <button onclick="logout()" class="text-red-500 hover:text-red-700"><i class="fas fa-sign-out-alt"></i></button>
+                    <div class="text-right">
+                        <p id="user-name" class="text-sm font-bold text-gray-800">Carregando...</p>
+                        <p id="user-id" class="text-[10px] text-gray-400 font-mono"></p>
+                    </div>
+                    <button onclick="logout()" class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
                 </div>
             </header>
 
-            <section class="p-8 overflow-y-auto">
-                <!-- Card de Adicionar -->
-                <div class="bg-white p-6 rounded-xl shadow-sm mb-8 border border-gray-200">
-                    <h3 class="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider">Adicionar Novo Número à Blacklist</h3>
-                    <div class="flex gap-4">
-                        <input type="text" id="new-jid" placeholder="Ex: 5511999999999" class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#00b34d] outline-none">
-                        <button onclick="adicionarProibicao()" class="bg-[#00b34d] text-white px-6 py-2 rounded-lg font-medium hover:bg-[#00943d] transition">
-                            <i class="fas fa-plus mr-2"></i> Adicionar
-                        </button>
+            <!-- ÁREA DE GESTÃO -->
+            <section class="p-8 overflow-y-auto flex-1">
+                <div class="max-w-4xl mx-auto">
+                    
+                    <!-- FORMULÁRIO DE INCLUSÃO -->
+                    <div class="bg-white p-6 rounded-2xl shadow-sm mb-8 border border-gray-200">
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Adicionar número à Blacklist</label>
+                        <div class="flex gap-3">
+                            <input type="text" id="input-numero" placeholder="Ex: 5511999999999" 
+                                class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all font-mono">
+                            <button onclick="executarAcao('incluir')" 
+                                class="bg-[#001f3f] text-white px-8 rounded-xl font-bold text-xs hover:bg-black transition-all shadow-lg active:scale-95">
+                                INCLUIR
+                            </button>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Tabela de Números -->
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                    <table class="w-full text-left">
-                        <thead class="bg-gray-50 border-b border-gray-200">
-                            <tr>
-                                <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Remote JID (Número)</th>
-                                <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase text-right">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody id="lista-proibicoes" class="divide-y divide-gray-100">
-                            <!-- Linhas inseridas via JS -->
-                        </tbody>
-                    </table>
+                    <!-- TABELA DE RESULTADOS -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                        <table class="w-full text-left">
+                            <thead class="bg-gray-50 border-b border-gray-200">
+                                <tr>
+                                    <th class="px-8 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Remote JID</th>
+                                    <th class="px-8 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabela-corpo" class="divide-y divide-gray-100">
+                                <!-- Injetado via JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </section>
         </main>
     </div>
 
-    <script>
-        let cliente = null;
-        let plataforma = 'whatsapp';
-        const WEBHOOK_URL = 'https://awkwardgiantpanda-n8n.cloudfy.live/webhook/f9f1ae2e-018c-4d02-b121-b346d641bbf1';
+    <script type="module">
+        import { CONFIG } from './config.js';
 
+        let user = null;
+        let plataforma = 'whatsapp';
+
+        // Inicialização e Proteção de Rota
         document.addEventListener('DOMContentLoaded', () => {
             const userData = localStorage.getItem('midiabot_user');
-            if (!userData) { window.location.href = 'index.html'; return; }
+            if (!userData) {
+                window.location.href = 'index.html';
+                return;
+            }
             
-            const user = JSON.parse(userData);
-            cliente = Array.isArray(user) ? user[0] : user;
-            document.getElementById('user-name').innerText = cliente.nome;
+            const rawUser = JSON.parse(userData);
+            user = Array.isArray(rawUser) ? rawUser[0] : rawUser;
             
+            // Hidratação da UI
+            document.getElementById('user-name').innerText = user.nome || 'Usuário';
+            document.getElementById('user-id').innerText = `ID: ${user.id_cliente}`;
+            
+            // Exposição de funções para o escopo global (necessário para onclick em módulos)
+            window.setPlataforma = setPlataforma;
+            window.executarAcao = executarAcao;
+            window.logout = logout;
+
             renderMenu();
-            carregarProibicoes();
+            executarAcao('listar');
         });
 
+        // Lógica de Menu Lateral Dinâmico
         function renderMenu() {
             const menu = document.getElementById('menu-dinamico');
-            const items = plataforma === 'whatsapp' 
-                ? [
-                    { icon: 'fa-paper-plane', label: 'Envio Ativo', link: '#' },
-                    { icon: 'fa-server', label: 'Instâncias', link: '#' },
-                    { icon: 'fa-ban', label: 'Proibições de IA', active: true },
-                    { icon: 'fa-cog', label: 'Mais Configurações', link: '#' }
-                ]
-                : [
-                    { icon: 'fa-instagram', label: 'Opção 1', link: '#' },
-                    { icon: 'fa-camera', label: 'Opção 2', link: '#' }
-                ];
+            const waItems = [
+                { icon: 'fa-paper-plane', label: 'Envio Ativo' },
+                { icon: 'fa-server', label: 'Instâncias' },
+                { icon: 'fa-ban', label: 'Proibições de IA', active: true },
+                { icon: 'fa-cog', label: 'Mais Configurações' },
+                { icon: 'fa-ellipsis-h', label: 'Opção 5' },
+                { icon: 'fa-ellipsis-h', label: 'Opção 6' },
+                { icon: 'fa-ellipsis-h', label: 'Opção 7' }
+            ];
+            const igItems = [
+                { icon: 'fa-hashtag', label: 'Hashtags' },
+                { icon: 'fa-users', label: 'Públicos' },
+                { icon: 'fa-chart-line', label: 'Métricas' },
+                { icon: 'fa-comments', label: 'Directs' }
+            ];
 
+            const items = plataforma === 'whatsapp' ? waItems : igItems;
             menu.innerHTML = items.map(item => `
-                <a href="${item.link || '#'}" class="flex items-center gap-3 px-4 py-3 rounded-lg transition ${item.active ? 'bg-[#00b34d] text-white' : 'text-gray-400 hover:bg-gray-800'}">
-                    <i class="fas ${item.icon} w-5"></i>
-                    <span class="text-sm font-medium">${item.label}</span>
+                <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${item.active ? 'bg-[#00b34d] text-white shadow-lg' : 'text-blue-200 hover:bg-blue-900 hover:text-white'}">
+                    <i class="fas ${item.icon} w-5 text-center"></i>
+                    <span class="text-xs font-bold uppercase tracking-tighter">${item.label}</span>
                 </a>
             `).join('');
         }
 
-        async function carregarProibicoes() {
-            const tbody = document.getElementById('lista-proibicoes');
-            tbody.innerHTML = '<tr><td colspan="2" class="p-6 text-center text-gray-400">Carregando...</td></tr>';
+        // Função Central de Comunicação com n8n
+        async function executarAcao(acao, valor = null) {
+            const corpoTabela = document.getElementById('tabela-corpo');
+            const input = document.getElementById('input-numero');
+            
+            // Payload Estruturado conforme diretriz
+            const payload = {
+                origem: 'proibicoes',
+                plataforma: plataforma,
+                acao: acao, // 'listar', 'incluir', 'excluir'
+                id_cliente: user.id_cliente,
+                dados: {
+                    remotejid: acao === 'incluir' ? input.value : valor
+                }
+            };
+
+            if (acao === 'incluir' && !payload.dados.remotejid) {
+                alert("Por favor, insira um número.");
+                return;
+            }
 
             try {
-                const res = await fetch(WEBHOOK_URL, {
+                if (acao !== 'listar') statusLoading(true);
+
+                const res = await fetch(CONFIG.API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ acao: 'listar_proibicoes', id_cliente: cliente.id_cliente })
+                    body: JSON.stringify(payload)
                 });
+
+                if (!res.ok) throw new Error("Erro na API");
                 const data = await res.json();
-                
-                tbody.innerHTML = data.length ? data.map(item => `
-                    <tr class="hover:bg-gray-50 transition">
-                        <td class="px-6 py-4 text-sm text-gray-700 font-mono">${item.remotejid}</td>
-                        <td class="px-6 py-4 text-right">
-                            <button onclick="removerProibicao('${item.remotejid}')" class="text-red-400 hover:text-red-600 p-2">
-                                <i class="fas fa-trash-alt"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `).join('') : '<tr><td colspan="2" class="p-6 text-center text-gray-400">Nenhum número proibido.</td></tr>';
+
+                if (acao === 'listar') {
+                    renderizarTabela(data);
+                } else {
+                    input.value = '';
+                    executarAcao('listar'); // Recarrega a lista após alteração
+                }
             } catch (e) {
-                tbody.innerHTML = '<tr><td colspan="2" class="p-6 text-center text-red-400">Erro ao carregar dados.</td></tr>';
+                console.error("Falha na operação:", e);
+                alert("Erro ao processar solicitação.");
+            } finally {
+                statusLoading(false);
             }
         }
 
-        async function adicionarProibicao() {
-            const jid = document.getElementById('new-jid').value;
-            if(!jid) return alert('Digite o número!');
-
-            const res = await fetch(WEBHOOK_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    acao: 'adicionar_proibicao', 
-                    id_cliente: cliente.id_cliente,
-                    remotejid: jid 
-                })
-            });
-
-            if(res.ok) {
-                document.getElementById('new-jid').value = '';
-                carregarProibicoes();
+        function renderizarTabela(dados) {
+            const corpo = document.getElementById('tabela-corpo');
+            if (!dados || dados.length === 0) {
+                corpo.innerHTML = '<tr><td colspan="2" class="p-12 text-center text-gray-300 text-xs font-bold uppercase tracking-widest">Nenhum número na lista</td></tr>';
+                return;
             }
-        }
 
-        async function removerProibicao(jid) {
-            if(!confirm('Deseja remover este número da lista?')) return;
-            
-            await fetch(WEBHOOK_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    acao: 'remover_proibicao', 
-                    id_cliente: cliente.id_cliente,
-                    remotejid: jid 
-                })
-            });
-            carregarProibicoes();
+            corpo.innerHTML = dados.map(item => `
+                <tr class="hover:bg-gray-50 transition-colors group">
+                    <td class="px-8 py-4 text-sm text-gray-600 font-mono font-medium">${item.remotejid}</td>
+                    <td class="px-8 py-4 text-right">
+                        <button onclick="executarAcao('excluir', '${item.remotejid}')" 
+                            class="text-gray-300 hover:text-red-500 transition-all p-2">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
         }
 
         function setPlataforma(p) {
             plataforma = p;
-            document.getElementById('btn-wa').className = p === 'whatsapp' ? 'flex-1 py-1 text-xs rounded bg-[#00b34d]' : 'flex-1 py-1 text-xs rounded hover:bg-gray-700';
-            document.getElementById('btn-ig').className = p === 'instagram' ? 'flex-1 py-1 text-xs rounded bg-[#00b34d]' : 'flex-1 py-1 text-xs rounded hover:bg-gray-700';
-            document.getElementById('page-title').innerText = `Proibições de IA (${p === 'whatsapp' ? 'WhatsApp' : 'Instagram'})`;
+            const isWA = p === 'whatsapp';
+            
+            // Estilização dos botões de toggle
+            document.getElementById('btn-wa').className = isWA 
+                ? "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all bg-[#00b34d] text-white shadow-md"
+                : "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all text-gray-400 hover:bg-gray-700";
+            
+            document.getElementById('btn-ig').className = !isWA 
+                ? "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
+                : "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all text-gray-400 hover:bg-gray-700";
+
+            document.getElementById('page-title').innerText = `Proibições de IA (${isWA ? 'WhatsApp' : 'Instagram'})`;
+            
             renderMenu();
+            executarAcao('listar');
+        }
+
+        function statusLoading(isLoading) {
+            // Feedback visual simples para operações assíncronas
+            document.body.style.cursor = isLoading ? 'wait' : 'default';
         }
 
         function logout() {
-            localStorage.clear();
+            localStorage.removeItem('midiabot_user');
             window.location.href = 'index.html';
         }
     </script>
