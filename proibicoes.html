@@ -101,6 +101,8 @@
         document.addEventListener('DOMContentLoaded', () => {
             const userData = localStorage.getItem('user');
             if (!userData) {
+                const chaves = Object.keys(localStorage);
+                alert('Sessão não encontrada!\n\nChaves no localStorage: ' + (chaves.length ? chaves.join(', ') : 'NENHUMA'));
                 window.location.href = 'index.html';
                 return;
             }
