@@ -99,7 +99,7 @@
 
         // Inicialização e Proteção de Rota
         document.addEventListener('DOMContentLoaded', () => {
-            const userData = localStorage.getItem('midiabot_user');
+            const userData = localStorage.getItem('user');
             if (!userData) {
                 window.location.href = 'index.html';
                 return;
@@ -241,7 +241,7 @@
         }
 
         function logout() {
-            localStorage.removeItem('midiabot_user');
+            localStorage.removeItem('user');
             window.location.href = 'index.html';
         }
     </script>
