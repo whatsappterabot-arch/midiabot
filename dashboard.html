@@ -54,7 +54,7 @@
                     <p class="text-[10px] text-blue-300 uppercase tracking-widest mb-4 font-bold opacity-50 px-3">Gestão WhatsApp</p>
                     <a href="#" class="block p-3 rounded-lg hover:bg-[#00b34d] transition-all text-sm">Envio Ativo</a>
                     <a href="#" class="block p-3 rounded-lg hover:bg-[#00b34d] transition-all text-sm">Instâncias</a>
-                    <a href="proibicoes.html" class="block p-3 rounded-lg bg-[#00b34d] text-white transition-all text-sm font-bold">Proibições de IA</a>
+                    <a href="#" class="block p-3 rounded-lg hover:bg-[#00b34d] transition-all text-sm font-bold">Proibições de IA</a>
                     <a href="#" class="block p-3 rounded-lg hover:bg-[#00b34d] transition-all text-sm">Mais Configurações</a>
                     <a href="#" class="block p-3 rounded-lg hover:bg-[#00b34d] transition-all text-sm opacity-40 italic">Opção 5</a>
                     <a href="#" class="block p-3 rounded-lg hover:bg-[#00b34d] transition-all text-sm opacity-40 italic">Opção 6</a>
@@ -90,83 +90,65 @@
         </main>
     </div>
 
-    <script type="module">
-        import { CONFIG } from './config.js';
-    
-        // 1. HIDRATAÇÃO: Corrigido para ler 'user' (o que seu index.html grava)
+    <script>
+        // 1. HIDRATAÇÃO: Recupera os dados salvos no index.html
         document.addEventListener('DOMContentLoaded', () => {
-            const userData = localStorage.getItem('midiabot_user'); 
+            const userData = localStorage.getItem('midiabot_user');
+            console.log("Conteúdo do LocalStorage:", userData); // Debug
+
             if (userData && userData !== "undefined") {
                 try {
                     const user = JSON.parse(userData);
+                    // O n8n/Postgres envia um Array [{}]. Pegamos o primeiro índice:
                     const dados = Array.isArray(user) ? user[0] : user;
+                    
                     document.getElementById('user-name').innerText = dados.nome || dados.email || 'Usuário';
                 } catch (e) {
-                    console.error("Erro ao processar JSON:", e);
+                    console.error("Erro ao processar JSON do usuário:", e);
                 }
             } else {
-                // Se não encontrar o usuário, volta para o login
-                window.location.href = 'index.html';
+                console.error("Erro: midiabot_user não encontrado. Redirecionamento pausado para debug.");
+                // window.location.href = 'index.html'; // Comentado para você ver o console
             }
         });
-    
-        // 2. NOVA FUNÇÃO: Dispara o Webhook Geral (API_URL)
-        async function carregarProibicoes() {
-            const userData = localStorage.getItem('user');
-            const user = JSON.parse(userData);
-            const dadosUser = Array.isArray(user) ? user[0] : user;
-    
-            try {
-                const response = await fetch(CONFIG.API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        origem: 'dashboard_proibicoes',
-                        acao: 'listar',
-                        id_cliente: dadosUser.id_cliente 
-                    })
-                });
-                const data = await response.json();
-                console.log("Resposta do n8n:", data);
-                alert("Webhook Geral ativado!");
-            } catch (error) {
-                console.error("Erro no Webhook Geral:", error);
-            }
-        }
-    
-        // 3. SUA LÓGICA DE ESTADOS: Preservada exatamente como você enviou
+
+
+
+        
+
+        // 2. LOGICA DE ESTADOS: Alternância de Contexto
         function alternarCanal(canal) {
             const isWA = canal === 'whatsapp';
+            
+            // Elementos de Menu
             const menuWA = document.getElementById('menu-wa');
             const menuIG = document.getElementById('menu-ig');
+            
+            // Elementos de Botão (Toggle)
             const btnWA = document.getElementById('btn-wa');
             const btnIG = document.getElementById('btn-ig');
+            
+            // Título da View
             const viewTitle = document.getElementById('view-title');
-    
+
             if (isWA) {
                 menuWA.classList.remove('hidden');
                 menuIG.classList.add('hidden');
+                
                 btnWA.className = "flex-1 py-2 rounded-full text-xs font-bold z-10 transition-all text-white bg-[#00b34d] shadow-md";
                 btnIG.className = "flex-1 py-2 rounded-full text-xs font-bold z-10 transition-all text-gray-500 hover:bg-gray-300";
+                
                 viewTitle.innerText = "Painel WhatsApp";
             } else {
                 menuWA.classList.add('hidden');
                 menuIG.classList.remove('hidden');
+                
                 btnWA.className = "flex-1 py-2 rounded-full text-xs font-bold z-10 transition-all text-gray-500 hover:bg-gray-300";
                 btnIG.className = "flex-1 py-2 rounded-full text-xs font-bold z-10 transition-all text-white bg-gradient-to-r from-purple-500 to-pink-500 shadow-md";
+                
                 viewTitle.innerText = "Painel Instagram";
             }
         }
-    
-        // Necessário para que os botões no HTML continuem funcionando com type="module"
-        window.alternarCanal = alternarCanal;
-        window.carregarProibicoes = carregarProibicoes;
     </script>
-
-
-
-
-
-    
 </body>
 </html>
