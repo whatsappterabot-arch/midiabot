@@ -95,7 +95,7 @@
     
         // 1. HIDRATAÇÃO: Corrigido para ler 'user' (o que seu index.html grava)
         document.addEventListener('DOMContentLoaded', () => {
-            const userData = localStorage.getItem('user'); 
+            const userData = localStorage.getItem('midiabot_user'); 
             if (userData && userData !== "undefined") {
                 try {
                     const user = JSON.parse(userData);
