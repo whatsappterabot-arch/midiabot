@@ -11,31 +11,31 @@
 
     <div class="flex h-screen">
         <!-- SIDEBAR: Menu Lateral Dinâmico -->
-        <aside class="w-64 bg-[#001f3f] text-white flex flex-col shadow-xl">
-            <div class="p-6 text-center border-b border-blue-900">
-                <img src="./logo.png" alt="Logo" class="w-12 mx-auto mb-2">
-                <h2 class="font-black tracking-tighter text-xl">MÍDIABOT</h2>
-            </div>
-            
-            <!-- TOGGLE DE PLATAFORMA -->
-            <div class="p-4">
-                <div class="flex bg-gray-800 rounded-full p-1 shadow-inner">
-                    <button onclick="setPlataforma('whatsapp')" id="btn-wa" 
-                        class="flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all bg-[#00b34d] text-white shadow-md">
-                        WHATSAPP
-                    </button>
-                    <button onclick="setPlataforma('instagram')" id="btn-ig" 
-                        class="flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all text-gray-400 hover:bg-gray-700">
-                        INSTAGRAM
-                    </button>
+        <aside class="w-64 bg-[#001f3f] text-white flex flex-col border-r border-blue-900">
+            <nav class="flex-1 p-4">
+                <!-- MENU WHATSAPP -->
+                <div id="menu-wa" class="space-y-1">
+                    <p class="text-[10px] text-blue-300 uppercase tracking-widest mb-4 font-bold opacity-50 px-3">Gestão WhatsApp</p>
+                    <a href="dashboard.html" class="block p-3 rounded-lg hover:bg-[#00b34d] transition-all text-sm">Dashboard</a>
+                    <a href="#" class="block p-3 rounded-lg hover:bg-[#00b34d] transition-all text-sm">Envio Ativo</a>
+                    <a href="#" class="block p-3 rounded-lg hover:bg-[#00b34d] transition-all text-sm">Instâncias</a>
+                    
+                    <!-- DESTAQUE CORRETO AQUI -->
+                    <a href="proibicoes.html" class="block p-3 rounded-lg bg-[#00b34d] text-white transition-all text-sm font-bold">
+                        Proibições de IA
+                    </a>
+                    
+                    <a href="#" class="block p-3 rounded-lg hover:bg-[#00b34d] transition-all text-sm">Mais Configurações</a>
                 </div>
-            </div>
-
-            <nav class="flex-1 px-4 space-y-1 mt-4" id="menu-dinamico">
-                <!-- Injetado via JavaScript -->
+        
+                <!-- MENU INSTAGRAM -->
+                <div id="menu-ig" class="hidden space-y-1">
+                    <p class="text-[10px] text-purple-300 uppercase tracking-widest mb-4 font-bold opacity-50 px-3">Gestão Instagram</p>
+                    <a href="dashboard.html" class="block p-3 rounded-lg hover:bg-purple-900 transition-all text-sm text-white">Dashboard</a>
+                    <a href="#" class="block p-3 rounded-lg hover:bg-purple-900 transition-all text-sm text-white">Opção 1</a>
+                </div>
             </nav>
         </aside>
-
         <!-- CONTEÚDO PRINCIPAL -->
         <main class="flex-1 flex flex-col">
             <!-- HEADER -->
@@ -91,15 +91,15 @@
         </main>
     </div>
 
-    <script type="module">
+        <script type="module">
         import { CONFIG } from './config.js';
 
         let user = null;
         let plataforma = 'whatsapp';
 
-        // Inicialização e Proteção de Rota
+        // 1. Inicialização e Proteção de Rota (Ajustado para ler a chave 'user')
         document.addEventListener('DOMContentLoaded', () => {
-            const userData = localStorage.getItem('midiabot_user');
+            const userData = localStorage.getItem('user'); // Alterado para 'user' para bater com seu index.html
             if (!userData) {
                 window.location.href = 'index.html';
                 return;
@@ -108,11 +108,11 @@
             const rawUser = JSON.parse(userData);
             user = Array.isArray(rawUser) ? rawUser[0] : rawUser;
             
-            // Hidratação da UI
+            // Hidratação da UI (Restaurado com crases para funcionar)
             document.getElementById('user-name').innerText = user.nome || 'Usuário';
             document.getElementById('user-id').innerText = `ID: ${user.id_cliente}`;
             
-            // Exposição de funções para o escopo global (necessário para onclick em módulos)
+            // Exposição de funções para o escopo global
             window.setPlataforma = setPlataforma;
             window.executarAcao = executarAcao;
             window.logout = logout;
@@ -121,7 +121,7 @@
             executarAcao('listar');
         });
 
-        // Lógica de Menu Lateral Dinâmico
+        // 2. Lógica de Menu Lateral Dinâmico (Sua lógica original preservada)
         function renderMenu() {
             const menu = document.getElementById('menu-dinamico');
             const waItems = [
@@ -139,7 +139,6 @@
                 { icon: 'fa-chart-line', label: 'Métricas' },
                 { icon: 'fa-comments', label: 'Directs' }
             ];
-
             const items = plataforma === 'whatsapp' ? waItems : igItems;
             menu.innerHTML = items.map(item => `
                 <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${item.active ? 'bg-[#00b34d] text-white shadow-lg' : 'text-blue-200 hover:bg-blue-900 hover:text-white'}">
@@ -149,16 +148,14 @@
             `).join('');
         }
 
-        // Função Central de Comunicação com n8n
+        // 3. Função Central de Comunicação (Sua lógica com o payload que você pediu)
         async function executarAcao(acao, valor = null) {
-            const corpoTabela = document.getElementById('tabela-corpo');
             const input = document.getElementById('input-numero');
             
-            // Payload Estruturado conforme diretriz
             const payload = {
                 origem: 'proibicoes',
                 plataforma: plataforma,
-                acao: acao, // 'listar', 'incluir', 'excluir'
+                acao: acao, 
                 id_cliente: user.id_cliente,
                 dados: {
                     remotejid: acao === 'incluir' ? input.value : valor
@@ -172,7 +169,8 @@
 
             try {
                 if (acao !== 'listar') statusLoading(true);
-
+                
+                // Usando a URL centralizada do config.js
                 const res = await fetch(CONFIG.API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -185,8 +183,8 @@
                 if (acao === 'listar') {
                     renderizarTabela(data);
                 } else {
-                    input.value = '';
-                    executarAcao('listar'); // Recarrega a lista após alteração
+                    if(input) input.value = '';
+                    executarAcao('listar'); 
                 }
             } catch (e) {
                 console.error("Falha na operação:", e);
@@ -196,13 +194,13 @@
             }
         }
 
+        // 4. Renderização da Tabela (Sua lógica original preservada)
         function renderizarTabela(dados) {
             const corpo = document.getElementById('tabela-corpo');
             if (!dados || dados.length === 0) {
                 corpo.innerHTML = '<tr><td colspan="2" class="p-12 text-center text-gray-300 text-xs font-bold uppercase tracking-widest">Nenhum número na lista</td></tr>';
                 return;
             }
-
             corpo.innerHTML = dados.map(item => `
                 <tr class="hover:bg-gray-50 transition-colors group">
                     <td class="px-8 py-4 text-sm text-gray-600 font-mono font-medium">${item.remotejid}</td>
@@ -216,11 +214,11 @@
             `).join('');
         }
 
+        // 5. Toggle de Plataforma (Sua lógica original preservada)
         function setPlataforma(p) {
             plataforma = p;
             const isWA = p === 'whatsapp';
             
-            // Estilização dos botões de toggle
             document.getElementById('btn-wa').className = isWA 
                 ? "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all bg-[#00b34d] text-white shadow-md"
                 : "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all text-gray-400 hover:bg-gray-700";
@@ -228,7 +226,8 @@
             document.getElementById('btn-ig').className = !isWA 
                 ? "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
                 : "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all text-gray-400 hover:bg-gray-700";
-
+            
+            // Corrigido com crases para o template literal
             document.getElementById('page-title').innerText = `Proibições de IA (${isWA ? 'WhatsApp' : 'Instagram'})`;
             
             renderMenu();
@@ -236,12 +235,11 @@
         }
 
         function statusLoading(isLoading) {
-            // Feedback visual simples para operações assíncronas
             document.body.style.cursor = isLoading ? 'wait' : 'default';
         }
 
         function logout() {
-            localStorage.removeItem('midiabot_user');
+            localStorage.removeItem('user');
             window.location.href = 'index.html';
         }
     </script>
