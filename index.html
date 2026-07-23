@@ -54,15 +54,19 @@
             const data = await response.json();
 
             if (response.ok && data.autorizado) {
-                status.innerText = "Acesso autorizado!";
+               // 1. Mostra no console exatamente o que o n8n devolveu
+                console.log("DADOS VINDOS DO N8N:", data);
                 
-                // --- A ALTERAÇÃO QUE QUEBRA O LOOP ---
-                // Salva o objeto 'usuario' (que vem do n8n) no storage
+                // 2. Tenta gravar no storage
                 localStorage.setItem('midiabot_user', JSON.stringify(data.usuario));
                 
-                // Redireciona para o dashboard
-                window.location.href = 'dashboard.html';
-                // -------------------------------------
+                // 3. Verifica se gravou de fato
+                console.log("STORAGE APÓS GRAVAÇÃO:", localStorage.getItem('midiabot_user'));
+                
+                status.innerText = "Acesso autorizado! Verifique o Console (F12).";
+                
+                // COMENTAMOS o redirecionamento para a página não mudar e o log não sumir
+                // window.location.href = 'dashboard.html'; 
 
             } else {
                 status.innerText = "Acesso negado.";
