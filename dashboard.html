@@ -94,21 +94,21 @@
         // 1. HIDRATAÇÃO: Recupera os dados salvos no index.html
         document.addEventListener('DOMContentLoaded', () => {
             const userData = localStorage.getItem('midiabot_user');
-            console.log("Conteúdo do LocalStorage:", userData); // Debug
 
-            if (userData && userData !== "undefined") {
-                try {
-                    const user = JSON.parse(userData);
-                    // O n8n/Postgres envia um Array [{}]. Pegamos o primeiro índice:
-                    const dados = Array.isArray(user) ? user[0] : user;
-                    
-                    document.getElementById('user-name').innerText = dados.nome || dados.email || 'Usuário';
-                } catch (e) {
-                    console.error("Erro ao processar JSON do usuário:", e);
-                }
-            } else {
-                console.error("Erro: midiabot_user não encontrado. Redirecionamento pausado para debug.");
-                // window.location.href = 'index.html'; // Comentado para você ver o console
+            if (!userData || userData === "undefined") {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            try {
+                const user = JSON.parse(userData);
+                // O n8n/Postgres envia um Array [{}]. Pegamos o primeiro índice:
+                const dados = Array.isArray(user) ? user[0] : user;
+
+                document.getElementById('user-name').innerText = dados.nome || dados.email || 'Usuário';
+            } catch (e) {
+                console.error("Erro ao processar JSON do usuário:", e);
+                window.location.href = 'index.html';
             }
         });
 
