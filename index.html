@@ -22,7 +22,6 @@
     const provider = new GoogleAuthProvider();
     provider.addScope('profile');
     provider.addScope('email');
-
     window.loginGoogle = async () => {
         const status = document.getElementById('status');
         try {
@@ -45,32 +44,27 @@
             console.log("Enviando para n8n:", payload);
             status.innerText = "Validando acesso..."; 
             
-            const response = await fetch('https://awkwardgiantpanda-n8n.cloudfy.live/webhook/f9f1ae2e-018c-4d02-b121-b346d641bbf1', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            const data = await response.json();
-
-            if (response.ok && data.autorizado) {
-               // 1. Mostra no console exatamente o que o n8n devolveu
-                console.log("DADOS VINDOS DO N8N:", data);
+            try {
+                const response = await fetch('https://awkwardgiantpanda-n8n.cloudfy.live/webhook/f9f1ae2e-018c-4d02-b121-b346d641bbf1', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
                 
-                // 2. Tenta gravar no storage
-                localStorage.setItem('midiabot_user', JSON.stringify(data.usuario));
+                alert("ETAPA 1: O n8n respondeu."); 
                 
-                // 3. Verifica se gravou de fato
-                console.log("STORAGE APÓS GRAVAÇÃO:", localStorage.getItem('midiabot_user'));
+                const data = await response.json();
+                alert("ETAPA 2: Resposta convertida: " + JSON.stringify(data));
                 
-                status.innerText = "Acesso autorizado! Verifique o Console (F12).";
-                
-                // COMENTAMOS o redirecionamento para a página não mudar e o log não sumir
-                // window.location.href = 'dashboard.html'; 
-
-            } else {
-                status.innerText = "Acesso negado.";
-                alert(data.mensagem || 'Não autorizado.');
+                if (response.ok && data.autorizado) {
+                    localStorage.setItem('midiabot_user', JSON.stringify(data.usuario));
+                    alert("ETAPA 3: Dado gravado. Indo para o dashboard.");
+                    window.location.href = 'dashboard.html';
+                } else {
+                    alert("ETAPA 4: n8n negou acesso. Resposta: " + JSON.stringify(data));
+                }
+            } catch (error) {
+                alert("ETAPA 5: ERRO - " + error.message);
             }
         } catch (error) {
             console.error(error);
