@@ -51,11 +51,11 @@
 
                 const data = await response.json();
                 if (response.ok && data.autorizado) {
-                    // Armazena dados e troca a tela
+                    // Armazena os dados para o dashboard ler
                     localStorage.setItem('user', JSON.stringify(data.usuario));
-                    document.getElementById('login-screen').classList.add('hidden');
-                    document.getElementById('dashboard-screen').classList.remove('hidden');
-                    document.getElementById('user-name-display').innerText = data.usuario.nome || result.user.displayName;
+                    // Redireciona para o arquivo onde as funções de Proibição já estão prontas
+                    window.location.href = 'dashboard.html';
+
                 } else {
                     alert('Erro na autorização.');
                 }
