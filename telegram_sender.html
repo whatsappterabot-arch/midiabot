@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MidiaBot - Proibições de IA</title>
+    <title>MidiaBot - Conectores de Telegram</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
@@ -16,15 +16,15 @@
                 <img src="./logo.png" alt="Logo" class="w-12 mx-auto mb-2">
                 <h2 class="font-black tracking-tighter text-xl">MÍDIABOT</h2>
             </div>
-            
+
             <!-- TOGGLE DE PLATAFORMA -->
             <div class="p-4">
                 <div class="flex bg-gray-800 rounded-full p-1 shadow-inner">
-                    <button onclick="setPlataforma('whatsapp')" id="btn-wa" 
+                    <button onclick="setPlataforma('whatsapp')" id="btn-wa"
                         class="flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all bg-[#00b34d] text-white shadow-md">
                         WHATSAPP
                     </button>
-                    <button onclick="setPlataforma('instagram')" id="btn-ig" 
+                    <button onclick="setPlataforma('instagram')" id="btn-ig"
                         class="flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all text-gray-400 hover:bg-gray-700">
                         INSTAGRAM
                     </button>
@@ -41,8 +41,8 @@
             <!-- HEADER -->
             <header class="bg-white border-b p-4 flex justify-between items-center px-8 shadow-sm">
                 <div class="flex items-center gap-2">
-                    <i class="fas fa-ban text-gray-400"></i>
-                    <h1 class="text-sm font-bold text-gray-500 uppercase tracking-widest" id="page-title">Proibições de IA (WhatsApp)</h1>
+                    <i class="fas fa-paper-plane text-gray-400"></i>
+                    <h1 class="text-sm font-bold text-gray-500 uppercase tracking-widest" id="page-title">Conectores de Telegram (WhatsApp)</h1>
                 </div>
                 <div class="flex items-center gap-4">
                     <div class="text-right">
@@ -58,14 +58,16 @@
             <!-- ÁREA DE GESTÃO -->
             <section class="p-8 overflow-y-auto flex-1">
                 <div class="max-w-4xl mx-auto">
-                    
+
                     <!-- FORMULÁRIO DE INCLUSÃO -->
                     <div class="bg-white p-6 rounded-2xl shadow-sm mb-8 border border-gray-200">
-                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Adicionar número à Blacklist</label>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Adicionar conector</label>
                         <div class="flex gap-3">
-                            <input type="text" id="input-numero" placeholder="Ex: 5511999999999" 
+                            <input type="text" id="input-sender" placeholder="Sender (Ex: 5511999999999)"
                                 class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all font-mono">
-                            <button onclick="executarAcao('incluir')" 
+                            <input type="text" id="input-chatid" placeholder="Chat ID (Ex: 123456789)"
+                                class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all font-mono">
+                            <button onclick="executarAcao('incluir')"
                                 class="bg-[#001f3f] text-white px-8 rounded-xl font-bold text-xs hover:bg-black transition-all shadow-lg active:scale-95">
                                 INCLUIR
                             </button>
@@ -77,7 +79,8 @@
                         <table class="w-full text-left">
                             <thead class="bg-gray-50 border-b border-gray-200">
                                 <tr>
-                                    <th class="px-8 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Remote JID</th>
+                                    <th class="px-8 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Sender</th>
+                                    <th class="px-8 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Chat ID</th>
                                     <th class="px-8 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Ações</th>
                                 </tr>
                             </thead>
@@ -106,14 +109,14 @@
                 window.location.href = 'index.html';
                 return;
             }
-            
+
             const rawUser = JSON.parse(userData);
             user = Array.isArray(rawUser) ? rawUser[0] : rawUser;
-            
+
             // Hidratação da UI
             document.getElementById('user-name').innerText = user.nome || 'Usuário';
             document.getElementById('user-id').innerText = `ID: ${user.id_cliente}`;
-            
+
             // Exposição de funções para o escopo global (necessário para onclick em módulos)
             window.setPlataforma = setPlataforma;
             window.executarAcao = executarAcao;
@@ -129,8 +132,8 @@
             const waItems = [
                 { icon: 'fa-paper-plane', label: 'Envio Ativo' },
                 { icon: 'fa-server', label: 'Instâncias' },
-                { icon: 'fa-ban', label: 'Proibições de IA', active: true },
-                { icon: 'fa-paper-plane', label: 'Conectores de Telegram', href: 'telegram_sender.html' },
+                { icon: 'fa-ban', label: 'Proibições de IA', href: 'proibicoes.html' },
+                { icon: 'fa-paper-plane', label: 'Conectores de Telegram', active: true },
                 { icon: 'fa-cog', label: 'Mais Configurações' },
                 { icon: 'fa-ellipsis-h', label: 'Opção 6' },
                 { icon: 'fa-ellipsis-h', label: 'Opção 7' }
@@ -152,23 +155,24 @@
         }
 
         // Função Central de Comunicação com n8n
-        async function executarAcao(acao, valor = null) {
-            const corpoTabela = document.getElementById('tabela-corpo');
-            const input = document.getElementById('input-numero');
-            
+        async function executarAcao(acao, sender = null, chatId = null) {
+            const inputSender = document.getElementById('input-sender');
+            const inputChatId = document.getElementById('input-chatid');
+
             // Payload Estruturado conforme diretriz
             const payload = {
-                origem: 'proibicoes',
+                origem: 'conect_telegram',
                 plataforma: plataforma,
                 acao: acao, // 'listar', 'incluir', 'excluir'
                 id_cliente: user.id_cliente,
                 dados: {
-                    remotejid: acao === 'incluir' ? input.value : valor
+                    sender: acao === 'incluir' ? inputSender.value : sender,
+                    chat_id: acao === 'incluir' ? inputChatId.value : chatId
                 }
             };
 
-            if (acao === 'incluir' && !payload.dados.remotejid) {
-                alert("Por favor, insira um número.");
+            if (acao === 'incluir' && (!payload.dados.sender || !payload.dados.chat_id)) {
+                alert("Por favor, preencha o Sender e o Chat ID.");
                 return;
             }
 
@@ -187,7 +191,8 @@
                 if (acao === 'listar') {
                     renderizarTabela(data);
                 } else {
-                    input.value = '';
+                    inputSender.value = '';
+                    inputChatId.value = '';
                     executarAcao('listar'); // Recarrega a lista após alteração
                 }
             } catch (e) {
@@ -201,15 +206,16 @@
         function renderizarTabela(dados) {
             const corpo = document.getElementById('tabela-corpo');
             if (!dados || dados.length === 0) {
-                corpo.innerHTML = '<tr><td colspan="2" class="p-12 text-center text-gray-300 text-xs font-bold uppercase tracking-widest">Nenhum número na lista</td></tr>';
+                corpo.innerHTML = '<tr><td colspan="3" class="p-12 text-center text-gray-300 text-xs font-bold uppercase tracking-widest">Nenhum conector cadastrado</td></tr>';
                 return;
             }
 
             corpo.innerHTML = dados.map(item => `
                 <tr class="hover:bg-gray-50 transition-colors group">
-                    <td class="px-8 py-4 text-sm text-gray-600 font-mono font-medium">${item.remotejid}</td>
+                    <td class="px-8 py-4 text-sm text-gray-600 font-mono font-medium">${item.sender}</td>
+                    <td class="px-8 py-4 text-sm text-gray-600 font-mono font-medium">${item.chat_id}</td>
                     <td class="px-8 py-4 text-right">
-                        <button onclick="executarAcao('excluir', '${item.remotejid}')" 
+                        <button onclick="executarAcao('excluir', '${item.sender}', '${item.chat_id}')"
                             class="text-gray-300 hover:text-red-500 transition-all p-2">
                             <i class="fas fa-trash-alt"></i>
                         </button>
@@ -221,18 +227,18 @@
         function setPlataforma(p) {
             plataforma = p;
             const isWA = p === 'whatsapp';
-            
+
             // Estilização dos botões de toggle
-            document.getElementById('btn-wa').className = isWA 
+            document.getElementById('btn-wa').className = isWA
                 ? "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all bg-[#00b34d] text-white shadow-md"
                 : "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all text-gray-400 hover:bg-gray-700";
-            
-            document.getElementById('btn-ig').className = !isWA 
+
+            document.getElementById('btn-ig').className = !isWA
                 ? "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
                 : "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all text-gray-400 hover:bg-gray-700";
 
-            document.getElementById('page-title').innerText = `Proibições de IA (${isWA ? 'WhatsApp' : 'Instagram'})`;
-            
+            document.getElementById('page-title').innerText = `Conectores de Telegram (${isWA ? 'WhatsApp' : 'Instagram'})`;
+
             renderMenu();
             executarAcao('listar');
         }

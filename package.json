@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "build": "mkdir -p dist && cp index.html dashboard.html proibicoes.html config.js logo.png dist/"
+    "build": "mkdir -p dist && cp index.html dashboard.html proibicoes.html telegram_sender.html config.js logo.png dist/"
   }
 }
