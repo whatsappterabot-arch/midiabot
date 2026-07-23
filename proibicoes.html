@@ -32,7 +32,7 @@
             </div>
 
             <nav class="flex-1 px-4 space-y-1 mt-4" id="menu-dinamico">
-                <!-- Injetado via JavaScript -->
+                <!-- Injetado via Java -->
             </nav>
         </aside>
 
@@ -82,7 +82,7 @@
                                 </tr>
                             </thead>
                             <tbody id="tabela-corpo" class="divide-y divide-gray-100">
-                                <!-- Injetado via JavaScript -->
+                                <!-- Injetado via Java -->
                             </tbody>
                         </table>
                     </div>
@@ -100,7 +100,7 @@
         // Inicialização e Proteção de Rota
         document.addEventListener('DOMContentLoaded', () => {
             alert('SCRIPT RODOU!');  // ← adicione esta linha
-            const userData = localStorage.getItem('user');
+            const userData = localStorage.getItem('midiabot_user'');
             if (!userData) {
                 const chaves = Object.keys(localStorage);
                 alert('Sessão não encontrada!\n\nChaves no localStorage: ' + (chaves.length ? chaves.join(', ') : 'NENHUMA'));
