@@ -54,7 +54,7 @@
                     // 1. Salva com a chave 'midiabot_user' (que o dashboard.html espera)
                     localStorage.setItem('midiabot_user', JSON.stringify(data.usuario));
                     // 2. Pula para o arquivo do Dashboard
-                    window.location.href = 'dashboard.html';
+                     window.location.replace('dashboard.html');
                 } else {
                     alert('Erro na autorização.');
                 }
