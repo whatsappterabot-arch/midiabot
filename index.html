@@ -51,11 +51,11 @@
 
                 const data = await response.json();
                 if (response.ok && data.autorizado) {
-                    // Armazena dados e troca a tela
-                    localStorage.setItem('user', JSON.stringify(data.usuario));
-                    document.getElementById('login-screen').classList.add('hidden');
-                    document.getElementById('dashboard-screen').classList.remove('hidden');
-                    document.getElementById('user-name-display').innerText = data.usuario.nome || result.user.displayName;
+                        // 1. Salva com a chave que os outros arquivos esperam
+                    localStorage.setItem('midiabot_user', JSON.stringify(data.usuario));
+                    
+                    // 2. Sai do index e vai para o dashboard real
+                    window.location.href = 'dashboard.html';
                 } else {
                     alert('Erro na autorização.');
                 }
