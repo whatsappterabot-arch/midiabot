@@ -99,6 +99,7 @@
 
         // Inicialização e Proteção de Rota
         document.addEventListener('DOMContentLoaded', () => {
+            alert('SCRIPT RODOU!');  // ← adicione esta linha
             const userData = localStorage.getItem('user');
             if (!userData) {
                 const chaves = Object.keys(localStorage);
@@ -175,7 +176,7 @@
             try {
                 if (acao !== 'listar') statusLoading(true);
 
-                const res = await fetch(CONFIG.API_URL, {
+                const res = await fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
