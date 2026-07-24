@@ -4,7 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MidiaBot - Atribuição a Consultores</title>
+    <link rel="icon" type="image/png" href="./logo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] } } } };
+    </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body class="bg-gray-100 font-sans overflow-hidden">
@@ -99,7 +106,7 @@
     </div>
 
     <script type="module">
-        import { CONFIG } from "./config.js";
+        import { CONFIG, showToast } from "./config.js";
 
         const API_URL = CONFIG.API_URL;
 
@@ -192,7 +199,7 @@
                     lista.map(item => `<option value="${item.workflow_name}">${item.workflow_name}</option>`).join('');
             } catch (e) {
                 console.error("Falha ao carregar fluxos:", e);
-                alert("Erro ao processar solicitação.");
+                showToast("Erro ao processar solicitação.", "error");
             }
         }
 
@@ -219,7 +226,7 @@
                 document.getElementById('input-vendedor').value = config?.vendedor_escolhido ?? '';
             } catch (e) {
                 console.error("Falha ao carregar configuração:", e);
-                alert("Erro ao processar solicitação.");
+                showToast("Erro ao processar solicitação.", "error");
             }
         }
 
@@ -245,7 +252,7 @@
             const inputVendedor = document.getElementById('input-vendedor');
 
             if (!modoAutomatico && !inputVendedor.value) {
-                alert("Por favor, informe o número do vendedor.");
+                showToast("Por favor, informe o número do vendedor.", "warning");
                 return;
             }
 
@@ -255,10 +262,10 @@
                     sorteio: modoAutomatico ? 1 : 0,
                     vendedor_escolhido: inputVendedor.value ? parseInt(inputVendedor.value, 10) : null
                 });
-                alert("Configuração salva com sucesso.");
+                showToast("Configuração salva com sucesso.", "success");
             } catch (e) {
                 console.error("Falha ao salvar:", e);
-                alert("Erro ao processar solicitação.");
+                showToast("Erro ao processar solicitação.", "error");
             }
         }
 

@@ -4,7 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MidiaBot - Lista de Consultores</title>
+    <link rel="icon" type="image/png" href="./logo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] } } } };
+    </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body class="bg-gray-100 font-sans overflow-hidden">
@@ -76,7 +83,6 @@
                                     <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Cor</th>
                                     <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Nome</th>
                                     <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Ativo</th>
-                                    <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Telegram Color ID</th>
                                     <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Sender</th>
                                     <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Ações</th>
                                 </tr>
@@ -92,7 +98,7 @@
     </div>
 
     <script type="module">
-        import { CONFIG } from "./config.js";
+        import { CONFIG, showToast } from "./config.js";
 
         const API_URL = CONFIG.API_URL;
 
@@ -182,7 +188,7 @@
                     lista.map(item => `<option value="${item.workflow_name}">${item.workflow_name}</option>`).join('');
             } catch (e) {
                 console.error("Falha ao carregar fluxos:", e);
-                alert("Erro ao processar solicitação.");
+                showToast("Erro ao processar solicitação.", "error");
             }
         }
 
@@ -206,14 +212,14 @@
                 renderizarTabela(Array.isArray(data) ? data : []);
             } catch (e) {
                 console.error("Falha ao carregar consultores:", e);
-                alert("Erro ao processar solicitação.");
+                showToast("Erro ao processar solicitação.", "error");
             }
         }
 
         function renderizarTabela(dados) {
             const corpo = document.getElementById('tabela-corpo');
             if (!dados || dados.length === 0) {
-                corpo.innerHTML = '<tr><td colspan="6" class="p-12 text-center text-gray-300 text-xs font-bold uppercase tracking-widest">Nenhum consultor encontrado</td></tr>';
+                corpo.innerHTML = '<tr><td colspan="5" class="p-12 text-center text-gray-300 text-xs font-bold uppercase tracking-widest">Nenhum consultor encontrado</td></tr>';
                 return;
             }
 
@@ -228,7 +234,6 @@
                         <input type="checkbox" id="ativo-${item.id_vendedor}" ${item.ativo === 1 ? 'checked' : ''}
                             class="w-5 h-5 accent-[#00b34d] cursor-pointer">
                     </td>
-                    <td class="px-6 py-4 text-sm text-gray-500 font-mono">${item.telegram_color_id ?? ''}</td>
                     <td class="px-6 py-4">
                         <input type="text" id="sender-${item.id_vendedor}" value="${item.sender || ''}"
                             class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
@@ -256,10 +261,10 @@
                     ativo: inputAtivo.checked ? 1 : 0,
                     sender: inputSender.value
                 });
-                alert("Consultor salvo com sucesso.");
+                showToast("Consultor salvo com sucesso.", "success");
             } catch (e) {
                 console.error("Falha ao salvar consultor:", e);
-                alert("Erro ao processar solicitação.");
+                showToast("Erro ao processar solicitação.", "error");
             }
         }
 

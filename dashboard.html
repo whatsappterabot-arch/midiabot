@@ -4,8 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MídiaBot - Dashboard</title>
+    <link rel="icon" type="image/png" href="./logo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Tailwind CSS via CDN para agilidade no protótipo -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] } } } };
+    </script>
     <style>
         /* Classe de transição para suavizar a troca de temas */
         .transition-all { transition: all 0.3s ease-in-out; }
@@ -37,8 +44,8 @@
                 <p id="user-name" class="text-sm font-bold text-gray-800">Carregando...</p>
                 <p class="text-[10px] text-gray-400 uppercase tracking-widest">Painel de Gestão</p>
             </div>
-            <div class="w-10 h-10 bg-[#001f3f] rounded-full flex items-center justify-center text-white font-bold border-2 border-white shadow-sm">
-                MT
+            <div id="user-avatar" class="w-10 h-10 bg-[#001f3f] rounded-full flex items-center justify-center text-white font-bold border-2 border-white shadow-sm">
+                ?
             </div>
         </div>
     </header>
@@ -91,6 +98,15 @@
     </div>
 
     <script>
+        // Gera as iniciais do avatar a partir do nome (ou e-mail) do usuário
+        function gerarIniciais(texto) {
+            const partes = texto.trim().split(/\s+/);
+            const iniciais = partes.length > 1
+                ? partes[0][0] + partes[partes.length - 1][0]
+                : partes[0].slice(0, 2);
+            return iniciais.toUpperCase();
+        }
+
         // 1. HIDRATAÇÃO: Recupera os dados salvos no index.html
         document.addEventListener('DOMContentLoaded', () => {
             const userData = localStorage.getItem('midiabot_user');
@@ -106,6 +122,7 @@
                 const dados = Array.isArray(user) ? user[0] : user;
 
                 document.getElementById('user-name').innerText = dados.nome || dados.email || 'Usuário';
+                document.getElementById('user-avatar').innerText = gerarIniciais(dados.nome || dados.email || 'Usuário');
             } catch (e) {
                 console.error("Erro ao processar JSON do usuário:", e);
                 window.location.href = 'index.html';
