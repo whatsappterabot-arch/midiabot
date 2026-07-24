@@ -400,7 +400,7 @@
 
         async function excluirExcecao(id) {
             try {
-                const data = await chamarApi('excluir_excecao', { id: id });
+                const data = await chamarApi('excluir_excecao', { id: id, workflow_name: workflowSelecionado });
 
                 if (Array.isArray(data)) {
                     renderizarExcecoes(data);
