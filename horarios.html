@@ -368,8 +368,8 @@
             const inputFim = document.getElementById('excecao-fim');
             const inputDescricao = document.getElementById('excecao-descricao');
 
-            if (!inputData.value || !inputInicio.value || !inputFim.value) {
-                showToast("Preencha data, início e fim.", "warning");
+            if (!inputData.value) {
+                showToast("Preencha a data.", "warning");
                 return;
             }
 
@@ -377,9 +377,9 @@
                 const data = await chamarApi('incluir_excecao', {
                     workflow_name: workflowSelecionado,
                     data: inputData.value,
-                    hora_inicio: inputInicio.value,
-                    hora_fim: inputFim.value,
-                    descricao: inputDescricao.value
+                    hora_inicio: inputInicio.value || null,
+                    hora_fim: inputFim.value || null,
+                    descricao: inputDescricao.value || null
                 });
 
                 inputData.value = '';
