@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MidiaBot - Horários</title>
+    <link rel="icon" type="image/png" href="./logo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] } } } };
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-gray-100 font-sans overflow-hidden">
+
+    <div class="flex h-screen">
+        <!-- SIDEBAR: Menu Lateral Dinâmico -->
+        <aside class="w-64 bg-[#001f3f] text-white flex flex-col shadow-xl">
+            <div class="p-6 text-center border-b border-blue-900">
+                <img src="./logo.png" alt="Logo" class="w-12 mx-auto mb-2">
+                <h2 class="font-black tracking-tighter text-xl">MÍDIABOT</h2>
+            </div>
+
+            <!-- TOGGLE DE PLATAFORMA -->
+            <div class="p-4">
+                <div class="flex bg-gray-800 rounded-full p-1 shadow-inner">
+                    <button onclick="setPlataforma('whatsapp')" id="btn-wa"
+                        class="flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all bg-[#00b34d] text-white shadow-md">
+                        WHATSAPP
+                    </button>
+                    <button onclick="setPlataforma('instagram')" id="btn-ig"
+                        class="flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all text-gray-400 hover:bg-gray-700">
+                        INSTAGRAM
+                    </button>
+                </div>
+            </div>
+
+            <nav class="flex-1 px-4 space-y-1 mt-4" id="menu-dinamico">
+                <!-- Injetado via Java -->
+            </nav>
+        </aside>
+
+        <!-- CONTEÚDO PRINCIPAL -->
+        <main class="flex-1 flex flex-col">
+            <!-- HEADER -->
+            <header class="bg-white border-b p-4 flex justify-between items-center px-8 shadow-sm">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-clock text-gray-400"></i>
+                    <h1 class="text-sm font-bold text-gray-500 uppercase tracking-widest" id="page-title">Horários (WhatsApp)</h1>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="text-right">
+                        <p id="user-name" class="text-sm font-bold text-gray-800">Carregando...</p>
+                        <p id="user-id" class="text-[10px] text-gray-400 font-mono"></p>
+                    </div>
+                    <button onclick="logout()" class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- ÁREA DE GESTÃO -->
+            <section class="p-8 overflow-y-auto flex-1">
+                <div class="max-w-4xl mx-auto">
+
+                    <!-- SELEÇÃO DE FLUXO -->
+                    <div class="bg-white p-6 rounded-2xl shadow-sm mb-8 border border-gray-200">
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Fluxo</label>
+                        <select id="select-workflow" onchange="onWorkflowChange()"
+                            class="w-full max-w-md bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                            <option value="">Selecione um fluxo...</option>
+                        </select>
+                    </div>
+
+                    <div id="painel-conteudo" class="hidden space-y-8">
+
+                        <!-- HORÁRIO DE TRABALHO -->
+                        <div>
+                            <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Horário de Trabalho</h3>
+                            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                                <table class="w-full text-left">
+                                    <thead class="bg-gray-50 border-b border-gray-200">
+                                        <tr>
+                                            <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Dia</th>
+                                            <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Início</th>
+                                            <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Fim</th>
+                                            <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tabela-horarios" class="divide-y divide-gray-100">
+                                        <!-- Injetado via Java -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- EXCEÇÕES DE HORÁRIO -->
+                        <div>
+                            <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Exceções de Horário</h3>
+
+                            <div class="bg-white p-6 rounded-2xl shadow-sm mb-4 border border-gray-200">
+                                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                                    <div>
+                                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Data</label>
+                                        <input type="date" id="excecao-data"
+                                            class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Início</label>
+                                        <input type="time" id="excecao-inicio"
+                                            class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Fim</label>
+                                        <input type="time" id="excecao-fim"
+                                            class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Descrição</label>
+                                        <input type="text" id="excecao-descricao" placeholder="Ex: Feriado"
+                                            class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                                    </div>
+                                </div>
+                                <button onclick="incluirExcecao()"
+                                    class="bg-[#001f3f] text-white px-8 py-2.5 rounded-xl font-bold text-xs hover:bg-black transition-all shadow-lg active:scale-95">
+                                    INCLUIR
+                                </button>
+                            </div>
+
+                            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                                <table class="w-full text-left">
+                                    <thead class="bg-gray-50 border-b border-gray-200">
+                                        <tr>
+                                            <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Data</th>
+                                            <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Início</th>
+                                            <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Fim</th>
+                                            <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Descrição</th>
+                                            <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tabela-excecoes" class="divide-y divide-gray-100">
+                                        <!-- Injetado via Java -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script type="module">
+        import { CONFIG, showToast } from "./config.js";
+
+        const API_URL = CONFIG.API_URL;
+
+        const DIAS_SEMANA = {
+            1: 'Domingo', 2: 'Segunda-feira', 3: 'Terça-feira', 4: 'Quarta-feira',
+            5: 'Quinta-feira', 6: 'Sexta-feira', 7: 'Sábado'
+        };
+
+        let user = null;
+        let plataforma = 'whatsapp';
+        let workflowSelecionado = '';
+
+        // Inicialização e Proteção de Rota
+        document.addEventListener('DOMContentLoaded', () => {
+            const userData = localStorage.getItem('midiabot_user');
+            if (!userData) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const rawUser = JSON.parse(userData);
+            user = Array.isArray(rawUser) ? rawUser[0] : rawUser;
+
+            document.getElementById('user-name').innerText = user.nome || 'Usuário';
+            document.getElementById('user-id').innerText = `ID: ${user.id_cliente}`;
+
+            window.setPlataforma = setPlataforma;
+            window.onWorkflowChange = onWorkflowChange;
+            window.salvarHorario = salvarHorario;
+            window.incluirExcecao = incluirExcecao;
+            window.excluirExcecao = excluirExcecao;
+            window.logout = logout;
+
+            renderMenu();
+            carregarWorkflows();
+        });
+
+        // Lógica de Menu Lateral Dinâmico
+        function renderMenu() {
+            const menu = document.getElementById('menu-dinamico');
+            const waItems = [
+                { icon: 'fa-paper-plane', label: 'Envio Ativo' },
+                { icon: 'fa-server', label: 'Instâncias' },
+                { icon: 'fa-ban', label: 'Proibições de IA', href: 'proibicoes.html' },
+                { icon: 'fa-paper-plane', label: 'Conectores de Telegram', href: 'telegram_sender.html' },
+                { icon: 'fa-user-tie', label: 'Atribuição a Consultores', href: 'consultores.html' },
+                { icon: 'fa-users', label: 'Lista de Consultores', href: 'vendedores.html' },
+                { icon: 'fa-clock', label: 'Horários', active: true }
+            ];
+            const igItems = [
+                { icon: 'fa-hashtag', label: 'Hashtags' },
+                { icon: 'fa-users', label: 'Públicos' },
+                { icon: 'fa-chart-line', label: 'Métricas' },
+                { icon: 'fa-comments', label: 'Directs' }
+            ];
+
+            const items = plataforma === 'whatsapp' ? waItems : igItems;
+            menu.innerHTML = items.map(item => `
+                <a href="${item.href || '#'}" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${item.active ? 'bg-[#00b34d] text-white shadow-lg' : 'text-blue-200 hover:bg-blue-900 hover:text-white'}">
+                    <i class="fas ${item.icon} w-5 text-center"></i>
+                    <span class="text-xs font-bold uppercase tracking-tighter">${item.label}</span>
+                </a>
+            `).join('');
+        }
+
+        // Função Central de Comunicação com n8n
+        async function chamarApi(acao, dadosExtra) {
+            const payload = {
+                origem: 'horarios',
+                plataforma: plataforma,
+                acao: acao,
+                id_cliente: user.id_cliente,
+                dados: dadosExtra
+            };
+
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) throw new Error("Erro na API");
+            return await res.json();
+        }
+
+        async function carregarWorkflows() {
+            try {
+                const data = await chamarApi('listar_workflows', {});
+                const select = document.getElementById('select-workflow');
+                const lista = Array.isArray(data) ? data : [];
+                select.innerHTML = '<option value="">Selecione um fluxo...</option>' +
+                    lista.map(item => `<option value="${item.workflow_name}">${item.workflow_name}</option>`).join('');
+            } catch (e) {
+                console.error("Falha ao carregar fluxos:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
+        function onWorkflowChange() {
+            const select = document.getElementById('select-workflow');
+            workflowSelecionado = select.value;
+            const painel = document.getElementById('painel-conteudo');
+
+            if (!workflowSelecionado) {
+                painel.classList.add('hidden');
+                return;
+            }
+
+            painel.classList.remove('hidden');
+            carregarHorarios();
+            carregarExcecoes();
+        }
+
+        // HORÁRIO DE TRABALHO
+        async function carregarHorarios() {
+            try {
+                const data = await chamarApi('listar_horarios', { workflow_name: workflowSelecionado });
+                renderizarHorarios(Array.isArray(data) ? data : []);
+            } catch (e) {
+                console.error("Falha ao carregar horários:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
+        function renderizarHorarios(dados) {
+            const corpo = document.getElementById('tabela-horarios');
+            if (!dados || dados.length === 0) {
+                corpo.innerHTML = '<tr><td colspan="4" class="p-12 text-center text-gray-300 text-xs font-bold uppercase tracking-widest">Nenhum horário cadastrado</td></tr>';
+                return;
+            }
+
+            const ordenados = [...dados].sort((a, b) => a.dia_semana - b.dia_semana);
+
+            corpo.innerHTML = ordenados.map(item => `
+                <tr class="hover:bg-gray-50 transition-colors group">
+                    <td class="px-6 py-4 text-sm text-gray-700 font-medium">${DIAS_SEMANA[item.dia_semana] || item.dia_semana}</td>
+                    <td class="px-6 py-4">
+                        <input type="time" id="inicio-${item.dia_semana}" value="${item.hora_inicio || ''}"
+                            class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                    </td>
+                    <td class="px-6 py-4">
+                        <input type="time" id="fim-${item.dia_semana}" value="${item.hora_fim || ''}"
+                            class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <button onclick="salvarHorario(${item.dia_semana})"
+                            class="bg-[#001f3f] text-white px-4 py-2 rounded-lg font-bold text-xs hover:bg-black transition-all shadow active:scale-95">
+                            SALVAR
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function salvarHorario(diaSemana) {
+            const inputInicio = document.getElementById(`inicio-${diaSemana}`);
+            const inputFim = document.getElementById(`fim-${diaSemana}`);
+
+            try {
+                await chamarApi('salvar_horario', {
+                    workflow_name: workflowSelecionado,
+                    dia_semana: diaSemana,
+                    hora_inicio: inputInicio.value,
+                    hora_fim: inputFim.value
+                });
+                showToast("Horário salvo com sucesso.", "success");
+            } catch (e) {
+                console.error("Falha ao salvar horário:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
+        // EXCEÇÕES DE HORÁRIO
+        async function carregarExcecoes() {
+            try {
+                const data = await chamarApi('listar_excecoes', { workflow_name: workflowSelecionado });
+                renderizarExcecoes(Array.isArray(data) ? data : []);
+            } catch (e) {
+                console.error("Falha ao carregar exceções:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
+        function renderizarExcecoes(dados) {
+            const corpo = document.getElementById('tabela-excecoes');
+            if (!dados || dados.length === 0) {
+                corpo.innerHTML = '<tr><td colspan="5" class="p-12 text-center text-gray-300 text-xs font-bold uppercase tracking-widest">Nenhuma exceção cadastrada</td></tr>';
+                return;
+            }
+
+            corpo.innerHTML = dados.map(item => `
+                <tr class="hover:bg-gray-50 transition-colors group">
+                    <td class="px-6 py-4 text-sm text-gray-600 font-mono">${item.data}</td>
+                    <td class="px-6 py-4 text-sm text-gray-600 font-mono">${item.hora_inicio}</td>
+                    <td class="px-6 py-4 text-sm text-gray-600 font-mono">${item.hora_fim}</td>
+                    <td class="px-6 py-4 text-sm text-gray-600">${item.descricao ?? ''}</td>
+                    <td class="px-6 py-4 text-right">
+                        <button onclick="excluirExcecao(${item.id})"
+                            class="text-gray-300 hover:text-red-500 transition-all p-2">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function incluirExcecao() {
+            const inputData = document.getElementById('excecao-data');
+            const inputInicio = document.getElementById('excecao-inicio');
+            const inputFim = document.getElementById('excecao-fim');
+            const inputDescricao = document.getElementById('excecao-descricao');
+
+            if (!inputData.value || !inputInicio.value || !inputFim.value) {
+                showToast("Preencha data, início e fim.", "warning");
+                return;
+            }
+
+            try {
+                const data = await chamarApi('incluir_excecao', {
+                    workflow_name: workflowSelecionado,
+                    data: inputData.value,
+                    hora_inicio: inputInicio.value,
+                    hora_fim: inputFim.value,
+                    descricao: inputDescricao.value
+                });
+
+                inputData.value = '';
+                inputInicio.value = '';
+                inputFim.value = '';
+                inputDescricao.value = '';
+
+                if (Array.isArray(data)) {
+                    renderizarExcecoes(data);
+                } else {
+                    carregarExcecoes();
+                }
+            } catch (e) {
+                console.error("Falha ao incluir exceção:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
+        async function excluirExcecao(id) {
+            try {
+                const data = await chamarApi('excluir_excecao', { id: id });
+
+                if (Array.isArray(data)) {
+                    renderizarExcecoes(data);
+                } else {
+                    carregarExcecoes();
+                }
+            } catch (e) {
+                console.error("Falha ao excluir exceção:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
+        function setPlataforma(p) {
+            plataforma = p;
+            const isWA = p === 'whatsapp';
+
+            document.getElementById('btn-wa').className = isWA
+                ? "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all bg-[#00b34d] text-white shadow-md"
+                : "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all text-gray-400 hover:bg-gray-700";
+
+            document.getElementById('btn-ig').className = !isWA
+                ? "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
+                : "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all text-gray-400 hover:bg-gray-700";
+
+            document.getElementById('page-title').innerText = `Horários (${isWA ? 'WhatsApp' : 'Instagram'})`;
+
+            renderMenu();
+        }
+
+        function logout() {
+            localStorage.removeItem('midiabot_user');
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>
