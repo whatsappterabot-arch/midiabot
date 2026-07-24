@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MidiaBot - Conectores de Telegram</title>
+    <title>MidiaBot - Lista de Consultores</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
@@ -41,8 +41,8 @@
             <!-- HEADER -->
             <header class="bg-white border-b p-4 flex justify-between items-center px-8 shadow-sm">
                 <div class="flex items-center gap-2">
-                    <i class="fas fa-paper-plane text-gray-400"></i>
-                    <h1 class="text-sm font-bold text-gray-500 uppercase tracking-widest" id="page-title">Conectores de Telegram (WhatsApp)</h1>
+                    <i class="fas fa-users text-gray-400"></i>
+                    <h1 class="text-sm font-bold text-gray-500 uppercase tracking-widest" id="page-title">Lista de Consultores (WhatsApp)</h1>
                 </div>
                 <div class="flex items-center gap-4">
                     <div class="text-right">
@@ -57,31 +57,28 @@
 
             <!-- ÁREA DE GESTÃO -->
             <section class="p-8 overflow-y-auto flex-1">
-                <div class="max-w-4xl mx-auto">
+                <div class="max-w-5xl mx-auto">
 
-                    <!-- FORMULÁRIO DE INCLUSÃO -->
+                    <!-- SELEÇÃO DE FLUXO -->
                     <div class="bg-white p-6 rounded-2xl shadow-sm mb-8 border border-gray-200">
-                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Adicionar conector</label>
-                        <div class="flex gap-3">
-                            <input type="text" id="input-sender" placeholder="Sender (Ex: 5511999999999)"
-                                class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all font-mono">
-                            <input type="text" id="input-chatid" placeholder="Chat ID (Ex: 123456789)"
-                                class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all font-mono">
-                            <button onclick="executarAcao('incluir')"
-                                class="bg-[#001f3f] text-white px-8 rounded-xl font-bold text-xs hover:bg-black transition-all shadow-lg active:scale-95">
-                                INCLUIR
-                            </button>
-                        </div>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Fluxo</label>
+                        <select id="select-workflow" onchange="onWorkflowChange()"
+                            class="w-full max-w-md bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                            <option value="">Selecione um fluxo...</option>
+                        </select>
                     </div>
 
-                    <!-- TABELA DE RESULTADOS -->
-                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                    <!-- TABELA DE CONSULTORES -->
+                    <div id="painel-tabela" class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hidden">
                         <table class="w-full text-left">
                             <thead class="bg-gray-50 border-b border-gray-200">
                                 <tr>
-                                    <th class="px-8 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Sender</th>
-                                    <th class="px-8 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Chat ID</th>
-                                    <th class="px-8 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Ações</th>
+                                    <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Cor</th>
+                                    <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Nome</th>
+                                    <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Ativo</th>
+                                    <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Telegram Color ID</th>
+                                    <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Sender</th>
+                                    <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Ações</th>
                                 </tr>
                             </thead>
                             <tbody id="tabela-corpo" class="divide-y divide-gray-100">
@@ -101,6 +98,7 @@
 
         let user = null;
         let plataforma = 'whatsapp';
+        let workflowSelecionado = '';
 
         // Inicialização e Proteção de Rota
         document.addEventListener('DOMContentLoaded', () => {
@@ -119,11 +117,12 @@
 
             // Exposição de funções para o escopo global (necessário para onclick em módulos)
             window.setPlataforma = setPlataforma;
-            window.executarAcao = executarAcao;
+            window.onWorkflowChange = onWorkflowChange;
+            window.salvarVendedor = salvarVendedor;
             window.logout = logout;
 
             renderMenu();
-            executarAcao('listar');
+            carregarWorkflows();
         });
 
         // Lógica de Menu Lateral Dinâmico
@@ -133,9 +132,9 @@
                 { icon: 'fa-paper-plane', label: 'Envio Ativo' },
                 { icon: 'fa-server', label: 'Instâncias' },
                 { icon: 'fa-ban', label: 'Proibições de IA', href: 'proibicoes.html' },
-                { icon: 'fa-paper-plane', label: 'Conectores de Telegram', active: true },
+                { icon: 'fa-paper-plane', label: 'Conectores de Telegram', href: 'telegram_sender.html' },
                 { icon: 'fa-user-tie', label: 'Atribuição a Consultores', href: 'consultores.html' },
-                { icon: 'fa-users', label: 'Lista de Consultores', href: 'vendedores.html' },
+                { icon: 'fa-users', label: 'Lista de Consultores', active: true },
                 { icon: 'fa-ellipsis-h', label: 'Opção 7' }
             ];
             const igItems = [
@@ -155,84 +154,114 @@
         }
 
         // Função Central de Comunicação com n8n
-        async function executarAcao(acao, sender = null, chatId = null) {
-            const inputSender = document.getElementById('input-sender');
-            const inputChatId = document.getElementById('input-chatid');
-
-            // Payload Estruturado conforme diretriz
+        async function chamarApi(acao, dadosExtra) {
             const payload = {
-                origem: 'conect_telegram',
+                origem: 'vendedores',
                 plataforma: plataforma,
-                acao: acao, // 'listar', 'incluir', 'excluir'
+                acao: acao, // 'listar_workflows', 'listar', 'salvar'
                 id_cliente: user.id_cliente,
-                dados: {
-                    sender: acao === 'incluir' ? inputSender.value : sender,
-                    chat_id: acao === 'incluir' ? inputChatId.value : chatId
-                }
+                dados: dadosExtra
             };
 
-            if (acao === 'incluir' && (!payload.dados.sender || !payload.dados.chat_id)) {
-                alert("Por favor, preencha o Sender e o Chat ID.");
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) throw new Error("Erro na API");
+            return await res.json();
+        }
+
+        async function carregarWorkflows() {
+            try {
+                const data = await chamarApi('listar_workflows', {});
+                const select = document.getElementById('select-workflow');
+                const lista = Array.isArray(data) ? data : [];
+                select.innerHTML = '<option value="">Selecione um fluxo...</option>' +
+                    lista.map(item => `<option value="${item.workflow_name}">${item.workflow_name}</option>`).join('');
+            } catch (e) {
+                console.error("Falha ao carregar fluxos:", e);
+                alert("Erro ao processar solicitação.");
+            }
+        }
+
+        function onWorkflowChange() {
+            const select = document.getElementById('select-workflow');
+            workflowSelecionado = select.value;
+            const painel = document.getElementById('painel-tabela');
+
+            if (!workflowSelecionado) {
+                painel.classList.add('hidden');
                 return;
             }
 
+            painel.classList.remove('hidden');
+            carregarVendedores();
+        }
+
+        async function carregarVendedores() {
             try {
-                if (acao !== 'listar') statusLoading(true);
-
-                const res = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!res.ok) throw new Error("Erro na API");
-                const data = await res.json();
-
-                if (acao === 'incluir') {
-                    inputSender.value = '';
-                    inputChatId.value = '';
-                }
-
-                if (Array.isArray(data)) {
-                    // A resposta já veio com a lista atualizada (ex.: o fluxo de excluir termina com um SELECT)
-                    renderizarTabela(data);
-                } else if (acao !== 'listar') {
-                    executarAcao('listar');
-                }
+                const data = await chamarApi('listar', { workflow_name: workflowSelecionado });
+                renderizarTabela(Array.isArray(data) ? data : []);
             } catch (e) {
-                console.error("Falha na operação:", e);
+                console.error("Falha ao carregar consultores:", e);
                 alert("Erro ao processar solicitação.");
-            } finally {
-                statusLoading(false);
             }
         }
 
         function renderizarTabela(dados) {
             const corpo = document.getElementById('tabela-corpo');
             if (!dados || dados.length === 0) {
-                corpo.innerHTML = '<tr><td colspan="3" class="p-12 text-center text-gray-300 text-xs font-bold uppercase tracking-widest">Nenhum conector cadastrado</td></tr>';
+                corpo.innerHTML = '<tr><td colspan="6" class="p-12 text-center text-gray-300 text-xs font-bold uppercase tracking-widest">Nenhum consultor encontrado</td></tr>';
                 return;
             }
 
             corpo.innerHTML = dados.map(item => `
                 <tr class="hover:bg-gray-50 transition-colors group">
-                    <td class="px-8 py-4 text-sm text-gray-600 font-mono font-medium">${item.sender}</td>
-                    <td class="px-8 py-4 text-sm text-gray-600 font-mono font-medium">${item.chat_id}</td>
-                    <td class="px-8 py-4 text-right">
-                        <button onclick="executarAcao('excluir', '${item.sender}', '${item.chat_id}')"
-                            class="text-gray-300 hover:text-red-500 transition-all p-2">
-                            <i class="fas fa-trash-alt"></i>
+                    <td class="px-6 py-4 text-center text-lg">${item.cor_emoji || ''}</td>
+                    <td class="px-6 py-4">
+                        <input type="text" id="nome-${item.id_vendedor}" value="${item.nome_vendedor || ''}"
+                            class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        <input type="checkbox" id="ativo-${item.id_vendedor}" ${item.ativo === 1 ? 'checked' : ''}
+                            class="w-5 h-5 accent-[#00b34d] cursor-pointer">
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-500 font-mono">${item.telegram_color_id ?? ''}</td>
+                    <td class="px-6 py-4 text-sm text-gray-500 font-mono">${item.sender ?? ''}</td>
+                    <td class="px-6 py-4 text-right">
+                        <button onclick="salvarVendedor(${item.id_vendedor})"
+                            class="bg-[#001f3f] text-white px-4 py-2 rounded-lg font-bold text-xs hover:bg-black transition-all shadow active:scale-95">
+                            SALVAR
                         </button>
                     </td>
                 </tr>
             `).join('');
         }
 
+        async function salvarVendedor(idVendedor) {
+            const inputNome = document.getElementById(`nome-${idVendedor}`);
+            const inputAtivo = document.getElementById(`ativo-${idVendedor}`);
+
+            try {
+                await chamarApi('salvar', {
+                    workflow_name: workflowSelecionado,
+                    id_vendedor: idVendedor,
+                    nome_vendedor: inputNome.value,
+                    ativo: inputAtivo.checked ? 1 : 0
+                });
+                alert("Consultor salvo com sucesso.");
+            } catch (e) {
+                console.error("Falha ao salvar consultor:", e);
+                alert("Erro ao processar solicitação.");
+            }
+        }
+
         function setPlataforma(p) {
             plataforma = p;
             const isWA = p === 'whatsapp';
 
-            // Estilização dos botões de toggle
             document.getElementById('btn-wa').className = isWA
                 ? "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all bg-[#00b34d] text-white shadow-md"
                 : "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all text-gray-400 hover:bg-gray-700";
@@ -241,15 +270,9 @@
                 ? "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
                 : "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all text-gray-400 hover:bg-gray-700";
 
-            document.getElementById('page-title').innerText = `Conectores de Telegram (${isWA ? 'WhatsApp' : 'Instagram'})`;
+            document.getElementById('page-title').innerText = `Lista de Consultores (${isWA ? 'WhatsApp' : 'Instagram'})`;
 
             renderMenu();
-            executarAcao('listar');
-        }
-
-        function statusLoading(isLoading) {
-            // Feedback visual simples para operações assíncronas
-            document.body.style.cursor = isLoading ? 'wait' : 'default';
         }
 
         function logout() {
