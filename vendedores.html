@@ -229,7 +229,10 @@
                             class="w-5 h-5 accent-[#00b34d] cursor-pointer">
                     </td>
                     <td class="px-6 py-4 text-sm text-gray-500 font-mono">${item.telegram_color_id ?? ''}</td>
-                    <td class="px-6 py-4 text-sm text-gray-500 font-mono">${item.sender ?? ''}</td>
+                    <td class="px-6 py-4">
+                        <input type="text" id="sender-${item.id_vendedor}" value="${item.sender || ''}"
+                            class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                    </td>
                     <td class="px-6 py-4 text-right">
                         <button onclick="salvarVendedor(${item.id_vendedor})"
                             class="bg-[#001f3f] text-white px-4 py-2 rounded-lg font-bold text-xs hover:bg-black transition-all shadow active:scale-95">
@@ -243,13 +246,15 @@
         async function salvarVendedor(idVendedor) {
             const inputNome = document.getElementById(`nome-${idVendedor}`);
             const inputAtivo = document.getElementById(`ativo-${idVendedor}`);
+            const inputSender = document.getElementById(`sender-${idVendedor}`);
 
             try {
                 await chamarApi('salvar', {
                     workflow_name: workflowSelecionado,
                     id_vendedor: idVendedor,
                     nome_vendedor: inputNome.value,
-                    ativo: inputAtivo.checked ? 1 : 0
+                    ativo: inputAtivo.checked ? 1 : 0,
+                    sender: inputSender.value
                 });
                 alert("Consultor salvo com sucesso.");
             } catch (e) {
