@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MidiaBot - Atribuição a Consultores</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-gray-100 font-sans overflow-hidden">
+
+    <div class="flex h-screen">
+        <!-- SIDEBAR: Menu Lateral Dinâmico -->
+        <aside class="w-64 bg-[#001f3f] text-white flex flex-col shadow-xl">
+            <div class="p-6 text-center border-b border-blue-900">
+                <img src="./logo.png" alt="Logo" class="w-12 mx-auto mb-2">
+                <h2 class="font-black tracking-tighter text-xl">MÍDIABOT</h2>
+            </div>
+
+            <!-- TOGGLE DE PLATAFORMA -->
+            <div class="p-4">
+                <div class="flex bg-gray-800 rounded-full p-1 shadow-inner">
+                    <button onclick="setPlataforma('whatsapp')" id="btn-wa"
+                        class="flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all bg-[#00b34d] text-white shadow-md">
+                        WHATSAPP
+                    </button>
+                    <button onclick="setPlataforma('instagram')" id="btn-ig"
+                        class="flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all text-gray-400 hover:bg-gray-700">
+                        INSTAGRAM
+                    </button>
+                </div>
+            </div>
+
+            <nav class="flex-1 px-4 space-y-1 mt-4" id="menu-dinamico">
+                <!-- Injetado via Java -->
+            </nav>
+        </aside>
+
+        <!-- CONTEÚDO PRINCIPAL -->
+        <main class="flex-1 flex flex-col">
+            <!-- HEADER -->
+            <header class="bg-white border-b p-4 flex justify-between items-center px-8 shadow-sm">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-user-tie text-gray-400"></i>
+                    <h1 class="text-sm font-bold text-gray-500 uppercase tracking-widest" id="page-title">Atribuição a Consultores (WhatsApp)</h1>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="text-right">
+                        <p id="user-name" class="text-sm font-bold text-gray-800">Carregando...</p>
+                        <p id="user-id" class="text-[10px] text-gray-400 font-mono"></p>
+                    </div>
+                    <button onclick="logout()" class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- ÁREA DE GESTÃO -->
+            <section class="p-8 overflow-y-auto flex-1">
+                <div class="max-w-2xl mx-auto">
+
+                    <!-- SELEÇÃO DE FLUXO -->
+                    <div class="bg-white p-6 rounded-2xl shadow-sm mb-8 border border-gray-200">
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Fluxo a editar</label>
+                        <select id="select-workflow" onchange="onWorkflowChange()"
+                            class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                            <option value="">Selecione um fluxo...</option>
+                        </select>
+                    </div>
+
+                    <!-- CONFIGURAÇÃO DO FLUXO SELECIONADO -->
+                    <div id="painel-config" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 hidden">
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Escolha automática</label>
+                        <div class="flex bg-gray-100 rounded-full p-1 shadow-inner mb-6 max-w-xs">
+                            <button type="button" onclick="setModo(true)" id="btn-automatico"
+                                class="flex-1 py-2 rounded-full text-xs font-bold transition-all">
+                                AUTOMÁTICO
+                            </button>
+                            <button type="button" onclick="setModo(false)" id="btn-manual"
+                                class="flex-1 py-2 rounded-full text-xs font-bold transition-all">
+                                MANUAL
+                            </button>
+                        </div>
+
+                        <div id="bloco-vendedor">
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Vendedor</label>
+                            <input type="number" id="input-vendedor" placeholder="Ex: 12"
+                                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all font-mono mb-6">
+                        </div>
+
+                        <button onclick="salvar()"
+                            class="bg-[#001f3f] text-white px-8 py-3 rounded-xl font-bold text-xs hover:bg-black transition-all shadow-lg active:scale-95">
+                            SALVAR
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script type="module">
+        import { CONFIG } from "./config.js";
+
+        const API_URL = CONFIG.API_URL;
+
+        let user = null;
+        let plataforma = 'whatsapp';
+        let workflowSelecionado = '';
+        let modoAutomatico = true;
+
+        // Inicialização e Proteção de Rota
+        document.addEventListener('DOMContentLoaded', () => {
+            const userData = localStorage.getItem('midiabot_user');
+            if (!userData) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const rawUser = JSON.parse(userData);
+            user = Array.isArray(rawUser) ? rawUser[0] : rawUser;
+
+            // Hidratação da UI
+            document.getElementById('user-name').innerText = user.nome || 'Usuário';
+            document.getElementById('user-id').innerText = `ID: ${user.id_cliente}`;
+
+            // Exposição de funções para o escopo global (necessário para onclick em módulos)
+            window.setPlataforma = setPlataforma;
+            window.onWorkflowChange = onWorkflowChange;
+            window.setModo = setModo;
+            window.salvar = salvar;
+            window.logout = logout;
+
+            renderMenu();
+            setModo(true);
+            carregarWorkflows();
+        });
+
+        // Lógica de Menu Lateral Dinâmico
+        function renderMenu() {
+            const menu = document.getElementById('menu-dinamico');
+            const waItems = [
+                { icon: 'fa-paper-plane', label: 'Envio Ativo' },
+                { icon: 'fa-server', label: 'Instâncias' },
+                { icon: 'fa-ban', label: 'Proibições de IA', href: 'proibicoes.html' },
+                { icon: 'fa-paper-plane', label: 'Conectores de Telegram', href: 'telegram_sender.html' },
+                { icon: 'fa-user-tie', label: 'Atribuição a Consultores', active: true },
+                { icon: 'fa-ellipsis-h', label: 'Opção 6' },
+                { icon: 'fa-ellipsis-h', label: 'Opção 7' }
+            ];
+            const igItems = [
+                { icon: 'fa-hashtag', label: 'Hashtags' },
+                { icon: 'fa-users', label: 'Públicos' },
+                { icon: 'fa-chart-line', label: 'Métricas' },
+                { icon: 'fa-comments', label: 'Directs' }
+            ];
+
+            const items = plataforma === 'whatsapp' ? waItems : igItems;
+            menu.innerHTML = items.map(item => `
+                <a href="${item.href || '#'}" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${item.active ? 'bg-[#00b34d] text-white shadow-lg' : 'text-blue-200 hover:bg-blue-900 hover:text-white'}">
+                    <i class="fas ${item.icon} w-5 text-center"></i>
+                    <span class="text-xs font-bold uppercase tracking-tighter">${item.label}</span>
+                </a>
+            `).join('');
+        }
+
+        // Função Central de Comunicação com n8n
+        async function chamarApi(acao, dadosExtra) {
+            const payload = {
+                origem: 'sorteio_vendedor',
+                plataforma: plataforma,
+                acao: acao, // 'listar_workflows', 'buscar_config', 'salvar'
+                id_cliente: user.id_cliente,
+                dados: dadosExtra
+            };
+
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) throw new Error("Erro na API");
+            return await res.json();
+        }
+
+        async function carregarWorkflows() {
+            try {
+                const data = await chamarApi('listar_workflows', {});
+                const select = document.getElementById('select-workflow');
+                const lista = Array.isArray(data) ? data : [];
+                select.innerHTML = '<option value="">Selecione um fluxo...</option>' +
+                    lista.map(item => `<option value="${item.workflow_name}">${item.workflow_name}</option>`).join('');
+            } catch (e) {
+                console.error("Falha ao carregar fluxos:", e);
+                alert("Erro ao processar solicitação.");
+            }
+        }
+
+        function onWorkflowChange() {
+            const select = document.getElementById('select-workflow');
+            workflowSelecionado = select.value;
+            const painel = document.getElementById('painel-config');
+
+            if (!workflowSelecionado) {
+                painel.classList.add('hidden');
+                return;
+            }
+
+            painel.classList.remove('hidden');
+            carregarConfig();
+        }
+
+        async function carregarConfig() {
+            try {
+                const data = await chamarApi('buscar_config', { workflow_name: workflowSelecionado });
+                const config = Array.isArray(data) ? data[0] : data;
+
+                setModo(!config || config.sorteio === 1);
+                document.getElementById('input-vendedor').value = config?.vendedor_escolhido ?? '';
+            } catch (e) {
+                console.error("Falha ao carregar configuração:", e);
+                alert("Erro ao processar solicitação.");
+            }
+        }
+
+        function setModo(automatico) {
+            modoAutomatico = automatico;
+
+            document.getElementById('btn-automatico').className = automatico
+                ? "flex-1 py-2 rounded-full text-xs font-bold transition-all bg-[#00b34d] text-white shadow-md"
+                : "flex-1 py-2 rounded-full text-xs font-bold transition-all text-gray-500 hover:bg-gray-200";
+
+            document.getElementById('btn-manual').className = !automatico
+                ? "flex-1 py-2 rounded-full text-xs font-bold transition-all bg-[#00b34d] text-white shadow-md"
+                : "flex-1 py-2 rounded-full text-xs font-bold transition-all text-gray-500 hover:bg-gray-200";
+
+            const inputVendedor = document.getElementById('input-vendedor');
+            inputVendedor.disabled = automatico;
+            document.getElementById('bloco-vendedor').classList.toggle('opacity-40', automatico);
+        }
+
+        async function salvar() {
+            if (!workflowSelecionado) return;
+
+            const inputVendedor = document.getElementById('input-vendedor');
+
+            if (!modoAutomatico && !inputVendedor.value) {
+                alert("Por favor, informe o número do vendedor.");
+                return;
+            }
+
+            try {
+                await chamarApi('salvar', {
+                    workflow_name: workflowSelecionado,
+                    sorteio: modoAutomatico ? 1 : 0,
+                    vendedor_escolhido: inputVendedor.value ? parseInt(inputVendedor.value, 10) : null
+                });
+                alert("Configuração salva com sucesso.");
+            } catch (e) {
+                console.error("Falha ao salvar:", e);
+                alert("Erro ao processar solicitação.");
+            }
+        }
+
+        function setPlataforma(p) {
+            plataforma = p;
+            const isWA = p === 'whatsapp';
+
+            document.getElementById('btn-wa').className = isWA
+                ? "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all bg-[#00b34d] text-white shadow-md"
+                : "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all text-gray-400 hover:bg-gray-700";
+
+            document.getElementById('btn-ig').className = !isWA
+                ? "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
+                : "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all text-gray-400 hover:bg-gray-700";
+
+            document.getElementById('page-title').innerText = `Atribuição a Consultores (${isWA ? 'WhatsApp' : 'Instagram'})`;
+
+            renderMenu();
+        }
+
+        function logout() {
+            localStorage.removeItem('midiabot_user');
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>

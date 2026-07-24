@@ -134,7 +134,7 @@
                 { icon: 'fa-server', label: 'Instâncias' },
                 { icon: 'fa-ban', label: 'Proibições de IA', href: 'proibicoes.html' },
                 { icon: 'fa-paper-plane', label: 'Conectores de Telegram', active: true },
-                { icon: 'fa-cog', label: 'Mais Configurações' },
+                { icon: 'fa-user-tie', label: 'Atribuição a Consultores', href: 'consultores.html' },
                 { icon: 'fa-ellipsis-h', label: 'Opção 6' },
                 { icon: 'fa-ellipsis-h', label: 'Opção 7' }
             ];
@@ -188,12 +188,16 @@
                 if (!res.ok) throw new Error("Erro na API");
                 const data = await res.json();
 
-                if (acao === 'listar') {
-                    renderizarTabela(data);
-                } else {
+                if (acao === 'incluir') {
                     inputSender.value = '';
                     inputChatId.value = '';
-                    executarAcao('listar'); // Recarrega a lista após alteração
+                }
+
+                if (Array.isArray(data)) {
+                    // A resposta já veio com a lista atualizada (ex.: o fluxo de excluir termina com um SELECT)
+                    renderizarTabela(data);
+                } else if (acao !== 'listar') {
+                    executarAcao('listar');
                 }
             } catch (e) {
                 console.error("Falha na operação:", e);
