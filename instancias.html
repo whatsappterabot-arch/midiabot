@@ -212,7 +212,7 @@
             }
 
             lista.innerHTML = dados.map(item => {
-                const conectado = !!item.sender;
+                const conectado = item.connectionStatus === 'open';
                 const opcoesWorkflow = catalogoWorkflows.map(nome => `
                     <option value="${nome}" ${nome === item.workflow_name ? 'selected' : ''}>${nome}</option>
                 `).join('');
