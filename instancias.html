@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MidiaBot - Instâncias</title>
+    <link rel="icon" type="image/png" href="./logo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] } } } };
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-gray-100 font-sans overflow-hidden">
+
+    <div class="flex h-screen">
+        <!-- SIDEBAR: Menu Lateral Dinâmico -->
+        <aside class="w-64 bg-[#001f3f] text-white flex flex-col shadow-xl">
+            <div class="p-6 text-center border-b border-blue-900">
+                <img src="./logo.png" alt="Logo" class="w-12 mx-auto mb-2">
+                <h2 class="font-black tracking-tighter text-xl">MÍDIABOT</h2>
+            </div>
+
+            <!-- TOGGLE DE PLATAFORMA -->
+            <div class="p-4">
+                <div class="flex bg-gray-800 rounded-full p-1 shadow-inner">
+                    <button onclick="setPlataforma('whatsapp')" id="btn-wa"
+                        class="flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all bg-[#00b34d] text-white shadow-md">
+                        WHATSAPP
+                    </button>
+                    <button onclick="setPlataforma('instagram')" id="btn-ig"
+                        class="flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all text-gray-400 hover:bg-gray-700">
+                        INSTAGRAM
+                    </button>
+                </div>
+            </div>
+
+            <nav class="flex-1 px-4 space-y-1 mt-4" id="menu-dinamico">
+                <!-- Injetado via Java -->
+            </nav>
+        </aside>
+
+        <!-- CONTEÚDO PRINCIPAL -->
+        <main class="flex-1 flex flex-col">
+            <!-- HEADER -->
+            <header class="bg-white border-b p-4 flex justify-between items-center px-8 shadow-sm">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-server text-gray-400"></i>
+                    <h1 class="text-sm font-bold text-gray-500 uppercase tracking-widest" id="page-title">Instâncias (WhatsApp)</h1>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="text-right">
+                        <p id="user-name" class="text-sm font-bold text-gray-800">Carregando...</p>
+                        <p id="user-id" class="text-[10px] text-gray-400 font-mono"></p>
+                    </div>
+                    <button onclick="logout()" class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- ÁREA DE GESTÃO -->
+            <section class="p-8 overflow-y-auto flex-1">
+                <div class="max-w-4xl mx-auto">
+
+                    <!-- CRIAR INSTÂNCIA -->
+                    <div class="bg-white p-6 rounded-2xl shadow-sm mb-8 border border-gray-200">
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Nova instância</label>
+                        <p class="text-[11px] text-gray-400 mb-4">O nome recebe automaticamente um sufixo do seu ID de cliente, pra nunca colidir com o nome de outro cliente.</p>
+                        <div class="flex gap-3">
+                            <input type="text" id="input-nome-instancia" placeholder="Ex: Loja Centro"
+                                class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                            <button onclick="criarInstancia()"
+                                class="bg-[#001f3f] text-white px-8 rounded-xl font-bold text-xs hover:bg-black transition-all shadow-lg active:scale-95">
+                                CRIAR INSTÂNCIA
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- LISTA DE INSTÂNCIAS -->
+                    <div id="lista-instancias" class="space-y-4">
+                        <!-- Injetado via Java -->
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- MODAL QR CODE -->
+    <div id="modal-qrcode" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-2xl p-8 max-w-sm w-full text-center relative shadow-2xl">
+            <button onclick="fecharQrCode()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition-colors">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+            <h3 class="text-sm font-bold text-gray-700 uppercase tracking-widest mb-4">Escaneie com o WhatsApp</h3>
+            <img id="qrcode-imagem" src="" alt="QR Code" class="mx-auto rounded-xl border border-gray-200">
+        </div>
+    </div>
+
+    <script type="module">
+        import { CONFIG, showToast } from "./config.js";
+
+        const API_URL = CONFIG.API_URL;
+
+        let user = null;
+        let plataforma = 'whatsapp';
+        let catalogoWorkflows = [];
+
+        // Inicialização e Proteção de Rota
+        document.addEventListener('DOMContentLoaded', () => {
+            const userData = localStorage.getItem('midiabot_user');
+            if (!userData) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const rawUser = JSON.parse(userData);
+            user = Array.isArray(rawUser) ? rawUser[0] : rawUser;
+
+            document.getElementById('user-name').innerText = user.nome || 'Usuário';
+            document.getElementById('user-id').innerText = `ID: ${user.id_cliente}`;
+
+            window.setPlataforma = setPlataforma;
+            window.criarInstancia = criarInstancia;
+            window.gerarQrCode = gerarQrCode;
+            window.fecharQrCode = fecharQrCode;
+            window.onWorkflowSelectChange = onWorkflowSelectChange;
+            window.salvarWorkflow = salvarWorkflow;
+            window.logout = logout;
+
+            renderMenu();
+            carregarCatalogoWorkflows().then(carregarInstancias);
+        });
+
+        // Lógica de Menu Lateral Dinâmico
+        function renderMenu() {
+            const menu = document.getElementById('menu-dinamico');
+            const waItems = [
+                { icon: 'fa-paper-plane', label: 'Envio Ativo' },
+                { icon: 'fa-server', label: 'Instâncias', active: true },
+                { icon: 'fa-ban', label: 'Proibições de IA', href: 'proibicoes.html' },
+                { icon: 'fa-paper-plane', label: 'Conectores de Telegram', href: 'telegram_sender.html' },
+                { icon: 'fa-user-tie', label: 'Atribuição a Consultores', href: 'consultores.html' },
+                { icon: 'fa-users', label: 'Lista de Consultores', href: 'vendedores.html' },
+                { icon: 'fa-clock', label: 'Horários', href: 'horarios.html' },
+                { icon: 'fa-robot', label: 'Prompts', href: 'prompts.html' }
+            ];
+            const igItems = [
+                { icon: 'fa-hashtag', label: 'Hashtags' },
+                { icon: 'fa-users', label: 'Públicos' },
+                { icon: 'fa-chart-line', label: 'Métricas' },
+                { icon: 'fa-comments', label: 'Directs' }
+            ];
+
+            const items = plataforma === 'whatsapp' ? waItems : igItems;
+            menu.innerHTML = items.map(item => `
+                <a href="${item.href || '#'}" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${item.active ? 'bg-[#00b34d] text-white shadow-lg' : 'text-blue-200 hover:bg-blue-900 hover:text-white'}">
+                    <i class="fas ${item.icon} w-5 text-center"></i>
+                    <span class="text-xs font-bold uppercase tracking-tighter">${item.label}</span>
+                </a>
+            `).join('');
+        }
+
+        // Função Central de Comunicação com n8n
+        async function chamarApi(acao, dadosExtra) {
+            const payload = {
+                origem: 'instancias',
+                plataforma: plataforma,
+                acao: acao,
+                id_cliente: user.id_cliente,
+                dados: dadosExtra
+            };
+
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) throw new Error("Erro na API");
+            return await res.json();
+        }
+
+        async function carregarCatalogoWorkflows() {
+            try {
+                const data = await chamarApi('listar_catalogo_workflows', {});
+                catalogoWorkflows = Array.isArray(data) ? data.map(item => item.nome) : [];
+            } catch (e) {
+                console.error("Falha ao carregar catálogo de workflows:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
+        async function carregarInstancias() {
+            try {
+                const data = await chamarApi('listar_instancias', {});
+                renderizarInstancias(Array.isArray(data) ? data : []);
+            } catch (e) {
+                console.error("Falha ao carregar instâncias:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
+        function renderizarInstancias(dados) {
+            const lista = document.getElementById('lista-instancias');
+            if (!dados || dados.length === 0) {
+                lista.innerHTML = '<p class="text-center text-gray-300 text-xs font-bold uppercase tracking-widest py-12">Nenhuma instância criada</p>';
+                return;
+            }
+
+            lista.innerHTML = dados.map(item => {
+                const conectado = !!item.sender;
+                const opcoesWorkflow = catalogoWorkflows.map(nome => `
+                    <option value="${nome}" ${nome === item.workflow_name ? 'selected' : ''}>${nome}</option>
+                `).join('');
+
+                return `
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="font-bold text-gray-800">${item.nome_instancia}</span>
+                        ${conectado
+                            ? '<span class="text-xs font-bold text-[#00b34d] uppercase tracking-widest"><i class="fas fa-circle text-[8px] mr-1"></i>Conectado</span>'
+                            : '<span class="text-xs font-bold text-gray-400 uppercase tracking-widest"><i class="fas fa-circle text-[8px] mr-1"></i>Não conectado</span>'
+                        }
+                    </div>
+
+                    ${!conectado ? `
+                        <button onclick="gerarQrCode('${item.nome_instancia}')"
+                            class="bg-[#001f3f] text-white px-6 py-2 rounded-xl font-bold text-xs hover:bg-black transition-all shadow active:scale-95 mb-4">
+                            GERAR QR CODE
+                        </button>
+                    ` : ''}
+
+                    <div class="border-t border-gray-100 pt-4">
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Workflow</label>
+                        <div class="flex gap-3 items-start">
+                            <select id="workflow-${item.nome_instancia}" onchange="onWorkflowSelectChange('${item.nome_instancia}')"
+                                data-original="${item.workflow_name || ''}"
+                                class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                                <option value="">Nenhum</option>
+                                ${opcoesWorkflow}
+                            </select>
+                            <button onclick="salvarWorkflow('${item.nome_instancia}')"
+                                class="bg-[#001f3f] text-white px-6 py-2.5 rounded-xl font-bold text-xs hover:bg-black transition-all shadow active:scale-95">
+                                SALVAR
+                            </button>
+                        </div>
+                        <p id="aviso-${item.nome_instancia}" class="hidden text-[11px] text-amber-600 mt-2">
+                            <i class="fas fa-triangle-exclamation mr-1"></i>
+                            Trocar o workflow faz esta instância passar a usar os vendedores e horários configurados para o novo workflow.
+                        </p>
+                    </div>
+                </div>
+            `;
+            }).join('');
+        }
+
+        function onWorkflowSelectChange(nomeInstancia) {
+            const select = document.getElementById(`workflow-${nomeInstancia}`);
+            const aviso = document.getElementById(`aviso-${nomeInstancia}`);
+            const mudou = select.value !== select.dataset.original;
+            aviso.classList.toggle('hidden', !mudou);
+        }
+
+        async function criarInstancia() {
+            const input = document.getElementById('input-nome-instancia');
+            if (!input.value.trim()) {
+                showToast("Digite um nome para a instância.", "warning");
+                return;
+            }
+
+            try {
+                await chamarApi('criar_instancia', { nome: input.value.trim() });
+                input.value = '';
+                showToast("Instância criada.", "success");
+                carregarInstancias();
+            } catch (e) {
+                console.error("Falha ao criar instância:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
+        async function gerarQrCode(nomeInstancia) {
+            try {
+                const data = await chamarApi('gerar_qrcode', { nome_instancia: nomeInstancia });
+                document.getElementById('qrcode-imagem').src = `data:image/png;base64,${data.qrcode}`;
+                document.getElementById('modal-qrcode').classList.remove('hidden');
+            } catch (e) {
+                console.error("Falha ao gerar QR Code:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
+        function fecharQrCode() {
+            document.getElementById('modal-qrcode').classList.add('hidden');
+            document.getElementById('qrcode-imagem').src = '';
+            carregarInstancias();
+        }
+
+        async function salvarWorkflow(nomeInstancia) {
+            const select = document.getElementById(`workflow-${nomeInstancia}`);
+
+            try {
+                await chamarApi('salvar_workflow', {
+                    nome_instancia: nomeInstancia,
+                    workflow_name: select.value || null
+                });
+                select.dataset.original = select.value;
+                document.getElementById(`aviso-${nomeInstancia}`).classList.add('hidden');
+                showToast("Workflow salvo.", "success");
+            } catch (e) {
+                console.error("Falha ao salvar workflow:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
+        function setPlataforma(p) {
+            plataforma = p;
+            const isWA = p === 'whatsapp';
+
+            document.getElementById('btn-wa').className = isWA
+                ? "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all bg-[#00b34d] text-white shadow-md"
+                : "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all text-gray-400 hover:bg-gray-700";
+
+            document.getElementById('btn-ig').className = !isWA
+                ? "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
+                : "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all text-gray-400 hover:bg-gray-700";
+
+            document.getElementById('page-title').innerText = `Instâncias (${isWA ? 'WhatsApp' : 'Instagram'})`;
+
+            renderMenu();
+        }
+
+        function logout() {
+            localStorage.removeItem('midiabot_user');
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>
