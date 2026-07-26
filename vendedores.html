@@ -80,9 +80,7 @@
                         <table class="w-full text-left">
                             <thead class="bg-gray-50 border-b border-gray-200">
                                 <tr>
-                                    <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Cor</th>
                                     <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Nome</th>
-                                    <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Ativo</th>
                                     <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Sender</th>
                                     <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Ações</th>
                                 </tr>
@@ -220,21 +218,13 @@
         function renderizarTabela(dados) {
             const corpo = document.getElementById('tabela-corpo');
             if (!dados || dados.length === 0) {
-                corpo.innerHTML = '<tr><td colspan="5" class="p-12 text-center text-gray-300 text-xs font-bold uppercase tracking-widest">Nenhum consultor encontrado</td></tr>';
+                corpo.innerHTML = '<tr><td colspan="3" class="p-12 text-center text-gray-300 text-xs font-bold uppercase tracking-widest">Nenhum consultor encontrado</td></tr>';
                 return;
             }
 
             corpo.innerHTML = dados.map(item => `
                 <tr class="hover:bg-gray-50 transition-colors group">
-                    <td class="px-6 py-4 text-center text-lg">${item.cor_emoji || ''}</td>
-                    <td class="px-6 py-4">
-                        <input type="text" id="nome-${item.id_vendedor}" value="${item.nome_vendedor || ''}"
-                            class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
-                    </td>
-                    <td class="px-6 py-4 text-center">
-                        <input type="checkbox" id="ativo-${item.id_vendedor}" ${item.ativo === 1 ? 'checked' : ''}
-                            class="w-5 h-5 accent-[#00b34d] cursor-pointer">
-                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-700 font-medium">${item.nome_vendedor || '(sem nome cadastrado)'}</td>
                     <td class="px-6 py-4">
                         <input type="text" id="sender-${item.id_vendedor}" value="${item.sender || ''}"
                             class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
@@ -250,16 +240,12 @@
         }
 
         async function salvarVendedor(idVendedor) {
-            const inputNome = document.getElementById(`nome-${idVendedor}`);
-            const inputAtivo = document.getElementById(`ativo-${idVendedor}`);
             const inputSender = document.getElementById(`sender-${idVendedor}`);
 
             try {
                 await chamarApi('salvar', {
                     workflow_name: workflowSelecionado,
                     id_vendedor: idVendedor,
-                    nome_vendedor: inputNome.value,
-                    ativo: inputAtivo.checked ? 1 : 0,
                     sender: inputSender.value
                 });
                 showToast("Consultor salvo com sucesso.", "success");

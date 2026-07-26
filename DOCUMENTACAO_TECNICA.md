@@ -1,0 +1,242 @@
+# MidiaBot — Documentação Técnica
+
+Documento de referência do que foi construído até agora: páginas, banco de dados, convenções de payload e decisões importantes. Serve tanto para retomar o projeto numa sessão nova quanto como referência rápida durante o desenvolvimento.
+
+## Arquitetura
+
+```
+Front-end estático (HTML + Tailwind CDN + JS módulos)
+        │  fetch POST
+        ▼
+n8n — dois webhooks:
+  LOGIN_URL  → autenticação (Google/Firebase)
+  API_URL    → tudo mais, roteado por Switch(plataforma) → Switch(origem) → Switch(acao)
+        │
+        ▼
+PostgreSQL
+```
+
+Hospedagem: Cloudfy (`www.midiabot.com.br`). Deploy é **sempre manual**, feito pelo usuário — nunca tentar rodar `npx @cloudfy.io/cli deploy` a partir daqui.
+
+## Padrão de payload
+
+Toda chamada ao `API_URL` segue este formato:
+```json
+{
+  "origem": "nome_do_modulo",
+  "plataforma": "whatsapp" | "instagram",
+  "acao": "nome_da_acao",
+  "id_cliente": 1,
+  "dados": { }
+}
+```
+
+**Regra de ouro nas queries do n8n**: sempre usar parâmetros (`$1, $2...`) no campo separado "Query Parameters" — nunca colar `{{ expressão }}` dentro de aspas simples no texto do SQL (quebra com apóstrofo e é risco de injeção). Nas operações estruturadas do node Postgres (Update/Insert, sem SQL manual), nunca envolver a expressão `{{ }}` com aspas — o node já trata isso.
+
+## Páginas front-end
+
+| Arquivo | Página | Menu lateral |
+|---|---|---|
+| `index.html` | Login (Google via Firebase) | — |
+| `dashboard.html` | Painel inicial | — |
+| `instancias.html` | Instâncias | Instâncias |
+| `proibicoes.html` | Proibições de IA | Proibições de IA |
+| `telegram_sender.html` | Conectores de Telegram | Conectores de Telegram |
+| `consultores.html` | Atribuição a Consultores | Atribuição a Consultores |
+| `vendedores.html` | Lista de Consultores | Lista de Consultores |
+| `horarios.html` | Horários | Horários |
+| `prompts.html` | Prompts | Prompts |
+| `config.js` | `CONFIG` (URLs) + `showToast()` (toast de notificação, usado em vez de `alert()`) | — |
+
+Todas as páginas (exceto index/dashboard) têm: sidebar com logo + toggle WhatsApp/Instagram + menu dinâmico; header com título + nome/ID do usuário + logout; import de `CONFIG` e `showToast` de `config.js`.
+
+## Tabelas do banco (PostgreSQL, schema `public`)
+
+### `midiabot_cad_usuarios` (pré-existente)
+Cadastro de clientes/usuários. Campos usados: `id`, `email`, `nome`, `whatsapp`, `plano_id`, `ativo`, `criado_em`. `id` é referenciado como `id_cliente` em quase todas as outras tabelas.
+
+### `midiabot_a_workflows`
+Catálogo global de workflows disponíveis (lista reduzida, curada pelo admin).
+```sql
+id SERIAL PRIMARY KEY,
+nome TEXT NOT NULL UNIQUE,
+webhook_url TEXT  -- URL do webhook n8n específico desse workflow (preenchido manualmente por workflow)
+```
+
+### `midiabot_a_instancias`
+Uma instância = um número de WhatsApp conectado via Evolution API.
+```sql
+id SERIAL PRIMARY KEY,
+id_cliente INTEGER NOT NULL REFERENCES midiabot_cad_usuarios(id),
+nome_instancia TEXT UNIQUE,   -- identificador estável; nome digitado + "-{id_cliente}" (sufixo aplicado no n8n)
+sender TEXT UNIQUE,           -- número conectado (formato numero@s.whatsapp.net); mutável
+workflow_name TEXT REFERENCES midiabot_a_workflows(nome),
+criado_em TIMESTAMP NOT NULL DEFAULT now()
+```
+**Importante**: `nome_instancia` é o identificador estável de uma instância; `sender` pode mudar (reconectar com outro número). Nunca usar `sender` como chave de longo prazo em outras tabelas — usar `nome_instancia`.
+
+### `midiabot_remotejid_proibidos` (Proibições de IA)
+Números cujas mensagens pulam a IA e vão direto pro atendente humano.
+```sql
+remotejid TEXT,
+id_cliente INTEGER,
+PRIMARY KEY (id_cliente, remotejid)  -- corrigido de PK(remotejid) sozinho
+```
+
+### `midiabot_sender_chatid` (Conectores de Telegram)
+Liga o número de um consultor da equipe a um supergrupo do Telegram.
+```sql
+sender TEXT,      -- número do consultor (numero@s.whatsapp.net)
+chat_id INTEGER,  -- id do supergrupo Telegram (negativo)
+id_cliente INTEGER,
+PRIMARY KEY (sender)  -- confirmado correto: um consultor só pode estar em 1 grupo por vez
+```
+
+### `midiabot_sorteio_vendedor` (Atribuição a Consultores)
+Configuração de distribuição de leads por workflow.
+```sql
+id_cliente INTEGER,
+workflow_name TEXT,
+sorteio SMALLINT,              -- CHECK IN (0,1). 1 = escolha automática (rotaciona vendedores); 0 = manual
+vendedor_escolhido INTEGER,    -- CHECK > 0
+PRIMARY KEY (id_cliente, workflow_name),  -- corrigido de PK(workflow_name) sozinho
+FOREIGN KEY (id_cliente, workflow_name, vendedor_escolhido)
+    REFERENCES midiabot_vendedores (id_cliente, workflow_name, id_vendedor)
+```
+
+### `midiabot_vendedores` (Lista de Consultores)
+```sql
+id_vendedor INTEGER,   -- começa em 1, POR workflow+cliente (não é globalmente único)
+nome_vendedor TEXT,
+cor_emoji TEXT,         -- emoji (ex: 🔴), só exibição
+ativo SMALLINT,         -- 0 ou 1
+telegram_color_id INTEGER,  -- só exibição, não aparece mais na UI (removido por poluir a tela)
+workflow_name TEXT,
+sender TEXT,            -- número do CONSULTOR (pessoa da equipe), não confundir com sender de instância
+id_cliente INTEGER,
+UNIQUE (id_cliente, workflow_name, id_vendedor)  -- suporta a FK de sorteio_vendedor
+```
+Linhas são pré-cadastradas manualmente pelo admin (sem tela de inclusão/exclusão — decisão consciente, pendente de repensar se quiserem self-service).
+
+### `midiabot_z_horarios_trabalho` (Horários)
+```sql
+id_cliente INTEGER,
+workflow_name TEXT,
+dia_semana SMALLINT,  -- CHECK 0-6. 0=Domingo, 1=Segunda... 6=Sábado (convenção do Postgres EXTRACT(DOW))
+hora_inicio TIME,
+hora_fim TIME,
+PRIMARY KEY (id_cliente, workflow_name, dia_semana)  -- corrigido: antes incluía hora_inicio na PK (bug: editar duplicava linha)
+```
+`salvar_horario` usa UPSERT (`ON CONFLICT DO UPDATE`) — linha é criada na primeira vez que aquele dia é salvo, sem pré-cadastro necessário. Front-end sempre desenha os 7 dias, mesmo sem dado no banco ainda.
+
+### `midiabot_z_excessoes_horarios` (Horários — exceções)
+```sql
+id SERIAL PRIMARY KEY,
+workflow_name TEXT,
+data DATE,
+hora_inicio TIME,      -- nullable (feriado inteiro = sem horário)
+hora_fim TIME,         -- nullable
+descricao TEXT,        -- nullable
+id_cliente INTEGER
+```
+Só `data` é obrigatória. Inclusão/exclusão apenas, sem edição.
+
+### `midiabot_z_prompts_ia` (Prompts)
+```sql
+id_cliente INTEGER NOT NULL REFERENCES midiabot_cad_usuarios(id),
+nome_instancia TEXT NOT NULL REFERENCES midiabot_a_instancias(nome_instancia) ON DELETE CASCADE,
+trabalho_on SMALLINT NOT NULL,  -- 1 = prompt de horário de trabalho; 0 = fora do horário
+prompt TEXT,                     -- até ~10.000 caracteres, sem limite rígido
+PRIMARY KEY (nome_instancia, trabalho_on)
+```
+Chaveado por `nome_instancia` (não `sender`) de propósito — sobrevive à troca de número numa instância. `salvar_prompts` usa UPSERT. `ON DELETE CASCADE` fez apagar instância excluir os prompts junto automaticamente.
+
+### `midiabot_historico_mensagens` (histórico de chat — WhatsApp/Telegram)
+Tabela pré-existente (não criada por nós), usada pelo fluxo de produção que já roda mensagens reais. Ajustada nesta sessão pra ganhar `id_cliente` e `chat_id`.
+```sql
+id INTEGER PRIMARY KEY DEFAULT nextval('midiabot_historico_mensagens_id_seq'),
+datetime TIMESTAMPTZ NOT NULL DEFAULT (now() AT TIME ZONE 'America/Sao_Paulo'),
+from_me BOOLEAN NOT NULL DEFAULT false,  -- true = o sender (número do cliente) enviou; false = o sender recebeu
+instance TEXT NOT NULL,       -- = nome_instancia (não é FK — histórico sobrevive à instância ser apagada, é regra de negócio)
+remote_jid TEXT NOT NULL,     -- número do contato externo (cliente do seu cliente) na conversa
+sender TEXT NOT NULL,         -- número do WhatsApp do CLIENTE (mesmo conceito de midiabot_a_instancias.sender), nome mantido igual ao que o Evolution API manda
+pushname TEXT,
+mensagem TEXT,
+caption TEXT,
+messagetype TEXT,
+mime_type TEXT,
+midia TEXT,
+base64 TEXT,
+workflow_name VARCHAR,
+id_cliente INTEGER NOT NULL REFERENCES midiabot_cad_usuarios(id),  -- adicionado nesta sessão; backfill manual = 1 pras linhas antigas
+chat_id INTEGER  -- adicionado nesta sessão; supergrupo do Telegram pra onde a mensagem foi encaminhada, sem FK (chat_id não é único em midiabot_sender_chatid)
+```
+Nomes de sequência/constraint da PK foram renomeados nesta sessão pra bater com o nome atual da tabela (antes eram resquício de nomes antigos: `historico_mensagens_terabot_teste_id_seq` e `historico_menssagens_midiabot_scenty_pkey`). Ideia futura do usuário (ainda não decidida): aposentar o Telegram como canal de notificação e construir um chat próprio — mantendo o conceito de `chat_id` porque a forma como o Telegram estrutura isso é considerada inteligente.
+
+### `midiabot_instrucoes` (textos de ajuda "?" nas telas)
+```sql
+id SERIAL PRIMARY KEY,
+info_pagina VARCHAR(20) UNIQUE,   -- identificador da página, ex: 'instancias'
+texto_instrucao VARCHAR(10000)    -- HTML simples (<b>, <u>, <br>), renderizado via innerHTML
+```
+Sendo adicionado gradualmente, uma página de cada vez.
+
+## Ações por `origem`
+
+| origem | ações |
+|---|---|
+| `proibicoes` | `listar`, `incluir`, `excluir` |
+| `conect_telegram` | `listar`, `incluir`, `excluir` |
+| `sorteio_vendedor` | `listar_workflows`, `buscar_config`, `salvar` (UPSERT) |
+| `vendedores` | `listar_workflows`, `listar`, `salvar` |
+| `horarios` | `listar_workflows`, `listar_horarios`, `salvar_horario` (UPSERT), `listar_excecoes`, `incluir_excecao`, `excluir_excecao` |
+| `prompts_ia` | `listar_instancias` (dropdown de instância, não workflow), `buscar_prompts`, `salvar_prompts` (UPSERT) |
+| `instancias` | `listar_catalogo_workflows`, `listar_instancias`, `criar_instancia`, `gerar_qrcode`, `salvar_workflow`, `desconectar_instancia`, `apagar_instancia`, `buscar_instrucao` |
+
+## Fluxo `listar_instancias` (o mais complexo)
+
+```
+Postgres "Listar Instâncias" (SELECT nome_instancia, sender, workflow_name WHERE id_cliente=$1)
+   → Loop Over Items (batch size 1)
+        → [loop] Evolution API "Buscar Instância" (nome_instancia como parâmetro)
+        → Postgres "Atualizar Sender" (UPDATE ... WHERE nome_instancia=$2 AND $3='open' — condicional dentro do WHERE, sem node IF)
+        → Postgres "Buscar Sender Atualizado" (SELECT sender, workflow_name WHERE nome_instancia=$1)
+        → Edit Fields "Montar Item Final" (nome_instancia/connectionStatus do node Evolution por nome; sender/workflow_name do SELECT novo)
+        → volta pro Loop
+   → [done] Respond to Webhook (All Incoming Items)
+```
+
+Status exibido na tela: dois badges separados — "API" (`connectionStatus === 'open'`, ao vivo) e "Banco de dados" (`!!sender`, o que está salvo). Botão **Desconectar** aparece se pelo menos um estiver conectado (serve também pra corrigir divergência); **Gerar QR Code** + **Apagar Instância** só aparecem quando os dois estão desconectados.
+
+## Integração Evolution API
+
+- Servidor: `https://awkwardgiantpanda-evolution.cloudfy.live` (versão 2.3.7)
+- Documentação oficial: `https://docs.evolutionfoundation.com.br`
+- **Bug conhecido**: o node de comunidade "Evolution API" no n8n não processa múltiplos itens corretamente (mesmo com "Execute Once" desligado) — precisa envolver em **Loop Over Items** (batch 1) pra forçar uma chamada por item.
+- **Bug conhecido**: o campo "Base64 No Webhook" desse mesmo node não funciona (API sempre devolve `false`) — usar **HTTP Request** direto pra configurar webhook.
+- **Endpoint "Set Webhook"**: `POST /webhook/set/{instanceName}`, header `apikey`, corpo `{"webhook": {"enabled": bool, "url": "...", "events": [...], "base64": bool}}` — reparar que é **aninhado em `"webhook"`**, diferente do que a documentação mostra (a doc está desatualizada/diferente da versão rodando; confiar no erro real do servidor).
+- **Endpoint "Logout"**: `DELETE /instance/logout/{instanceName}`, sem corpo. Retorna erro se a instância já estiver desconectada — tratar com "On Error: Continue" + "Always Output Data" no node, seguindo pro UPDATE que limpa o `sender` de qualquer forma.
+- **Eventos de webhook relevantes**: `CONNECTION_UPDATE` (mudança de conexão — não usado no fim, resolvido via consulta ao vivo em vez de webhook), `QRCODE_UPDATED`, `MESSAGES_UPSERT` (mensagem nova — usado pro roteamento de IA por workflow).
+- **QR code**: campo `base64` já vem com o prefixo completo `data:image/png;base64,...` — não adicionar prefixo de novo no front-end.
+- **`groupsIgnore: true`**: deve ser configurado na criação de toda instância nova, sem opção do usuário desligar — evita a IA responder autonomamente em grupos de consultores (risco de loop). *(Pendente confirmar se já está no node "Criar Instância".)*
+- **Nome da instância**: sempre `{nome digitado}-{id_cliente}` (sufixo aplicado no n8n via Edit Fields, nunca no front-end), pra nunca colidir entre clientes.
+
+## Webhook por workflow (roteamento de mensagens)
+
+Cada linha de `midiabot_a_workflows` tem sua própria `webhook_url` (um fluxo n8n distinto por automação). Ao atribuir/trocar o workflow de uma instância (`salvar_workflow`): busca a `webhook_url` daquele workflow e chama `/webhook/set/{instanceName}` apontando pra lá, assinando `MESSAGES_UPSERT`. Se o workflow for removido (opção "Nenhum" no dropdown) ou não tiver `webhook_url` cadastrada ainda, desativa o webhook (`enabled: false`) em vez de deixar apontado pra lugar errado.
+
+## Decisões e convenções importantes
+
+- **Toasts, não alert()**: `showToast(mensagem, tipo)` em `config.js`, tipos `success`/`error`/`warning`.
+- **Favicon + fonte Inter**: aplicados em todas as páginas.
+- **Build**: `package.json` → `npm run build` copia todos os HTMLs + `config.js` + `logo.png` pra `dist/`. No Windows, rodar via Bash (não PowerShell/cmd), senão `mkdir -p` falha.
+- **Deploy**: manual, feito pelo usuário. Nunca tentar rodar por conta própria.
+- **`CLAUDE.md.txt`**: contém a deploy key do Cloudfy em texto puro — está no `.gitignore`, nunca deve ser commitado.
+- **Lacuna de segurança conhecida e aceita por decisão do usuário**: não há autenticação real por requisição — `id_cliente` é um valor que o próprio navegador informa, sem verificação no servidor. Qualquer pessoa que descubra a URL do webhook pode agir como qualquer cliente. Decisão consciente de adiar a correção pro final do projeto.
+
+## Pendências em aberto
+
+- Confirmar `groupsIgnore: true` no node "Criar Instância".
+- Autenticação real por requisição (adiado deliberadamente).
+- Tela de criação de vendedores (hoje só edição, sem inclusão/exclusão — decisão consciente).
+- Textos de ajuda ("?") ainda só existem pra tela de Instâncias; falta adicionar nas outras, aos poucos.
