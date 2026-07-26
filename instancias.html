@@ -67,7 +67,10 @@
                 <div class="max-w-4xl mx-auto">
 
                     <!-- CRIAR INSTÂNCIA -->
-                    <div class="bg-white p-6 rounded-2xl shadow-sm mb-8 border border-gray-200">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm mb-8 border border-gray-200 relative">
+                        <button onclick="abrirAjuda()" class="absolute top-4 right-4 w-6 h-6 rounded-full bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600 transition-colors flex items-center justify-center text-xs font-bold">
+                            ?
+                        </button>
                         <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Nova instância</label>
                         <p class="text-[11px] text-gray-400 mb-4">O nome recebe automaticamente um sufixo do seu ID de cliente, pra nunca colidir com o nome de outro cliente.</p>
                         <div class="flex gap-3">
@@ -100,6 +103,17 @@
         </div>
     </div>
 
+    <!-- MODAL AJUDA -->
+    <div id="modal-ajuda" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl p-8 max-w-md w-full relative shadow-2xl max-h-[80vh] overflow-y-auto">
+            <button onclick="fecharAjuda()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition-colors">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+            <h3 class="text-sm font-bold text-gray-700 uppercase tracking-widest mb-4">Como funciona</h3>
+            <div id="ajuda-conteudo" class="text-sm text-gray-600 leading-relaxed"></div>
+        </div>
+    </div>
+
     <script type="module">
         import { CONFIG, showToast } from "./config.js";
 
@@ -127,12 +141,17 @@
             window.criarInstancia = criarInstancia;
             window.gerarQrCode = gerarQrCode;
             window.fecharQrCode = fecharQrCode;
+            window.desconectarInstancia = desconectarInstancia;
+            window.apagarInstancia = apagarInstancia;
             window.onWorkflowSelectChange = onWorkflowSelectChange;
             window.salvarWorkflow = salvarWorkflow;
+            window.abrirAjuda = abrirAjuda;
+            window.fecharAjuda = fecharAjuda;
             window.logout = logout;
 
             renderMenu();
             carregarCatalogoWorkflows().then(carregarInstancias);
+            carregarAjuda();
         });
 
         // Lógica de Menu Lateral Dinâmico
@@ -212,27 +231,44 @@
             }
 
             lista.innerHTML = dados.map(item => {
-                const conectado = item.connectionStatus === 'open';
+                const apiConectado = item.connectionStatus === 'open';
+                const dbConectado = !!item.sender;
+                const algumConectado = apiConectado || dbConectado;
                 const opcoesWorkflow = catalogoWorkflows.map(nome => `
                     <option value="${nome}" ${nome === item.workflow_name ? 'selected' : ''}>${nome}</option>
                 `).join('');
 
+                const badge = (label, ok) => ok
+                    ? `<span class="text-xs font-bold text-[#00b34d] uppercase tracking-widest"><i class="fas fa-circle text-[8px] mr-1"></i>${label}: Conectado</span>`
+                    : `<span class="text-xs font-bold text-gray-400 uppercase tracking-widest"><i class="fas fa-circle text-[8px] mr-1"></i>${label}: Não conectado</span>`;
+
                 return `
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
-                    <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center justify-between mb-1">
                         <span class="font-bold text-gray-800">${item.nome_instancia}</span>
-                        ${conectado
-                            ? '<span class="text-xs font-bold text-[#00b34d] uppercase tracking-widest"><i class="fas fa-circle text-[8px] mr-1"></i>Conectado</span>'
-                            : '<span class="text-xs font-bold text-gray-400 uppercase tracking-widest"><i class="fas fa-circle text-[8px] mr-1"></i>Não conectado</span>'
-                        }
+                        ${badge('API', apiConectado)}
+                    </div>
+                    <div class="flex items-center justify-end mb-4">
+                        ${badge('Banco de dados', dbConectado)}
                     </div>
 
-                    ${!conectado ? `
-                        <button onclick="gerarQrCode('${item.nome_instancia}')"
-                            class="bg-[#001f3f] text-white px-6 py-2 rounded-xl font-bold text-xs hover:bg-black transition-all shadow active:scale-95 mb-4">
-                            GERAR QR CODE
+                    ${algumConectado ? `
+                        <button onclick="desconectarInstancia('${item.nome_instancia}')"
+                            class="bg-red-500 text-white px-6 py-2 rounded-xl font-bold text-xs hover:bg-red-600 transition-all shadow active:scale-95 mb-4">
+                            DESCONECTAR INSTÂNCIA
                         </button>
-                    ` : ''}
+                    ` : `
+                        <div class="flex gap-3 mb-4">
+                            <button onclick="gerarQrCode('${item.nome_instancia}')"
+                                class="bg-[#001f3f] text-white px-6 py-2 rounded-xl font-bold text-xs hover:bg-black transition-all shadow active:scale-95">
+                                GERAR QR CODE
+                            </button>
+                            <button onclick="apagarInstancia('${item.nome_instancia}')"
+                                class="bg-white text-red-500 border border-red-200 px-6 py-2 rounded-xl font-bold text-xs hover:bg-red-50 transition-all active:scale-95">
+                                APAGAR INSTÂNCIA
+                            </button>
+                        </div>
+                    `}
 
                     <div class="border-t border-gray-100 pt-4">
                         <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Workflow</label>
@@ -298,6 +334,50 @@
             document.getElementById('modal-qrcode').classList.add('hidden');
             document.getElementById('qrcode-imagem').src = '';
             carregarInstancias();
+        }
+
+        async function desconectarInstancia(nomeInstancia) {
+            try {
+                await chamarApi('desconectar_instancia', { nome_instancia: nomeInstancia });
+                showToast("Instância desconectada.", "success");
+                carregarInstancias();
+            } catch (e) {
+                console.error("Falha ao desconectar instância:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
+        async function apagarInstancia(nomeInstancia) {
+            if (!confirm(`Tem certeza que deseja apagar a instância "${nomeInstancia}"? Essa ação não pode ser desfeita.`)) {
+                return;
+            }
+
+            try {
+                await chamarApi('apagar_instancia', { nome_instancia: nomeInstancia });
+                showToast("Instância apagada.", "success");
+                carregarInstancias();
+            } catch (e) {
+                console.error("Falha ao apagar instância:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
+        async function carregarAjuda() {
+            try {
+                const data = await chamarApi('buscar_instrucao', { info_pagina: 'instancias' });
+                const item = Array.isArray(data) ? data[0] : data;
+                document.getElementById('ajuda-conteudo').innerHTML = item?.texto_instrucao || 'Instrução ainda não cadastrada.';
+            } catch (e) {
+                console.error("Falha ao carregar instrução:", e);
+            }
+        }
+
+        function abrirAjuda() {
+            document.getElementById('modal-ajuda').classList.remove('hidden');
+        }
+
+        function fecharAjuda() {
+            document.getElementById('modal-ajuda').classList.add('hidden');
         }
 
         async function salvarWorkflow(nomeInstancia) {
