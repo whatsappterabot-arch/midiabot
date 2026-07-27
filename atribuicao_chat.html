@@ -80,12 +80,36 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Sala (Chat)</label>
+                                <div class="flex items-center justify-between mb-2">
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest">Sala (Chat)</label>
+                                    <button type="button" onclick="toggleNovaSala()" id="btn-nova-sala" disabled
+                                        class="text-[10px] font-bold text-[#00b34d] hover:underline disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:no-underline">
+                                        + Nova sala
+                                    </button>
+                                </div>
                                 <select id="select-chatid" onchange="onChatIdChange()" disabled
                                     class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all disabled:opacity-50">
                                     <option value="">Selecione um fluxo primeiro...</option>
                                 </select>
                             </div>
+                        </div>
+
+                        <!-- FORMULÁRIO NOVA SALA -->
+                        <div id="form-nova-sala" class="hidden mt-4 pt-4 border-t border-gray-100 grid grid-cols-[1fr_2fr_auto] gap-3 items-end">
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Chat ID</label>
+                                <input type="text" id="input-novo-chatid" placeholder="Ex: 123456789"
+                                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Nome da sala</label>
+                                <input type="text" id="input-novo-chatid-nome" placeholder="Ex: Atendimento Comercial"
+                                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                            </div>
+                            <button onclick="criarSala()"
+                                class="bg-[#001f3f] text-white px-6 py-3 rounded-xl font-bold text-xs hover:bg-black transition-all shadow active:scale-95">
+                                CRIAR
+                            </button>
                         </div>
                     </div>
 
@@ -148,6 +172,8 @@
             window.setPlataforma = setPlataforma;
             window.onWorkflowChange = onWorkflowChange;
             window.onChatIdChange = onChatIdChange;
+            window.toggleNovaSala = toggleNovaSala;
+            window.criarSala = criarSala;
             window.salvarAtribuicao = salvarAtribuicao;
             window.abrirAjuda = abrirAjuda;
             window.fecharAjuda = fecharAjuda;
@@ -226,25 +252,70 @@
             const select = document.getElementById('select-workflow');
             workflowSelecionado = select.value;
             const selectChatId = document.getElementById('select-chatid');
+            const btnNovaSala = document.getElementById('btn-nova-sala');
             const painel = document.getElementById('painel-tabela');
 
             painel.classList.add('hidden');
+            document.getElementById('form-nova-sala').classList.add('hidden');
             chatIdSelecionado = '';
 
             if (!workflowSelecionado) {
                 selectChatId.disabled = true;
                 selectChatId.innerHTML = '<option value="">Selecione um fluxo primeiro...</option>';
+                btnNovaSala.disabled = true;
                 return;
             }
 
+            btnNovaSala.disabled = false;
+            await carregarSalas();
+        }
+
+        async function carregarSalas(chatIdParaSelecionar) {
+            const selectChatId = document.getElementById('select-chatid');
             try {
                 const data = await chamarApi('listar_chatids', { workflow_name: workflowSelecionado });
                 salasDoWorkflow = Array.isArray(data) ? data : [];
                 selectChatId.disabled = false;
                 selectChatId.innerHTML = '<option value="">Selecione uma sala...</option>' +
                     salasDoWorkflow.map(item => `<option value="${item.chat_id}">${item.chat_id_nome || item.chat_id}</option>`).join('');
+                if (chatIdParaSelecionar) {
+                    selectChatId.value = chatIdParaSelecionar;
+                    onChatIdChange();
+                }
             } catch (e) {
                 console.error("Falha ao carregar salas:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
+        function toggleNovaSala() {
+            if (!workflowSelecionado) return;
+            document.getElementById('form-nova-sala').classList.toggle('hidden');
+        }
+
+        async function criarSala() {
+            const inputChatId = document.getElementById('input-novo-chatid');
+            const inputNome = document.getElementById('input-novo-chatid-nome');
+
+            if (!inputChatId.value.trim() || !inputNome.value.trim()) {
+                showToast("Preencha o Chat ID e o nome da sala.", "warning");
+                return;
+            }
+
+            try {
+                const novoChatId = inputChatId.value.trim();
+                await chamarApi('incluir_chatid', {
+                    workflow_name: workflowSelecionado,
+                    chat_id: novoChatId,
+                    chat_id_nome: inputNome.value.trim()
+                });
+                inputChatId.value = '';
+                inputNome.value = '';
+                document.getElementById('form-nova-sala').classList.add('hidden');
+                showToast("Sala criada com sucesso.", "success");
+                await carregarSalas(novoChatId);
+            } catch (e) {
+                console.error("Falha ao criar sala:", e);
                 showToast("Erro ao processar solicitação.", "error");
             }
         }
