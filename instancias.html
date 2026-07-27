@@ -161,7 +161,7 @@
                 { icon: 'fa-paper-plane', label: 'Envio Ativo' },
                 { icon: 'fa-server', label: 'Instâncias', active: true },
                 { icon: 'fa-ban', label: 'Proibições de IA', href: 'proibicoes.html' },
-                { icon: 'fa-paper-plane', label: 'Conectores de Telegram', href: 'telegram_sender.html' },
+                { icon: 'fa-paper-plane', label: 'Conectores de Chat', href: 'telegram_sender.html' },
                 { icon: 'fa-user-tie', label: 'Atribuição a Consultores', href: 'consultores.html' },
                 { icon: 'fa-users', label: 'Lista de Consultores', href: 'vendedores.html' },
                 { icon: 'fa-clock', label: 'Horários', href: 'horarios.html' },
@@ -365,7 +365,19 @@
 
         async function carregarAjuda() {
             try {
-                const data = await chamarApi('buscar_instrucao', { info_pagina: 'instancias' });
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        origem: 'instrucoes',
+                        plataforma: plataforma,
+                        acao: 'buscar',
+                        id_cliente: user.id_cliente,
+                        dados: { info_pagina: 'instancias' }
+                    })
+                });
+                if (!res.ok) throw new Error("Erro na API");
+                const data = await res.json();
                 const item = Array.isArray(data) ? data[0] : data;
                 document.getElementById('ajuda-conteudo').innerHTML = item?.texto_instrucao || 'Instrução ainda não cadastrada.';
             } catch (e) {

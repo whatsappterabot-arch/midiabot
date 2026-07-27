@@ -50,6 +50,9 @@
                 <div class="flex items-center gap-2">
                     <i class="fas fa-users text-gray-400"></i>
                     <h1 class="text-sm font-bold text-gray-500 uppercase tracking-widest" id="page-title">Lista de Consultores (WhatsApp)</h1>
+                    <button onclick="abrirAjuda()" class="w-5 h-5 rounded-full bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600 transition-colors flex items-center justify-center text-[10px] font-bold">
+                        ?
+                    </button>
                 </div>
                 <div class="flex items-center gap-4">
                     <div class="text-right">
@@ -95,6 +98,17 @@
         </main>
     </div>
 
+    <!-- MODAL AJUDA -->
+    <div id="modal-ajuda" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl p-8 max-w-md w-full relative shadow-2xl max-h-[80vh] overflow-y-auto">
+            <button onclick="fecharAjuda()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition-colors">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+            <h3 class="text-sm font-bold text-gray-700 uppercase tracking-widest mb-4">Como funciona</h3>
+            <div id="ajuda-conteudo" class="text-sm text-gray-600 leading-relaxed"></div>
+        </div>
+    </div>
+
     <script type="module">
         import { CONFIG, showToast } from "./config.js";
 
@@ -123,10 +137,13 @@
             window.setPlataforma = setPlataforma;
             window.onWorkflowChange = onWorkflowChange;
             window.salvarVendedor = salvarVendedor;
+            window.abrirAjuda = abrirAjuda;
+            window.fecharAjuda = fecharAjuda;
             window.logout = logout;
 
             renderMenu();
             carregarWorkflows();
+            carregarAjuda();
         });
 
         // Lógica de Menu Lateral Dinâmico
@@ -136,7 +153,7 @@
                 { icon: 'fa-paper-plane', label: 'Envio Ativo' },
                 { icon: 'fa-server', label: 'Instâncias', href: 'instancias.html' },
                 { icon: 'fa-ban', label: 'Proibições de IA', href: 'proibicoes.html' },
-                { icon: 'fa-paper-plane', label: 'Conectores de Telegram', href: 'telegram_sender.html' },
+                { icon: 'fa-paper-plane', label: 'Conectores de Chat', href: 'telegram_sender.html' },
                 { icon: 'fa-user-tie', label: 'Atribuição a Consultores', href: 'consultores.html' },
                 { icon: 'fa-users', label: 'Lista de Consultores', active: true },
                 { icon: 'fa-clock', label: 'Horários', href: 'horarios.html' },
@@ -271,6 +288,36 @@
             document.getElementById('page-title').innerText = `Lista de Consultores (${isWA ? 'WhatsApp' : 'Instagram'})`;
 
             renderMenu();
+        }
+
+        async function carregarAjuda() {
+            try {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        origem: 'instrucoes',
+                        plataforma: plataforma,
+                        acao: 'buscar',
+                        id_cliente: user.id_cliente,
+                        dados: { info_pagina: 'vendedores' }
+                    })
+                });
+                if (!res.ok) throw new Error("Erro na API");
+                const data = await res.json();
+                const item = Array.isArray(data) ? data[0] : data;
+                document.getElementById('ajuda-conteudo').innerHTML = item?.texto_instrucao || 'Instrução ainda não cadastrada.';
+            } catch (e) {
+                console.error("Falha ao carregar instrução:", e);
+            }
+        }
+
+        function abrirAjuda() {
+            document.getElementById('modal-ajuda').classList.remove('hidden');
+        }
+
+        function fecharAjuda() {
+            document.getElementById('modal-ajuda').classList.add('hidden');
         }
 
         function logout() {
