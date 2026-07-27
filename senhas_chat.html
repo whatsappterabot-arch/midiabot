@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MidiaBot - Lista de Consultores</title>
+    <title>MidiaBot - Senhas do MidiaChat</title>
     <link rel="icon" type="image/png" href="./logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -48,8 +48,8 @@
             <!-- HEADER -->
             <header class="bg-white border-b p-4 flex justify-between items-center px-8 shadow-sm">
                 <div class="flex items-center gap-2">
-                    <i class="fas fa-users text-gray-400"></i>
-                    <h1 class="text-sm font-bold text-gray-500 uppercase tracking-widest" id="page-title">Lista de Consultores (WhatsApp)</h1>
+                    <i class="fas fa-key text-gray-400"></i>
+                    <h1 class="text-sm font-bold text-gray-500 uppercase tracking-widest" id="page-title">Senhas do MidiaChat (WhatsApp)</h1>
                 </div>
                 <div class="flex items-center gap-4">
                     <div class="text-right">
@@ -64,25 +64,18 @@
 
             <!-- ÁREA DE GESTÃO -->
             <section class="p-8 overflow-y-auto flex-1">
-                <div class="max-w-5xl mx-auto">
-
-                    <!-- SELEÇÃO DE FLUXO -->
-                    <div class="bg-white p-6 rounded-2xl shadow-sm mb-8 border border-gray-200">
-                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Fluxo</label>
-                        <select id="select-workflow" onchange="onWorkflowChange()"
-                            class="w-full max-w-md bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
-                            <option value="">Selecione um fluxo...</option>
-                        </select>
-                    </div>
-
-                    <!-- TABELA DE CONSULTORES -->
-                    <div id="painel-tabela" class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hidden">
+                <div class="max-w-6xl mx-auto">
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                         <table class="w-full text-left">
                             <thead class="bg-gray-50 border-b border-gray-200">
                                 <tr>
-                                    <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Nome</th>
-                                    <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Sender</th>
-                                    <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Ações</th>
+                                    <th class="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">#</th>
+                                    <th class="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Nome</th>
+                                    <th class="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Login</th>
+                                    <th class="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Senha</th>
+                                    <th class="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Cor</th>
+                                    <th class="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Ativo</th>
+                                    <th class="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Ações</th>
                                 </tr>
                             </thead>
                             <tbody id="tabela-corpo" class="divide-y divide-gray-100">
@@ -99,10 +92,10 @@
         import { CONFIG, showToast } from "./config.js";
 
         const API_URL = CONFIG.API_URL;
+        const TOTAL_VAGAS = 10;
 
         let user = null;
         let plataforma = 'whatsapp';
-        let workflowSelecionado = '';
 
         // Inicialização e Proteção de Rota
         document.addEventListener('DOMContentLoaded', () => {
@@ -115,18 +108,15 @@
             const rawUser = JSON.parse(userData);
             user = Array.isArray(rawUser) ? rawUser[0] : rawUser;
 
-            // Hidratação da UI
             document.getElementById('user-name').innerText = user.nome || 'Usuário';
             document.getElementById('user-id').innerText = `ID: ${user.id_cliente}`;
 
-            // Exposição de funções para o escopo global (necessário para onclick em módulos)
             window.setPlataforma = setPlataforma;
-            window.onWorkflowChange = onWorkflowChange;
-            window.salvarVendedor = salvarVendedor;
+            window.salvarLogin = salvarLogin;
             window.logout = logout;
 
             renderMenu();
-            carregarWorkflows();
+            carregarLogins();
         });
 
         // Lógica de Menu Lateral Dinâmico
@@ -138,10 +128,10 @@
                 { icon: 'fa-ban', label: 'Proibições de IA', href: 'proibicoes.html' },
                 { icon: 'fa-paper-plane', label: 'Conectores de Telegram', href: 'telegram_sender.html' },
                 { icon: 'fa-user-tie', label: 'Atribuição a Consultores', href: 'consultores.html' },
-                { icon: 'fa-users', label: 'Lista de Consultores', active: true },
+                { icon: 'fa-users', label: 'Lista de Consultores', href: 'vendedores.html' },
                 { icon: 'fa-clock', label: 'Horários', href: 'horarios.html' },
                 { icon: 'fa-robot', label: 'Prompts', href: 'prompts.html' },
-                { icon: 'fa-key', label: 'Senhas do MidiaChat', href: 'senhas_chat.html' }
+                { icon: 'fa-key', label: 'Senhas do MidiaChat', active: true }
             ];
             const igItems = [
                 { icon: 'fa-hashtag', label: 'Hashtags' },
@@ -162,9 +152,9 @@
         // Função Central de Comunicação com n8n
         async function chamarApi(acao, dadosExtra) {
             const payload = {
-                origem: 'vendedores',
+                origem: 'login_chat',
                 plataforma: plataforma,
-                acao: acao, // 'listar_workflows', 'listar', 'salvar'
+                acao: acao,
                 id_cliente: user.id_cliente,
                 dados: dadosExtra
             };
@@ -179,79 +169,93 @@
             return await res.json();
         }
 
-        async function carregarWorkflows() {
+        async function carregarLogins() {
             try {
-                const data = await chamarApi('listar_workflows', {});
-                const select = document.getElementById('select-workflow');
-                const lista = Array.isArray(data) ? data : [];
-                select.innerHTML = '<option value="">Selecione um fluxo...</option>' +
-                    lista.map(item => `<option value="${item.workflow_name}">${item.workflow_name}</option>`).join('');
-            } catch (e) {
-                console.error("Falha ao carregar fluxos:", e);
-                showToast("Erro ao processar solicitação.", "error");
-            }
-        }
-
-        function onWorkflowChange() {
-            const select = document.getElementById('select-workflow');
-            workflowSelecionado = select.value;
-            const painel = document.getElementById('painel-tabela');
-
-            if (!workflowSelecionado) {
-                painel.classList.add('hidden');
-                return;
-            }
-
-            painel.classList.remove('hidden');
-            carregarVendedores();
-        }
-
-        async function carregarVendedores() {
-            try {
-                const data = await chamarApi('listar', { workflow_name: workflowSelecionado });
+                const data = await chamarApi('listar', {});
                 renderizarTabela(Array.isArray(data) ? data : []);
             } catch (e) {
-                console.error("Falha ao carregar consultores:", e);
+                console.error("Falha ao carregar logins:", e);
                 showToast("Erro ao processar solicitação.", "error");
             }
         }
 
         function renderizarTabela(dados) {
             const corpo = document.getElementById('tabela-corpo');
-            if (!dados || dados.length === 0) {
-                corpo.innerHTML = '<tr><td colspan="3" class="p-12 text-center text-gray-300 text-xs font-bold uppercase tracking-widest">Nenhum consultor encontrado</td></tr>';
+            const porId = {};
+            dados.forEach(item => { porId[item.id_vendedor] = item; });
+
+            const linhas = [];
+            for (let i = 1; i <= TOTAL_VAGAS; i++) {
+                const item = porId[i] || {};
+                linhas.push(`
+                    <tr class="hover:bg-gray-50 transition-colors group">
+                        <td class="px-4 py-4 text-center text-sm text-gray-400 font-mono">${i}</td>
+                        <td class="px-4 py-4">
+                            <input type="text" id="nome-${i}" value="${item.nome_vendedor || ''}" placeholder="Nome"
+                                class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                        </td>
+                        <td class="px-4 py-4">
+                            <input type="text" id="login-${i}" value="${item.login || ''}" placeholder="Login"
+                                class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                        </td>
+                        <td class="px-4 py-4">
+                            <input type="password" id="senha-${i}" value=""
+                                placeholder="${item.tem_senha ? '•••••• (deixe em branco p/ manter)' : '(sem senha definida)'}"
+                                class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                            <label class="flex items-center gap-1.5 mt-1.5 text-[10px] text-red-500 font-medium cursor-pointer">
+                                <input type="checkbox" id="suspender-${i}" class="w-3 h-3">
+                                Suspender acesso
+                            </label>
+                        </td>
+                        <td class="px-4 py-4 text-center">
+                            <input type="text" id="cor-${i}" value="${item.cor_emoji || ''}" placeholder="🔴" maxlength="4"
+                                class="w-14 text-center bg-gray-50 border border-gray-200 rounded-lg px-2 py-2 text-lg focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                        </td>
+                        <td class="px-4 py-4 text-center">
+                            <input type="checkbox" id="ativo-${i}" ${item.ativo === 1 ? 'checked' : ''}
+                                class="w-5 h-5 accent-[#00b34d] cursor-pointer">
+                        </td>
+                        <td class="px-4 py-4 text-right">
+                            <button onclick="salvarLogin(${i})"
+                                class="bg-[#001f3f] text-white px-4 py-2 rounded-lg font-bold text-xs hover:bg-black transition-all shadow active:scale-95">
+                                SALVAR
+                            </button>
+                        </td>
+                    </tr>
+                `);
+            }
+            corpo.innerHTML = linhas.join('');
+        }
+
+        async function salvarLogin(idVendedor) {
+            const inputNome = document.getElementById(`nome-${idVendedor}`);
+            const inputLogin = document.getElementById(`login-${idVendedor}`);
+            const inputSenha = document.getElementById(`senha-${idVendedor}`);
+            const inputSuspender = document.getElementById(`suspender-${idVendedor}`);
+            const inputCor = document.getElementById(`cor-${idVendedor}`);
+            const inputAtivo = document.getElementById(`ativo-${idVendedor}`);
+
+            if (!inputLogin.value.trim()) {
+                showToast("Preencha o login.", "warning");
                 return;
             }
 
-            corpo.innerHTML = dados.map(item => `
-                <tr class="hover:bg-gray-50 transition-colors group">
-                    <td class="px-6 py-4 text-sm text-gray-700 font-medium">${item.nome_vendedor || '(sem nome cadastrado)'}</td>
-                    <td class="px-6 py-4">
-                        <input type="text" id="sender-${item.id_vendedor}" value="${item.sender || ''}"
-                            class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
-                    </td>
-                    <td class="px-6 py-4 text-right">
-                        <button onclick="salvarVendedor(${item.id_vendedor})"
-                            class="bg-[#001f3f] text-white px-4 py-2 rounded-lg font-bold text-xs hover:bg-black transition-all shadow active:scale-95">
-                            SALVAR
-                        </button>
-                    </td>
-                </tr>
-            `).join('');
-        }
-
-        async function salvarVendedor(idVendedor) {
-            const inputSender = document.getElementById(`sender-${idVendedor}`);
-
             try {
                 await chamarApi('salvar', {
-                    workflow_name: workflowSelecionado,
                     id_vendedor: idVendedor,
-                    sender: inputSender.value
+                    nome_vendedor: inputNome.value,
+                    login: inputLogin.value.trim(),
+                    nova_senha: inputSenha.value,
+                    suspender: inputSuspender.checked,
+                    cor_emoji: inputCor.value,
+                    ativo: inputAtivo.checked ? 1 : 0
                 });
-                showToast("Consultor salvo com sucesso.", "success");
+                inputSenha.value = '';
+                inputSuspender.checked = false;
+                showToast("Login salvo com sucesso.", "success");
+                carregarLogins();
             } catch (e) {
-                console.error("Falha ao salvar consultor:", e);
+                console.error("Falha ao salvar login:", e);
                 showToast("Erro ao processar solicitação.", "error");
             }
         }
@@ -268,7 +272,7 @@
                 ? "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
                 : "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all text-gray-400 hover:bg-gray-700";
 
-            document.getElementById('page-title').innerText = `Lista de Consultores (${isWA ? 'WhatsApp' : 'Instagram'})`;
+            document.getElementById('page-title').innerText = `Senhas do MidiaChat (${isWA ? 'WhatsApp' : 'Instagram'})`;
 
             renderMenu();
         }
