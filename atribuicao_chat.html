@@ -274,7 +274,7 @@
             const selectChatId = document.getElementById('select-chatid');
             try {
                 const data = await chamarApi('listar_chatids', { workflow_name: workflowSelecionado });
-                salasDoWorkflow = Array.isArray(data) ? data : [];
+                salasDoWorkflow = (Array.isArray(data) ? data : []).filter(item => item && item.chat_id != null);
                 selectChatId.disabled = false;
                 selectChatId.innerHTML = '<option value="">Selecione uma sala...</option>' +
                     salasDoWorkflow.map(item => `<option value="${item.chat_id}">${item.chat_id_nome || item.chat_id}</option>`).join('');
@@ -340,7 +340,8 @@
                     workflow_name: workflowSelecionado,
                     chat_id: chatIdSelecionado
                 });
-                renderizarTabela(Array.isArray(data) ? data : []);
+                const lista = (Array.isArray(data) ? data : []).filter(item => item && item.remote_jid != null);
+                renderizarTabela(lista);
             } catch (e) {
                 console.error("Falha ao carregar clientes:", e);
                 showToast("Erro ao processar solicitação.", "error");
