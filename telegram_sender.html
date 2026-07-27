@@ -67,38 +67,40 @@
 
             <!-- ÁREA DE GESTÃO -->
             <section class="p-8 overflow-y-auto flex-1">
-                <div class="max-w-4xl mx-auto">
+                <div class="max-w-5xl mx-auto">
 
-                    <!-- FORMULÁRIO DE INCLUSÃO -->
+                    <!-- FORMULÁRIO CRIAR SALA -->
                     <div class="bg-white p-6 rounded-2xl shadow-sm mb-8 border border-gray-200">
-                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Adicionar conector</label>
-                        <div class="flex gap-3">
-                            <input type="text" id="input-sender" placeholder="Sender (Ex: 5511999999999)"
-                                class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all font-mono">
-                            <input type="text" id="input-chatid" placeholder="Chat ID (Ex: 123456789)"
-                                class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all font-mono">
-                            <button onclick="executarAcao('incluir')"
-                                class="bg-[#001f3f] text-white px-8 rounded-xl font-bold text-xs hover:bg-black transition-all shadow-lg active:scale-95">
-                                INCLUIR
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Criar sala</label>
+                        <div class="grid grid-cols-4 gap-3 items-end">
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Fluxo</label>
+                                <select id="select-novo-workflow" onchange="onNovoWorkflowChange()"
+                                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                                    <option value="">Selecione...</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Nome da sala</label>
+                                <input type="text" id="input-nova-sala-nome" placeholder="Ex: Atendimento Comercial"
+                                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Sender (opcional)</label>
+                                <select id="select-novo-sender" disabled
+                                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all disabled:opacity-50">
+                                    <option value="">Selecione um fluxo primeiro...</option>
+                                </select>
+                            </div>
+                            <button onclick="criarSala()"
+                                class="bg-[#001f3f] text-white px-6 py-3 rounded-xl font-bold text-xs hover:bg-black transition-all shadow-lg active:scale-95">
+                                CRIAR SALA
                             </button>
                         </div>
                     </div>
 
-                    <!-- TABELA DE RESULTADOS -->
-                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                        <table class="w-full text-left">
-                            <thead class="bg-gray-50 border-b border-gray-200">
-                                <tr>
-                                    <th class="px-8 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Sender</th>
-                                    <th class="px-8 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Chat ID</th>
-                                    <th class="px-8 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabela-corpo" class="divide-y divide-gray-100">
-                                <!-- Injetado via Java -->
-                            </tbody>
-                        </table>
-                    </div>
+                    <!-- LISTA DE SALAS -->
+                    <div id="lista-salas" class="space-y-4"></div>
                 </div>
             </section>
         </main>
@@ -122,6 +124,8 @@
 
         let user = null;
         let plataforma = 'whatsapp';
+        let salas = [];
+        let orfaosPorWorkflow = {};
 
         // Inicialização e Proteção de Rota
         document.addEventListener('DOMContentLoaded', () => {
@@ -134,19 +138,21 @@
             const rawUser = JSON.parse(userData);
             user = Array.isArray(rawUser) ? rawUser[0] : rawUser;
 
-            // Hidratação da UI
             document.getElementById('user-name').innerText = user.nome || 'Usuário';
             document.getElementById('user-id').innerText = `ID: ${user.id_cliente}`;
 
-            // Exposição de funções para o escopo global (necessário para onclick em módulos)
             window.setPlataforma = setPlataforma;
-            window.executarAcao = executarAcao;
+            window.onNovoWorkflowChange = onNovoWorkflowChange;
+            window.criarSala = criarSala;
+            window.atrelarSender = atrelarSender;
+            window.desatrelarSender = desatrelarSender;
             window.abrirAjuda = abrirAjuda;
             window.fecharAjuda = fecharAjuda;
             window.logout = logout;
 
             renderMenu();
-            executarAcao('listar');
+            carregarWorkflows();
+            carregarSalas();
             carregarAjuda();
         });
 
@@ -182,84 +188,203 @@
         }
 
         // Função Central de Comunicação com n8n
-        async function executarAcao(acao, sender = null, chatId = null) {
-            const inputSender = document.getElementById('input-sender');
-            const inputChatId = document.getElementById('input-chatid');
-
-            // Payload Estruturado conforme diretriz
+        async function chamarApi(acao, dadosExtra) {
             const payload = {
                 origem: 'conect_telegram',
                 plataforma: plataforma,
-                acao: acao, // 'listar', 'incluir', 'excluir'
+                acao: acao,
                 id_cliente: user.id_cliente,
-                dados: {
-                    sender: acao === 'incluir' ? inputSender.value : sender,
-                    chat_id: acao === 'incluir' ? inputChatId.value : chatId
-                }
+                dados: dadosExtra
             };
 
-            if (acao === 'incluir' && (!payload.dados.sender || !payload.dados.chat_id)) {
-                showToast("Por favor, preencha o Sender e o Chat ID.", "warning");
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) throw new Error("Erro na API");
+            return await res.json();
+        }
+
+        async function carregarWorkflows() {
+            try {
+                const data = await chamarApi('listar_workflows', {});
+                const lista = (Array.isArray(data) ? data : []).filter(item => item && item.workflow_name != null);
+                const select = document.getElementById('select-novo-workflow');
+                select.innerHTML = '<option value="">Selecione...</option>' +
+                    lista.map(item => `<option value="${item.workflow_name}">${item.workflow_name}</option>`).join('');
+            } catch (e) {
+                console.error("Falha ao carregar fluxos:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
+        async function onNovoWorkflowChange() {
+            const workflow = document.getElementById('select-novo-workflow').value;
+            const selectSender = document.getElementById('select-novo-sender');
+
+            if (!workflow) {
+                selectSender.disabled = true;
+                selectSender.innerHTML = '<option value="">Selecione um fluxo primeiro...</option>';
+                return;
+            }
+
+            await carregarOrfaos(workflow);
+            selectSender.disabled = false;
+            selectSender.innerHTML = '<option value="">Nenhum (criar sem sender)</option>' +
+                (orfaosPorWorkflow[workflow] || []).map(s => `<option value="${s.sender}">${s.nome_instancia} (${s.sender})</option>`).join('');
+        }
+
+        async function carregarOrfaos(workflow) {
+            try {
+                const data = await chamarApi('listar_senders_orfaos', { workflow_name: workflow });
+                orfaosPorWorkflow[workflow] = (Array.isArray(data) ? data : []).filter(item => item && item.sender != null);
+            } catch (e) {
+                console.error("Falha ao carregar senders órfãos:", e);
+                showToast("Erro ao processar solicitação.", "error");
+                orfaosPorWorkflow[workflow] = [];
+            }
+        }
+
+        async function criarSala() {
+            const workflow = document.getElementById('select-novo-workflow').value;
+            const inputNome = document.getElementById('input-nova-sala-nome');
+            const sender = document.getElementById('select-novo-sender').value;
+
+            if (!workflow) {
+                showToast("Selecione um fluxo.", "warning");
+                return;
+            }
+            if (!inputNome.value.trim()) {
+                showToast("Preencha o nome da sala.", "warning");
                 return;
             }
 
             try {
-                if (acao !== 'listar') statusLoading(true);
-
-                const res = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                await chamarApi('criar_sala', {
+                    workflow_name: workflow,
+                    chat_id_nome: inputNome.value.trim(),
+                    sender: sender || null
                 });
-
-                if (!res.ok) throw new Error("Erro na API");
-                const data = await res.json();
-
-                if (acao === 'incluir') {
-                    inputSender.value = '';
-                    inputChatId.value = '';
-                }
-
-                if (Array.isArray(data)) {
-                    // A resposta já veio com a lista atualizada (ex.: o fluxo de excluir termina com um SELECT)
-                    renderizarTabela(data);
-                } else if (acao !== 'listar') {
-                    executarAcao('listar');
-                }
+                inputNome.value = '';
+                document.getElementById('select-novo-workflow').value = '';
+                document.getElementById('select-novo-sender').disabled = true;
+                document.getElementById('select-novo-sender').innerHTML = '<option value="">Selecione um fluxo primeiro...</option>';
+                showToast("Sala criada com sucesso.", "success");
+                await carregarSalas();
             } catch (e) {
-                console.error("Falha na operação:", e);
+                console.error("Falha ao criar sala:", e);
                 showToast("Erro ao processar solicitação.", "error");
-            } finally {
-                statusLoading(false);
             }
         }
 
-        function renderizarTabela(dados) {
-            const corpo = document.getElementById('tabela-corpo');
-            if (!dados || dados.length === 0) {
-                corpo.innerHTML = '<tr><td colspan="3" class="p-12 text-center text-gray-300 text-xs font-bold uppercase tracking-widest">Nenhum conector cadastrado</td></tr>';
+        async function carregarSalas() {
+            try {
+                const data = await chamarApi('listar', {});
+                const linhas = (Array.isArray(data) ? data : []).filter(item => item && item.chat_id != null);
+                salas = agruparSalas(linhas);
+
+                const workflowsUnicos = [...new Set(salas.map(s => s.workflow_name))];
+                await Promise.all(workflowsUnicos.map(w => carregarOrfaos(w)));
+
+                renderizarSalas();
+            } catch (e) {
+                console.error("Falha ao carregar salas:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
+        function agruparSalas(linhas) {
+            const porChatId = {};
+            linhas.forEach(row => {
+                if (!porChatId[row.chat_id]) {
+                    porChatId[row.chat_id] = {
+                        chat_id: row.chat_id,
+                        chat_id_nome: row.chat_id_nome,
+                        workflow_name: row.workflow_name,
+                        senders: []
+                    };
+                }
+                if (row.sender) porChatId[row.chat_id].senders.push(row.sender);
+            });
+            return Object.values(porChatId);
+        }
+
+        function renderizarSalas() {
+            const container = document.getElementById('lista-salas');
+            if (salas.length === 0) {
+                container.innerHTML = '<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-12 text-center text-gray-300 text-xs font-bold uppercase tracking-widest">Nenhuma sala cadastrada</div>';
                 return;
             }
 
-            corpo.innerHTML = dados.map(item => `
-                <tr class="hover:bg-gray-50 transition-colors group">
-                    <td class="px-8 py-4 text-sm text-gray-600 font-mono font-medium">${item.sender}</td>
-                    <td class="px-8 py-4 text-sm text-gray-600 font-mono font-medium">${item.chat_id}</td>
-                    <td class="px-8 py-4 text-right">
-                        <button onclick="executarAcao('excluir', '${item.sender}', '${item.chat_id}')"
-                            class="text-gray-300 hover:text-red-500 transition-all p-2">
-                            <i class="fas fa-trash-alt"></i>
+            container.innerHTML = salas.map(sala => `
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                    <div class="mb-4">
+                        <p class="text-sm font-bold text-gray-800">${sala.chat_id_nome || '(sem nome)'}</p>
+                        <p class="text-[10px] text-gray-400 font-mono mt-1">Chat ID: ${sala.chat_id} &middot; ${sala.workflow_name}</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2 mb-4">
+                        ${sala.senders.length === 0
+                            ? '<span class="text-xs text-gray-300">Nenhum sender atrelado</span>'
+                            : sala.senders.map(s => `
+                                <span class="inline-flex items-center gap-2 bg-gray-100 rounded-full pl-3 pr-2 py-1.5 text-xs font-mono text-gray-600">
+                                    ${s}
+                                    <button onclick="desatrelarSender('${s}')" class="text-gray-400 hover:text-red-500 transition-colors">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </span>
+                            `).join('')}
+                    </div>
+                    <div class="flex gap-2">
+                        <select id="select-add-sender-${sala.chat_id}"
+                            class="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                            <option value="">Adicionar sender órfão...</option>
+                            ${(orfaosPorWorkflow[sala.workflow_name] || []).map(s => `<option value="${s.sender}">${s.nome_instancia} (${s.sender})</option>`).join('')}
+                        </select>
+                        <button onclick="atrelarSender(${sala.chat_id})"
+                            class="bg-[#001f3f] text-white px-4 py-2 rounded-lg font-bold text-xs hover:bg-black transition-all shadow active:scale-95">
+                            ATRELAR
                         </button>
-                    </td>
-                </tr>
+                    </div>
+                </div>
             `).join('');
+        }
+
+        async function atrelarSender(chatId) {
+            const select = document.getElementById(`select-add-sender-${chatId}`);
+            const sender = select.value;
+
+            if (!sender) {
+                showToast("Selecione um sender.", "warning");
+                return;
+            }
+
+            try {
+                await chamarApi('atrelar_sender', { sender, chat_id: chatId });
+                showToast("Sender atrelado com sucesso.", "success");
+                await carregarSalas();
+            } catch (e) {
+                console.error("Falha ao atrelar sender:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
+        async function desatrelarSender(sender) {
+            try {
+                await chamarApi('desatrelar_sender', { sender });
+                showToast("Sender desatrelado com sucesso.", "success");
+                await carregarSalas();
+            } catch (e) {
+                console.error("Falha ao desatrelar sender:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
         }
 
         function setPlataforma(p) {
             plataforma = p;
             const isWA = p === 'whatsapp';
 
-            // Estilização dos botões de toggle
             document.getElementById('btn-wa').className = isWA
                 ? "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all bg-[#00b34d] text-white shadow-md"
                 : "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all text-gray-400 hover:bg-gray-700";
@@ -271,12 +396,8 @@
             document.getElementById('page-title').innerText = `Conectores de Chat (${isWA ? 'WhatsApp' : 'Instagram'})`;
 
             renderMenu();
-            executarAcao('listar');
-        }
-
-        function statusLoading(isLoading) {
-            // Feedback visual simples para operações assíncronas
-            document.body.style.cursor = isLoading ? 'wait' : 'default';
+            carregarWorkflows();
+            carregarSalas();
         }
 
         async function carregarAjuda() {
