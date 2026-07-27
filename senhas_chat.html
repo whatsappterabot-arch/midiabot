@@ -245,7 +245,7 @@
                     id_vendedor: idVendedor,
                     nome_vendedor: inputNome.value,
                     login: inputLogin.value.trim(),
-                    nova_senha: inputSenha.value,
+                    nova_senha: inputSenha.value || '__SEM_ALTERACAO__',
                     suspender: inputSuspender.checked,
                     cor_emoji: inputCor.value,
                     ativo: inputAtivo.checked ? 1 : 0
