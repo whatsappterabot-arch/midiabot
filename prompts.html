@@ -69,13 +69,24 @@
             <section class="p-8 overflow-y-auto flex-1">
                 <div class="max-w-4xl mx-auto">
 
-                    <!-- SELEÇÃO DE INSTÂNCIA -->
+                    <!-- SELEÇÃO DE FLUXO E SALA -->
                     <div class="bg-white p-6 rounded-2xl shadow-sm mb-8 border border-gray-200">
-                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Instância</label>
-                        <select id="select-instancia" onchange="onInstanciaChange()"
-                            class="w-full max-w-md bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
-                            <option value="">Selecione uma instância...</option>
-                        </select>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Fluxo</label>
+                                <select id="select-workflow" onchange="onWorkflowChange()"
+                                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                                    <option value="">Selecione um fluxo...</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Sala (Chat)</label>
+                                <select id="select-chatid" onchange="onChatIdChange()" disabled
+                                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all disabled:opacity-50">
+                                    <option value="">Selecione um fluxo primeiro...</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- PROMPTS -->
@@ -125,7 +136,8 @@
 
         let user = null;
         let plataforma = 'whatsapp';
-        let instanciaSelecionada = '';
+        let workflowSelecionado = '';
+        let chatIdSelecionado = '';
 
         // Inicialização e Proteção de Rota
         document.addEventListener('DOMContentLoaded', () => {
@@ -142,7 +154,8 @@
             document.getElementById('user-id').innerText = `ID: ${user.id_cliente}`;
 
             window.setPlataforma = setPlataforma;
-            window.onInstanciaChange = onInstanciaChange;
+            window.onWorkflowChange = onWorkflowChange;
+            window.onChatIdChange = onChatIdChange;
             window.atualizarContador = atualizarContador;
             window.salvarPrompts = salvarPrompts;
             window.abrirAjuda = abrirAjuda;
@@ -150,7 +163,7 @@
             window.logout = logout;
 
             renderMenu();
-            carregarInstancias();
+            carregarWorkflows();
             carregarAjuda();
         });
 
@@ -205,25 +218,52 @@
             return await res.json();
         }
 
-        async function carregarInstancias() {
+        async function carregarWorkflows() {
             try {
-                const data = await chamarApi('listar_instancias', {});
-                const select = document.getElementById('select-instancia');
-                const lista = Array.isArray(data) ? data : [];
-                select.innerHTML = '<option value="">Selecione uma instância...</option>' +
-                    lista.map(item => `<option value="${item.nome_instancia}">${item.nome_instancia}</option>`).join('');
+                const data = await chamarApi('listar_workflows', {});
+                const select = document.getElementById('select-workflow');
+                const lista = (Array.isArray(data) ? data : []).filter(item => item && item.workflow_name != null);
+                select.innerHTML = '<option value="">Selecione um fluxo...</option>' +
+                    lista.map(item => `<option value="${item.workflow_name}">${item.workflow_name}</option>`).join('');
             } catch (e) {
-                console.error("Falha ao carregar instâncias:", e);
+                console.error("Falha ao carregar fluxos:", e);
                 showToast("Erro ao processar solicitação.", "error");
             }
         }
 
-        function onInstanciaChange() {
-            const select = document.getElementById('select-instancia');
-            instanciaSelecionada = select.value;
+        async function onWorkflowChange() {
+            const select = document.getElementById('select-workflow');
+            workflowSelecionado = select.value;
+            const selectChatId = document.getElementById('select-chatid');
             const painel = document.getElementById('painel-prompts');
 
-            if (!instanciaSelecionada) {
+            painel.classList.add('hidden');
+            chatIdSelecionado = '';
+
+            if (!workflowSelecionado) {
+                selectChatId.disabled = true;
+                selectChatId.innerHTML = '<option value="">Selecione um fluxo primeiro...</option>';
+                return;
+            }
+
+            try {
+                const data = await chamarApi('listar_chatids', { workflow_name: workflowSelecionado });
+                const salas = (Array.isArray(data) ? data : []).filter(item => item && item.chat_id != null);
+                selectChatId.disabled = false;
+                selectChatId.innerHTML = '<option value="">Selecione uma sala...</option>' +
+                    salas.map(item => `<option value="${item.chat_id}">${item.chat_id_nome || item.chat_id}</option>`).join('');
+            } catch (e) {
+                console.error("Falha ao carregar salas:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
+        function onChatIdChange() {
+            const select = document.getElementById('select-chatid');
+            chatIdSelecionado = select.value;
+            const painel = document.getElementById('painel-prompts');
+
+            if (!chatIdSelecionado) {
                 painel.classList.add('hidden');
                 return;
             }
@@ -234,8 +274,8 @@
 
         async function carregarPrompts() {
             try {
-                const data = await chamarApi('buscar_prompts', { nome_instancia: instanciaSelecionada });
-                const lista = Array.isArray(data) ? data : [];
+                const data = await chamarApi('buscar_prompts', { chat_id: chatIdSelecionado });
+                const lista = (Array.isArray(data) ? data : []).filter(item => item && item.trabalho_on != null);
                 const trabalho = lista.find(i => i.trabalho_on === 1);
                 const fora = lista.find(i => i.trabalho_on === 0);
 
@@ -256,11 +296,11 @@
         }
 
         async function salvarPrompts() {
-            if (!instanciaSelecionada) return;
+            if (!chatIdSelecionado) return;
 
             try {
                 await chamarApi('salvar_prompts', {
-                    nome_instancia: instanciaSelecionada,
+                    chat_id: chatIdSelecionado,
                     prompt_trabalho: document.getElementById('prompt-trabalho').value,
                     prompt_fora: document.getElementById('prompt-fora').value
                 });
