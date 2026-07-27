@@ -94,8 +94,10 @@
 
                         <div id="bloco-vendedor">
                             <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Vendedor</label>
-                            <input type="number" id="input-vendedor" placeholder="Ex: 12"
-                                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all font-mono mb-6">
+                            <select id="input-vendedor"
+                                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all mb-6">
+                                <option value="">Selecione um vendedor...</option>
+                            </select>
                         </div>
 
                         <button onclick="salvar()"
@@ -156,6 +158,7 @@
             renderMenu();
             setModo(true);
             carregarWorkflows();
+            carregarVendedoresAtivos();
             carregarAjuda();
         });
 
@@ -218,6 +221,19 @@
                     lista.map(item => `<option value="${item.workflow_name}">${item.workflow_name}</option>`).join('');
             } catch (e) {
                 console.error("Falha ao carregar fluxos:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
+        async function carregarVendedoresAtivos() {
+            try {
+                const data = await chamarApi('listar_vendedores_ativos', {});
+                const select = document.getElementById('input-vendedor');
+                const lista = Array.isArray(data) ? data : [];
+                select.innerHTML = '<option value="">Selecione um vendedor...</option>' +
+                    lista.map(item => `<option value="${item.id_vendedor}">${item.nome_vendedor || ('Vendedor ' + item.id_vendedor)}</option>`).join('');
+            } catch (e) {
+                console.error("Falha ao carregar vendedores ativos:", e);
                 showToast("Erro ao processar solicitação.", "error");
             }
         }
