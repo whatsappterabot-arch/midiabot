@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MidiaBot - Conectores de Chat</title>
+    <title>MidiaBot - Atribuição de Chat</title>
     <link rel="icon" type="image/png" href="./logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -48,8 +48,8 @@
             <!-- HEADER -->
             <header class="bg-white border-b p-4 flex justify-between items-center px-8 shadow-sm">
                 <div class="flex items-center gap-2">
-                    <i class="fas fa-paper-plane text-gray-400"></i>
-                    <h1 class="text-sm font-bold text-gray-500 uppercase tracking-widest" id="page-title">Conectores de Chat (WhatsApp)</h1>
+                    <i class="fas fa-comments text-gray-400"></i>
+                    <h1 class="text-sm font-bold text-gray-500 uppercase tracking-widest" id="page-title">Atribuição de Chat (WhatsApp)</h1>
                     <button onclick="abrirAjuda()" class="w-5 h-5 rounded-full bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600 transition-colors flex items-center justify-center text-[10px] font-bold">
                         ?
                     </button>
@@ -69,29 +69,34 @@
             <section class="p-8 overflow-y-auto flex-1">
                 <div class="max-w-4xl mx-auto">
 
-                    <!-- FORMULÁRIO DE INCLUSÃO -->
+                    <!-- SELEÇÃO DE FLUXO E SALA -->
                     <div class="bg-white p-6 rounded-2xl shadow-sm mb-8 border border-gray-200">
-                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Adicionar conector</label>
-                        <div class="flex gap-3">
-                            <input type="text" id="input-sender" placeholder="Sender (Ex: 5511999999999)"
-                                class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all font-mono">
-                            <input type="text" id="input-chatid" placeholder="Chat ID (Ex: 123456789)"
-                                class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all font-mono">
-                            <button onclick="executarAcao('incluir')"
-                                class="bg-[#001f3f] text-white px-8 rounded-xl font-bold text-xs hover:bg-black transition-all shadow-lg active:scale-95">
-                                INCLUIR
-                            </button>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Fluxo</label>
+                                <select id="select-workflow" onchange="onWorkflowChange()"
+                                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                                    <option value="">Selecione um fluxo...</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Sala (Chat)</label>
+                                <select id="select-chatid" onchange="onChatIdChange()" disabled
+                                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all disabled:opacity-50">
+                                    <option value="">Selecione um fluxo primeiro...</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- TABELA DE RESULTADOS -->
-                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                    <!-- TABELA DE CLIENTES NA SALA -->
+                    <div id="painel-tabela" class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hidden">
                         <table class="w-full text-left">
                             <thead class="bg-gray-50 border-b border-gray-200">
                                 <tr>
-                                    <th class="px-8 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Sender</th>
-                                    <th class="px-8 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Chat ID</th>
-                                    <th class="px-8 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Ações</th>
+                                    <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Cliente (Remote JID)</th>
+                                    <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Mover para</th>
+                                    <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Ações</th>
                                 </tr>
                             </thead>
                             <tbody id="tabela-corpo" class="divide-y divide-gray-100">
@@ -122,6 +127,9 @@
 
         let user = null;
         let plataforma = 'whatsapp';
+        let workflowSelecionado = '';
+        let chatIdSelecionado = '';
+        let salasDoWorkflow = [];
 
         // Inicialização e Proteção de Rota
         document.addEventListener('DOMContentLoaded', () => {
@@ -134,19 +142,19 @@
             const rawUser = JSON.parse(userData);
             user = Array.isArray(rawUser) ? rawUser[0] : rawUser;
 
-            // Hidratação da UI
             document.getElementById('user-name').innerText = user.nome || 'Usuário';
             document.getElementById('user-id').innerText = `ID: ${user.id_cliente}`;
 
-            // Exposição de funções para o escopo global (necessário para onclick em módulos)
             window.setPlataforma = setPlataforma;
-            window.executarAcao = executarAcao;
+            window.onWorkflowChange = onWorkflowChange;
+            window.onChatIdChange = onChatIdChange;
+            window.salvarAtribuicao = salvarAtribuicao;
             window.abrirAjuda = abrirAjuda;
             window.fecharAjuda = fecharAjuda;
             window.logout = logout;
 
             renderMenu();
-            executarAcao('listar');
+            carregarWorkflows();
             carregarAjuda();
         });
 
@@ -157,13 +165,13 @@
                 { icon: 'fa-paper-plane', label: 'Envio Ativo' },
                 { icon: 'fa-server', label: 'Instâncias', href: 'instancias.html' },
                 { icon: 'fa-ban', label: 'Proibições de IA', href: 'proibicoes.html' },
-                { icon: 'fa-paper-plane', label: 'Conectores de Chat', active: true },
+                { icon: 'fa-paper-plane', label: 'Conectores de Chat', href: 'telegram_sender.html' },
                 { icon: 'fa-user-tie', label: 'Atribuição a Consultores', href: 'consultores.html' },
                 { icon: 'fa-users', label: 'Lista de Consultores', href: 'vendedores.html' },
                 { icon: 'fa-clock', label: 'Horários', href: 'horarios.html' },
                 { icon: 'fa-robot', label: 'Prompts', href: 'prompts.html' },
                 { icon: 'fa-key', label: 'Senhas do MidiaChat', href: 'senhas_chat.html' },
-                { icon: 'fa-comments', label: 'Atribuição de Chat', href: 'atribuicao_chat.html' }
+                { icon: 'fa-comments', label: 'Atribuição de Chat', active: true }
             ];
             const igItems = [
                 { icon: 'fa-hashtag', label: 'Hashtags' },
@@ -182,84 +190,148 @@
         }
 
         // Função Central de Comunicação com n8n
-        async function executarAcao(acao, sender = null, chatId = null) {
-            const inputSender = document.getElementById('input-sender');
-            const inputChatId = document.getElementById('input-chatid');
-
-            // Payload Estruturado conforme diretriz
+        async function chamarApi(acao, dadosExtra) {
             const payload = {
-                origem: 'conect_telegram',
+                origem: 'atribuicao_chat',
                 plataforma: plataforma,
-                acao: acao, // 'listar', 'incluir', 'excluir'
+                acao: acao,
                 id_cliente: user.id_cliente,
-                dados: {
-                    sender: acao === 'incluir' ? inputSender.value : sender,
-                    chat_id: acao === 'incluir' ? inputChatId.value : chatId
-                }
+                dados: dadosExtra
             };
 
-            if (acao === 'incluir' && (!payload.dados.sender || !payload.dados.chat_id)) {
-                showToast("Por favor, preencha o Sender e o Chat ID.", "warning");
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) throw new Error("Erro na API");
+            return await res.json();
+        }
+
+        async function carregarWorkflows() {
+            try {
+                const data = await chamarApi('listar_workflows', {});
+                const select = document.getElementById('select-workflow');
+                const lista = Array.isArray(data) ? data : [];
+                select.innerHTML = '<option value="">Selecione um fluxo...</option>' +
+                    lista.map(item => `<option value="${item.workflow_name}">${item.workflow_name}</option>`).join('');
+            } catch (e) {
+                console.error("Falha ao carregar fluxos:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
+        async function onWorkflowChange() {
+            const select = document.getElementById('select-workflow');
+            workflowSelecionado = select.value;
+            const selectChatId = document.getElementById('select-chatid');
+            const painel = document.getElementById('painel-tabela');
+
+            painel.classList.add('hidden');
+            chatIdSelecionado = '';
+
+            if (!workflowSelecionado) {
+                selectChatId.disabled = true;
+                selectChatId.innerHTML = '<option value="">Selecione um fluxo primeiro...</option>';
                 return;
             }
 
             try {
-                if (acao !== 'listar') statusLoading(true);
-
-                const res = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!res.ok) throw new Error("Erro na API");
-                const data = await res.json();
-
-                if (acao === 'incluir') {
-                    inputSender.value = '';
-                    inputChatId.value = '';
-                }
-
-                if (Array.isArray(data)) {
-                    // A resposta já veio com a lista atualizada (ex.: o fluxo de excluir termina com um SELECT)
-                    renderizarTabela(data);
-                } else if (acao !== 'listar') {
-                    executarAcao('listar');
-                }
+                const data = await chamarApi('listar_chatids', { workflow_name: workflowSelecionado });
+                salasDoWorkflow = Array.isArray(data) ? data : [];
+                selectChatId.disabled = false;
+                selectChatId.innerHTML = '<option value="">Selecione uma sala...</option>' +
+                    salasDoWorkflow.map(item => `<option value="${item.chat_id}">${item.chat_id_nome || item.chat_id}</option>`).join('');
             } catch (e) {
-                console.error("Falha na operação:", e);
+                console.error("Falha ao carregar salas:", e);
                 showToast("Erro ao processar solicitação.", "error");
-            } finally {
-                statusLoading(false);
+            }
+        }
+
+        function onChatIdChange() {
+            const select = document.getElementById('select-chatid');
+            chatIdSelecionado = select.value;
+            const painel = document.getElementById('painel-tabela');
+
+            if (!chatIdSelecionado) {
+                painel.classList.add('hidden');
+                return;
+            }
+
+            painel.classList.remove('hidden');
+            carregarRemoteJids();
+        }
+
+        async function carregarRemoteJids() {
+            try {
+                const data = await chamarApi('listar_remotejids', {
+                    workflow_name: workflowSelecionado,
+                    chat_id: chatIdSelecionado
+                });
+                renderizarTabela(Array.isArray(data) ? data : []);
+            } catch (e) {
+                console.error("Falha ao carregar clientes:", e);
+                showToast("Erro ao processar solicitação.", "error");
             }
         }
 
         function renderizarTabela(dados) {
             const corpo = document.getElementById('tabela-corpo');
             if (!dados || dados.length === 0) {
-                corpo.innerHTML = '<tr><td colspan="3" class="p-12 text-center text-gray-300 text-xs font-bold uppercase tracking-widest">Nenhum conector cadastrado</td></tr>';
+                corpo.innerHTML = '<tr><td colspan="3" class="p-12 text-center text-gray-300 text-xs font-bold uppercase tracking-widest">Nenhum cliente nessa sala</td></tr>';
                 return;
             }
 
+            const opcoesSalas = salasDoWorkflow.map(item => `
+                <option value="${item.chat_id}">${item.chat_id_nome || item.chat_id}</option>
+            `).join('');
+
             corpo.innerHTML = dados.map(item => `
                 <tr class="hover:bg-gray-50 transition-colors group">
-                    <td class="px-8 py-4 text-sm text-gray-600 font-mono font-medium">${item.sender}</td>
-                    <td class="px-8 py-4 text-sm text-gray-600 font-mono font-medium">${item.chat_id}</td>
-                    <td class="px-8 py-4 text-right">
-                        <button onclick="executarAcao('excluir', '${item.sender}', '${item.chat_id}')"
-                            class="text-gray-300 hover:text-red-500 transition-all p-2">
-                            <i class="fas fa-trash-alt"></i>
+                    <td class="px-6 py-4 text-sm text-gray-600 font-mono">${item.remote_jid}</td>
+                    <td class="px-6 py-4">
+                        <select id="mover-${item.remote_jid}"
+                            class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                            ${opcoesSalas}
+                        </select>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <button onclick="salvarAtribuicao('${item.remote_jid}')"
+                            class="bg-[#001f3f] text-white px-4 py-2 rounded-lg font-bold text-xs hover:bg-black transition-all shadow active:scale-95">
+                            SALVAR
                         </button>
                     </td>
                 </tr>
             `).join('');
+
+            // Pré-seleciona a sala atual de cada cliente
+            dados.forEach(item => {
+                const select = document.getElementById(`mover-${item.remote_jid}`);
+                if (select) select.value = chatIdSelecionado;
+            });
+        }
+
+        async function salvarAtribuicao(remoteJid) {
+            const select = document.getElementById(`mover-${remoteJid}`);
+
+            try {
+                await chamarApi('salvar_atribuicao', {
+                    remotejid: remoteJid,
+                    chat_id: select.value
+                });
+                showToast("Cliente movido com sucesso.", "success");
+                carregarRemoteJids();
+            } catch (e) {
+                console.error("Falha ao salvar atribuição:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
         }
 
         function setPlataforma(p) {
             plataforma = p;
             const isWA = p === 'whatsapp';
 
-            // Estilização dos botões de toggle
             document.getElementById('btn-wa').className = isWA
                 ? "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all bg-[#00b34d] text-white shadow-md"
                 : "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all text-gray-400 hover:bg-gray-700";
@@ -268,15 +340,9 @@
                 ? "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
                 : "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all text-gray-400 hover:bg-gray-700";
 
-            document.getElementById('page-title').innerText = `Conectores de Chat (${isWA ? 'WhatsApp' : 'Instagram'})`;
+            document.getElementById('page-title').innerText = `Atribuição de Chat (${isWA ? 'WhatsApp' : 'Instagram'})`;
 
             renderMenu();
-            executarAcao('listar');
-        }
-
-        function statusLoading(isLoading) {
-            // Feedback visual simples para operações assíncronas
-            document.body.style.cursor = isLoading ? 'wait' : 'default';
         }
 
         async function carregarAjuda() {
@@ -289,7 +355,7 @@
                         plataforma: plataforma,
                         acao: 'buscar',
                         id_cliente: user.id_cliente,
-                        dados: { info_pagina: 'telegram_sender' }
+                        dados: { info_pagina: 'atribuicao_chat' }
                     })
                 });
                 if (!res.ok) throw new Error("Erro na API");
