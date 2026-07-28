@@ -50,6 +50,23 @@ Toda chamada ao `API_URL` segue este formato:
 
 Todas as páginas (exceto index/dashboard) têm: sidebar com logo + toggle WhatsApp/Instagram + menu dinâmico; header com título + nome/ID do usuário + logout; import de `CONFIG` e `showToast` de `config.js`.
 
+## Sequência de configuração de um cliente novo
+
+Ordem esperada até o sistema funcionar de ponta a ponta, pra um cliente com todas as tabelas limpas:
+
+1. **Instâncias** — cria a(s) instância(s), conecta via QR code, atribui um workflow a cada uma.
+2. **Conectores de Chat** — cria a(s) sala(s) de cada workflow usado, atrelando (na hora ou depois) os senders órfãos das instâncias do passo 1.
+3. **Prompts** — escreve os prompts de IA (horário de trabalho / fora do horário) pra cada sala do passo 2.
+4. **Horários** — define o expediente de cada workflow, que decide qual dos dois prompts do passo 3 vale em cada momento.
+5. **Senhas do MidiaChat** — cria login pros consultores acessarem as salas do passo 2 e lerem as mensagens.
+
+Opcionais, só se o fluxo do cliente precisar:
+
+6. **Atribuição a Consultores / Lista de Consultores** — distribuição automática de leads pra vendedores.
+7. **Proibições de IA** — números que pulam a IA e vão direto pro atendente humano.
+
+**Atribuição de Chat** não faz parte dessa sequência inicial — só passa a ser útil depois, com conversas reais já acontecendo (`midiabot_historico_mensagens` populado), pra mover um cliente específico pra outra sala.
+
 ## Tabelas do banco (PostgreSQL, schema `public`)
 
 ### `midiabot_cad_usuarios` (pré-existente)
