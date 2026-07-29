@@ -180,38 +180,16 @@ UNIQUE (id_cliente, login)  -- login único dentro do cliente, mas pode repetir 
 ```
 `ativo` aqui é o que alimenta o sorteio de leads (`midiabot_sorteio_vendedor`/`listar_vendedores_ativos`), não `midiabot_vendedores`. "Suspender acesso" (checkbox da tela) só zera `senha` — não mexe em `ativo`. Senha em branco na criação também vira `NULL` (`NULLIF(valor, '__SEM_ALTERACAO__')` no `INSERT`), nunca o texto literal do sentinel de "sem alteração".
 
-### Tabelas encontradas nesta sessão, propósito não esclarecido
-Apareceram num levantamento completo do banco (`information_schema.columns`/`pg_constraint` filtrado por `midiabot%`), sem nenhuma menção anterior nesta documentação nem nesta sessão. Provavelmente construídas na sessão anterior que se perdeu. **Precisa perguntar ao usuário o que são e se ainda estão em uso** antes de mexer em qualquer uma delas.
+### Tabelas encontradas nesta sessão (esclarecidas com o usuário)
+Apareceram num levantamento completo do banco (`information_schema.columns`/`pg_constraint` filtrado por `midiabot%`), sem nenhuma menção anterior nesta documentação — provavelmente construídas na sessão anterior que se perdeu. Já esclarecidas:
 
-**`midiabot_atribuicao_vendedor`**
-```sql
-remotejid TEXT NOT NULL,
-workflow_name TEXT NOT NULL,
-id_vendedor INTEGER NOT NULL,
-id_cliente INTEGER,  -- nullable
-PRIMARY KEY (remotejid, workflow_name)
-```
-Parece ser um mecanismo de atribuição de vendedor a um `remotejid` por workflow — possivelmente uma versão anterior (ou paralela) de como o gestor "transfere definitivamente um lead pra um vendedor", que nesta sessão modelamos de outro jeito (mover o `remotejid` pra uma sala cujo dono é o vendedor, via `midiabot_midiachat_sala_vendedor`, ainda não construída). Pode ser que essa tabela já resolva isso e a nova tabela seja redundante — ou pode ser algo defasado. Não usar sem confirmar.
+**`midiabot_atribuicao_vendedor`** — **removida nesta sessão** (`DROP TABLE`). Era um mecanismo antigo de atribuir vendedor a um `remotejid` por workflow. Confirmado com o usuário: quem decide o vendedor é `midiabot_sorteio_vendedor` (a regra), e quem registra a relação `remotejid`↔sala/vendedor é `midiabot_remotejid_chatid` — essa tabela antiga ficou redundante. Se o Midiabot_chat não vingar, o usuário disse que remonta.
 
-**`midiabot_messagethreadid_remotejid`**
-```sql
-remotejid TEXT NOT NULL,
-chat_id TEXT NOT NULL,   -- reparar: TEXT aqui, diferente de todo outro chat_id do sistema (sempre INTEGER/BIGINT)
-message_thread_id TEXT,
-PRIMARY KEY (remotejid, chat_id)
-```
-Isso é exatamente o conceito de `message_thread_id` que esta sessão decidiu **eliminar** do desenho do Midiabot_chat (ver `midiabot_chat/Midiabot_chat.md`), substituindo por só `(chat_id, remote_jid)`. Essa tabela já existir sugere que ela foi construída antes dessa decisão (provavelmente na sessão perdida) — precisa confirmar se está morta/substituída ou se ainda alimenta algo em produção.
+**`midiabot_messagethreadid_remotejid`** — ainda existe, mas confirmado como **fadada a desaparecer** assim que o Midiabot_chat estiver funcionando (é o antigo conceito de `message_thread_id` que este projeto decidiu não usar — ver `midiabot_chat/Midiabot_chat.md`). Não usar em nada novo.
 
-**`midiabot_whats_versus_telegram`**
-```sql
-remote_jid TEXT NOT NULL,
-telegram_thread_id INTEGER NOT NULL,
-last_instance TEXT NOT NULL,
-workflow_name VARCHAR NOT NULL,
-chat_id BIGINT NOT NULL,
-PRIMARY KEY (remote_jid, chat_id, workflow_name)
-```
-Tem cara de ser o mecanismo **real, hoje em uso**, que liga uma mensagem do WhatsApp a um tópico (thread) dentro de um supergrupo do Telegram — ou seja, pode ser a peça viva do roteamento atual (pré-Midiabot_chat) que nunca vimos nesta sessão. Se for isso, é bem relevante: contradiz a suposição de que "não tem nada em produção" pelo menos nesse pedaço específico. Precisa confirmar com o usuário.
+**`midiabot_whats_versus_telegram`** — confirmado pelo usuário: é resíduo do tempo em que usavam Telegram, **ainda em uso**, só será apagada depois que o Midiabot_chat estiver funcionando. Guarda `last_instance` — a instância (número de WhatsApp) por onde aquele cliente escreveu, necessária pra saber por qual instância mandar a resposta de volta.
+
+**Lacuna descoberta por causa disso**: `midiabot_remotejid_chatid` (o mecanismo novo, usado pelo Midiabot_chat) guarda `chat_id` mas **não guarda qual instância usar pra responder** — ao contrário de `midiabot_whats_versus_telegram`, que tinha `last_instance` pra isso. Precisa decidir: vira coluna nova em `midiabot_remotejid_chatid`, ou é derivado de `midiabot_historico_mensagens.instance` (que já guarda isso por mensagem) na hora de responder? Pendência a resolver antes de implementar o envio de mensagens do Midiabot_chat.
 
 ### `midiabot_z_horarios_trabalho` (Horários)
 ```sql
@@ -339,7 +317,7 @@ Desenho original (pode estar desatualizado): cada linha de `midiabot_a_workflows
 - Autenticação real por requisição (adiado deliberadamente).
 - Tela de criação de vendedores (hoje só edição, sem inclusão/exclusão — decisão consciente).
 - Textos de ajuda ("?") ainda só existem pra tela de Instâncias; falta adicionar nas outras, aos poucos.
-- **Esclarecer com o usuário o propósito de `midiabot_atribuicao_vendedor`, `midiabot_messagethreadid_remotejid` e `midiabot_whats_versus_telegram`** (achadas no levantamento completo desta sessão, nunca discutidas — ver seção "Tabelas encontradas nesta sessão, propósito não esclarecido").
+- Decidir como o Midiabot_chat vai saber por qual instância responder (`midiabot_remotejid_chatid` não guarda isso hoje — ver seção "Tabelas encontradas nesta sessão").
 - Derrubar a FK antiga e duplicada em `midiabot_sorteio_vendedor` (a que aponta pra `midiabot_vendedores`; manter só a que aponta pra `midiabot_login_chat`).
 - Confirmar como `salvar_workflow` aponta o webhook de uma instância hoje, já que `midiabot_a_workflows.webhook_url` não existe (a seção "Webhook por workflow" pode estar desatualizada).
 - Confirmar se `midiabot_sender_chatid.chat_id_nome` ainda é usado em algum lugar ou é resquício.
