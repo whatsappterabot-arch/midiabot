@@ -88,7 +88,20 @@ Isso só é seguro de verdade se esse endpoint souber provar quem está pedindo 
 
 ## Decisões fechadas nesta rodada
 
-- **Token de sessão**: validade de **7 dias**.
+- **Token de sessão**: validade de **7 dias**, chave opaca (não JWT) gerada pelo Postgres via `pgcrypto`, guardada em `midiabot_midiachat_sessao`:
+```sql
+CREATE TABLE midiabot_midiachat_sessao (
+    token TEXT PRIMARY KEY,
+    id_cliente INTEGER NOT NULL REFERENCES midiabot_cad_usuarios(id),
+    id_vendedor INTEGER NOT NULL,
+    criado_em TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expira_em TIMESTAMPTZ NOT NULL,
+    FOREIGN KEY (id_cliente, id_vendedor) REFERENCES midiabot_login_chat (id_cliente, id_vendedor)
+);
+```
+Fluxo de login (workflow n8n próprio, webhook dedicado): valida `nome_fantasia`+`login`+`senha` (`crypt()` contra `midiabot_login_chat`), se achar, gera o token (`encode(gen_random_bytes(32), 'hex')`) e grava aqui com `expira_em = now() + interval '7 days'`. Front-end (`midiabot_chat/index.html`) guarda o token no `localStorage` (chave `midiachat_session`) e redireciona pra `chat.html`.
+
+**Status: construído e testado de ponta a ponta** — login certo (gera token, salva sessão, redireciona) e login errado (mostra erro, sem sessão) confirmados funcionando. Falta só `chat.html` existir (próxima tela a construir — lista de contatos).
 - **Armazenamento de mídia**: confirmado reaproveitar `midiabot_historico_mensagens` — já tem tudo que precisa (`from_me`, `instance`, `chat_id`, campos de mídia). O contador de pendência da faixa de salas ("conversas sem resposta") também dá pra calcular direto dali, sem coluna nova: basta checar se a mensagem mais recente daquele `remote_jid` tem `from_me = false`.
 - **Por qual instância responder**: resolvido no fluxo de mensagens (fora desta sessão) — o n8n grava `last_instance` por `remotejid` ao chegar mensagem, hoje em `midiabot_whats_versus_telegram`; será redesenhado quando o fluxo de produção for atualizado pro Midiabot_chat.
 - **Prompt da IA conselheira**: separado do de "Prompts", fixo no n8n por ora, cadastro editável fica pra v2.
