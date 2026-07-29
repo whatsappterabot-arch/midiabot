@@ -76,8 +76,19 @@ Cadastro de clientes/usuários. Campos usados: `id`, `email`, `nome`, `whatsapp`
 Catálogo global de workflows disponíveis (lista reduzida, curada pelo admin).
 ```sql
 id SERIAL PRIMARY KEY,
-nome TEXT NOT NULL UNIQUE,
-webhook_url TEXT  -- URL do webhook n8n específico desse workflow (preenchido manualmente por workflow)
+nome TEXT NOT NULL UNIQUE
+```
+**Atenção — divergência encontrada nesta sessão**: a coluna `webhook_url`, descrita abaixo em "Webhook por workflow" e usada supostamente por `salvar_workflow`, **não existe** na tabela real (conferido via `information_schema.columns`). Ou foi removida em algum momento não documentado, ou a seção "Webhook por workflow" já estava desatualizada/nunca chegou a ser implementada assim. Precisa esclarecer com o usuário como `salvar_workflow` realmente aponta o webhook da instância hoje.
+
+### `midiabot_cad_planos`
+Catálogo de planos (referenciado por `midiabot_cad_usuarios.plano_id`). Não documentado até esta sessão.
+```sql
+id INTEGER PRIMARY KEY,
+nome VARCHAR NOT NULL,
+whatsapp INTEGER NOT NULL,   -- CHECK IN (0,1)
+instagram INTEGER NOT NULL, -- CHECK IN (0,1)
+limite_mensagens_whatsapp INTEGER NOT NULL,
+descricao TEXT
 ```
 
 ### `midiabot_a_instancias`
@@ -100,14 +111,16 @@ id_cliente INTEGER,
 PRIMARY KEY (id_cliente, remotejid)  -- corrigido de PK(remotejid) sozinho
 ```
 
-### `midiabot_sender_chatid` (Conectores de Telegram)
-Liga o número de um consultor da equipe a um supergrupo do Telegram.
+### `midiabot_sender_chatid` (Conectores de Chat)
+Liga o sender de uma instância à sua sala padrão.
 ```sql
-sender TEXT,      -- número do consultor (numero@s.whatsapp.net)
-chat_id INTEGER,  -- id do supergrupo Telegram (negativo)
-id_cliente INTEGER,
-PRIMARY KEY (sender)  -- confirmado correto: um consultor só pode estar em 1 grupo por vez
+sender VARCHAR NOT NULL,   -- número da instância (numero@s.whatsapp.net)
+chat_id BIGINT NOT NULL,   -- sala padrão
+id_cliente INTEGER,        -- nullable
+chat_id_nome TEXT,         -- nullable
+PRIMARY KEY (sender)  -- confirmado correto: um sender só aponta pra 1 sala por vez
 ```
+**Atenção — coluna `chat_id_nome` encontrada nesta sessão, não documentada antes**: essa tabela tem seu próprio `chat_id_nome`, separado do `chat_id_nome` de `midiabot_chatid_workflowname` (o catálogo oficial de salas). Provável resquício de antes de `midiabot_chatid_workflowname` existir — precisa confirmar com o usuário se ainda é usado em algum lugar ou se pode ser ignorado/removido.
 
 ### `midiabot_chatid_workflowname` (salas de chat — Conectores de Chat)
 Catálogo de salas (chat_id) do cliente. Cada sala pertence a exatamente um workflow — nunca compartilhada entre workflows (regra de negócio, não só de schema).
@@ -138,24 +151,67 @@ id_cliente INTEGER,
 workflow_name TEXT,
 sorteio SMALLINT,              -- CHECK IN (0,1). 1 = escolha automática (rotaciona vendedores); 0 = manual
 vendedor_escolhido INTEGER,    -- CHECK > 0
-PRIMARY KEY (id_cliente, workflow_name),  -- corrigido de PK(workflow_name) sozinho
-FOREIGN KEY (id_cliente, workflow_name, vendedor_escolhido)
-    REFERENCES midiabot_vendedores (id_cliente, workflow_name, id_vendedor)
+PRIMARY KEY (id_cliente, workflow_name)  -- corrigido de PK(workflow_name) sozinho
 ```
+**Atenção — FK duplicada e conflitante, encontrada nesta sessão**: hoje existem **duas** foreign keys em `(id_cliente, vendedor_escolhido)` ao mesmo tempo — uma pra `midiabot_vendedores(id_cliente, id_vendedor)` (a antiga, de antes da separação de identidade) e outra pra `midiabot_login_chat(id_cliente, id_vendedor)` (a nova, correta — é `midiabot_login_chat` que tem a identidade completa do vendedor agora). As duas juntas obrigam `vendedor_escolhido` a existir nas duas tabelas simultaneamente, o que funciona hoje só porque, na prática, todo vendedor cadastrado tem linha nas duas — mas é redundante e arriscado. **Recomendo derrubar a FK antiga (`midiabot_sorteio_vendedor_vendedor_fkey`, a que aponta pra `midiabot_vendedores`) e manter só a nova (`fk_midiabot_sorteio_vendedor_vendedor`, pra `midiabot_login_chat`)** — ainda não fiz isso, só documentei o achado.
 
 ### `midiabot_vendedores` (Lista de Consultores)
+**Alterado nesta sessão**: `workflow_name` removido — um vendedor deixa de ser por-workflow e vira uma identidade única por cliente (qualquer vendedor pode ser sorteado/atribuído em qualquer workflow do cliente; decisão consciente, sem trava de "esse vendedor só atende esse fluxo"). `nome_vendedor`, `ativo`, `cor_emoji`, `login`, `senha` saíram daqui e foram pra `midiabot_login_chat` (ver abaixo) — o que restou aqui é só o vínculo de `sender`.
 ```sql
-id_vendedor INTEGER,   -- começa em 1, POR workflow+cliente (não é globalmente único)
-nome_vendedor TEXT,
-cor_emoji TEXT,         -- emoji (ex: 🔴), só exibição
-ativo SMALLINT,         -- 0 ou 1
-telegram_color_id INTEGER,  -- só exibição, não aparece mais na UI (removido por poluir a tela)
-workflow_name TEXT,
+id_vendedor INTEGER,    -- 1 a 10, por cliente (CHECK, mesmo intervalo de midiabot_login_chat)
 sender TEXT,            -- número do CONSULTOR (pessoa da equipe), não confundir com sender de instância
 id_cliente INTEGER,
-UNIQUE (id_cliente, workflow_name, id_vendedor)  -- suporta a FK de sorteio_vendedor
+PRIMARY KEY (id_cliente, id_vendedor)
 ```
 Linhas são pré-cadastradas manualmente pelo admin (sem tela de inclusão/exclusão — decisão consciente, pendente de repensar se quiserem self-service).
+
+### `midiabot_login_chat` (Senhas do MidiaChat + identidade do vendedor)
+Guarda a identidade completa do vendedor e a credencial de acesso ao Midiabot_chat — separado de `midiabot_vendedores` (que só guarda o vínculo de `sender`).
+```sql
+id_cliente INTEGER NOT NULL REFERENCES midiabot_cad_usuarios(id),
+id_vendedor INTEGER NOT NULL CHECK (id_vendedor BETWEEN 1 AND 10),
+nome_vendedor TEXT,
+login TEXT,
+senha TEXT,             -- NULL = sem senha definida, vendedor não consegue logar
+cor_emoji TEXT,
+ativo SMALLINT,         -- 0 ou 1
+PRIMARY KEY (id_cliente, id_vendedor),
+UNIQUE (id_cliente, login)  -- login único dentro do cliente, mas pode repetir entre clientes diferentes
+```
+`ativo` aqui é o que alimenta o sorteio de leads (`midiabot_sorteio_vendedor`/`listar_vendedores_ativos`), não `midiabot_vendedores`. "Suspender acesso" (checkbox da tela) só zera `senha` — não mexe em `ativo`. Senha em branco na criação também vira `NULL` (`NULLIF(valor, '__SEM_ALTERACAO__')` no `INSERT`), nunca o texto literal do sentinel de "sem alteração".
+
+### Tabelas encontradas nesta sessão, propósito não esclarecido
+Apareceram num levantamento completo do banco (`information_schema.columns`/`pg_constraint` filtrado por `midiabot%`), sem nenhuma menção anterior nesta documentação nem nesta sessão. Provavelmente construídas na sessão anterior que se perdeu. **Precisa perguntar ao usuário o que são e se ainda estão em uso** antes de mexer em qualquer uma delas.
+
+**`midiabot_atribuicao_vendedor`**
+```sql
+remotejid TEXT NOT NULL,
+workflow_name TEXT NOT NULL,
+id_vendedor INTEGER NOT NULL,
+id_cliente INTEGER,  -- nullable
+PRIMARY KEY (remotejid, workflow_name)
+```
+Parece ser um mecanismo de atribuição de vendedor a um `remotejid` por workflow — possivelmente uma versão anterior (ou paralela) de como o gestor "transfere definitivamente um lead pra um vendedor", que nesta sessão modelamos de outro jeito (mover o `remotejid` pra uma sala cujo dono é o vendedor, via `midiabot_midiachat_sala_vendedor`, ainda não construída). Pode ser que essa tabela já resolva isso e a nova tabela seja redundante — ou pode ser algo defasado. Não usar sem confirmar.
+
+**`midiabot_messagethreadid_remotejid`**
+```sql
+remotejid TEXT NOT NULL,
+chat_id TEXT NOT NULL,   -- reparar: TEXT aqui, diferente de todo outro chat_id do sistema (sempre INTEGER/BIGINT)
+message_thread_id TEXT,
+PRIMARY KEY (remotejid, chat_id)
+```
+Isso é exatamente o conceito de `message_thread_id` que esta sessão decidiu **eliminar** do desenho do Midiabot_chat (ver `midiabot_chat/Midiabot_chat.md`), substituindo por só `(chat_id, remote_jid)`. Essa tabela já existir sugere que ela foi construída antes dessa decisão (provavelmente na sessão perdida) — precisa confirmar se está morta/substituída ou se ainda alimenta algo em produção.
+
+**`midiabot_whats_versus_telegram`**
+```sql
+remote_jid TEXT NOT NULL,
+telegram_thread_id INTEGER NOT NULL,
+last_instance TEXT NOT NULL,
+workflow_name VARCHAR NOT NULL,
+chat_id BIGINT NOT NULL,
+PRIMARY KEY (remote_jid, chat_id, workflow_name)
+```
+Tem cara de ser o mecanismo **real, hoje em uso**, que liga uma mensagem do WhatsApp a um tópico (thread) dentro de um supergrupo do Telegram — ou seja, pode ser a peça viva do roteamento atual (pré-Midiabot_chat) que nunca vimos nesta sessão. Se for isso, é bem relevante: contradiz a suposição de que "não tem nada em produção" pelo menos nesse pedaço específico. Precisa confirmar com o usuário.
 
 ### `midiabot_z_horarios_trabalho` (Horários)
 ```sql
@@ -264,7 +320,9 @@ Status exibido na tela: dois badges separados — "API" (`connectionStatus === '
 
 ## Webhook por workflow (roteamento de mensagens)
 
-Cada linha de `midiabot_a_workflows` tem sua própria `webhook_url` (um fluxo n8n distinto por automação). Ao atribuir/trocar o workflow de uma instância (`salvar_workflow`): busca a `webhook_url` daquele workflow e chama `/webhook/set/{instanceName}` apontando pra lá, assinando `MESSAGES_UPSERT`. Se o workflow for removido (opção "Nenhum" no dropdown) ou não tiver `webhook_url` cadastrada ainda, desativa o webhook (`enabled: false`) em vez de deixar apontado pra lugar errado.
+**Seção desatualizada, achado nesta sessão**: o texto abaixo descreve o desenho original, mas `midiabot_a_workflows` não tem mais (ou nunca teve de verdade) a coluna `webhook_url` — conferido via `information_schema.columns`. Precisa perguntar ao usuário como `salvar_workflow` aponta o webhook da instância hoje de fato, antes de confiar neste texto.
+
+Desenho original (pode estar desatualizado): cada linha de `midiabot_a_workflows` teria sua própria `webhook_url` (um fluxo n8n distinto por automação). Ao atribuir/trocar o workflow de uma instância (`salvar_workflow`): busca a `webhook_url` daquele workflow e chama `/webhook/set/{instanceName}` apontando pra lá, assinando `MESSAGES_UPSERT`. Se o workflow for removido (opção "Nenhum" no dropdown) ou não tiver `webhook_url` cadastrada ainda, desativa o webhook (`enabled: false`) em vez de deixar apontado pra lugar errado.
 
 ## Decisões e convenções importantes
 
@@ -281,3 +339,7 @@ Cada linha de `midiabot_a_workflows` tem sua própria `webhook_url` (um fluxo n8
 - Autenticação real por requisição (adiado deliberadamente).
 - Tela de criação de vendedores (hoje só edição, sem inclusão/exclusão — decisão consciente).
 - Textos de ajuda ("?") ainda só existem pra tela de Instâncias; falta adicionar nas outras, aos poucos.
+- **Esclarecer com o usuário o propósito de `midiabot_atribuicao_vendedor`, `midiabot_messagethreadid_remotejid` e `midiabot_whats_versus_telegram`** (achadas no levantamento completo desta sessão, nunca discutidas — ver seção "Tabelas encontradas nesta sessão, propósito não esclarecido").
+- Derrubar a FK antiga e duplicada em `midiabot_sorteio_vendedor` (a que aponta pra `midiabot_vendedores`; manter só a que aponta pra `midiabot_login_chat`).
+- Confirmar como `salvar_workflow` aponta o webhook de uma instância hoje, já que `midiabot_a_workflows.webhook_url` não existe (a seção "Webhook por workflow" pode estar desatualizada).
+- Confirmar se `midiabot_sender_chatid.chat_id_nome` ainda é usado em algum lugar ou é resquício.

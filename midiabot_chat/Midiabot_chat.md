@@ -4,7 +4,7 @@ Chat próprio, feito pra substituir o uso de supergrupo do Telegram (com tópico
 
 **Convenção de diretório**: todo arquivo deste produto vive em `/midiabot_chat/`, nunca na raiz do projeto (a raiz é do painel administrativo). Tabelas novas do Midiabot_chat usam o prefixo `midiabot_midiachat_`.
 
-**Login**: quadrinho na tela inicial do `midiabot.com.br` com 3 campos — `nome_fantasia` (digitado, não uma lista/dropdown de clientes, pra não expor publicamente quem são os clientes do MidiaBot), `login` e `senha`. `nome_fantasia` mora em `midiabot_cad_usuarios` (coluna nova, `UNIQUE`), e serve pra identificar de qual `id_cliente` é o vendedor que está logando — só assim dá pra permitir login/senha repetidos entre empresas diferentes. Comparar sempre com `LOWER(TRIM(...))` (tolerar diferença de maiúscula/espaço), nunca comparação exata crua. O destino após login é sempre dentro de `/midiabot_chat/`.
+**Login**: quadrinho na tela inicial do `midiabot.com.br` com 3 campos — `nome_fantasia` (digitado, não uma lista/dropdown de clientes, pra não expor publicamente quem são os clientes do MidiaBot), `login` e `senha`. `nome_fantasia` mora em `midiabot_cad_usuarios` (coluna nova, `UNIQUE`), e serve pra identificar de qual `id_cliente` é o vendedor que está logando — só assim dá pra permitir login/senha repetidos entre empresas diferentes. Comparar sempre com `LOWER(TRIM(...))` (tolerar diferença de maiúscula/espaço), nunca comparação exata crua. O destino após login é sempre dentro de `/midiabot_chat/`. `login`+`senha` (e `nome_vendedor`, `ativo`, `cor_emoji`) moram em `midiabot_login_chat` — ver tabela em `DOCUMENTACAO_TECNICA.md`.
 
 ## Como a mensagem chega numa sala
 
@@ -41,7 +41,7 @@ Consequência prática: **não é preciso construir a tabela de roteamento** que
 ### Seletor de salas
 - Uma faixa horizontal fina de abas, no topo de tudo (acima das 3 colunas).
 - Todo consultor tem acesso a **todas as salas**.
-- Existe uma relação **N-pra-N** entre sala e vendedor "proprietário" (uma sala pode ter um, dois ou mais donos), em `midiabot_midiachat_sala_vendedor` (`id_cliente`, `chat_id`, `id_vendedor` — PK nas três, FK de `id_cliente+chat_id` pra `midiabot_chatid_workflowname`; falta decidir a que tabela `id_vendedor` referencia). Salas em que o consultor logado é proprietário aparecem com uma cor de fundo diferente na aba.
+- Existe uma relação **N-pra-N** entre sala e vendedor "proprietário" (uma sala pode ter um, dois ou mais donos), em `midiabot_midiachat_sala_vendedor` (`id_cliente`, `chat_id`, `id_vendedor` — PK nas três, FK de `id_cliente+chat_id` pra `midiabot_chatid_workflowname`, FK de `id_cliente+id_vendedor` pra `midiabot_login_chat` — é essa a tabela com a identidade completa do vendedor, não `midiabot_vendedores`, que hoje só guarda `sender`). Salas em que o consultor logado é proprietário aparecem com uma cor de fundo diferente na aba.
 - Cada aba mostra, de preferência, quantas conversas desarquivadas daquela sala têm mensagem sem resposta (contador de pendências).
 
 ### Mobile
@@ -77,7 +77,6 @@ Isso só é seguro de verdade se esse endpoint souber provar quem está pedindo 
 
 ## Pendências / decisões em aberto
 
-- A que tabela `id_vendedor` se refere em `midiabot_midiachat_sala_vendedor` e no login (mesma numeração de `midiabot_vendedores`, ou uma identidade própria do Midiabot_chat/"Senhas do MidiaChat"?).
 - Formato exato do token de sessão do MidiaChat (o que ele carrega, validade, onde fica guardado no navegador) e do endpoint de autorização de canal do Pusher que o valida.
 - Armazenamento de mensagens com mídia (áudio/vídeo/imagem/documento): reaproveita `midiabot_historico_mensagens` (já tem `base64`, `midia`, `mime_type`, `messagetype`) ou precisa de tabela própria?
 - Renderização de cada tipo de mídia na tela (player de áudio, miniatura de imagem, link de documento etc.).

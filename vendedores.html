@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MidiaBot - Lista de Consultores</title>
+    <title>MidiaBot - Telefones dos Consultores</title>
     <link rel="icon" type="image/png" href="./logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -49,7 +49,7 @@
             <header class="bg-white border-b p-4 flex justify-between items-center px-8 shadow-sm">
                 <div class="flex items-center gap-2">
                     <i class="fas fa-users text-gray-400"></i>
-                    <h1 class="text-sm font-bold text-gray-500 uppercase tracking-widest" id="page-title">Lista de Consultores (WhatsApp)</h1>
+                    <h1 class="text-sm font-bold text-gray-500 uppercase tracking-widest" id="page-title">Telefones dos Consultores (WhatsApp)</h1>
                     <button onclick="abrirAjuda()" class="w-5 h-5 rounded-full bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600 transition-colors flex items-center justify-center text-[10px] font-bold">
                         ?
                     </button>
@@ -144,10 +144,10 @@
                 { icon: 'fa-ban', label: 'Proibições de IA', href: 'proibicoes.html' },
                 { icon: 'fa-paper-plane', label: 'Conectores de Chat', href: 'telegram_sender.html' },
                 { icon: 'fa-user-tie', label: 'Atribuição a Consultores', href: 'consultores.html' },
-                { icon: 'fa-users', label: 'Lista de Consultores', active: true },
+                { icon: 'fa-users', label: 'Telefones dos Consultores', active: true },
                 { icon: 'fa-clock', label: 'Horários', href: 'horarios.html' },
                 { icon: 'fa-robot', label: 'Prompts', href: 'prompts.html' },
-                { icon: 'fa-key', label: 'Senhas do MidiaChat', href: 'senhas_chat.html' },
+                { icon: 'fa-key', label: 'Cadastro de Consultores', href: 'senhas_chat.html' },
                 { icon: 'fa-comments', label: 'Atribuição de Chat', href: 'atribuicao_chat.html' }
             ];
             const igItems = [
@@ -247,7 +247,7 @@
                 ? "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
                 : "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all text-gray-400 hover:bg-gray-700";
 
-            document.getElementById('page-title').innerText = `Lista de Consultores (${isWA ? 'WhatsApp' : 'Instagram'})`;
+            document.getElementById('page-title').innerText = `Telefones dos Consultores (${isWA ? 'WhatsApp' : 'Instagram'})`;
 
             renderMenu();
         }

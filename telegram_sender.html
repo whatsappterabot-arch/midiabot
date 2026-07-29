@@ -165,10 +165,10 @@
                 { icon: 'fa-ban', label: 'Proibições de IA', href: 'proibicoes.html' },
                 { icon: 'fa-paper-plane', label: 'Conectores de Chat', active: true },
                 { icon: 'fa-user-tie', label: 'Atribuição a Consultores', href: 'consultores.html' },
-                { icon: 'fa-users', label: 'Lista de Consultores', href: 'vendedores.html' },
+                { icon: 'fa-users', label: 'Telefones dos Consultores', href: 'vendedores.html' },
                 { icon: 'fa-clock', label: 'Horários', href: 'horarios.html' },
                 { icon: 'fa-robot', label: 'Prompts', href: 'prompts.html' },
-                { icon: 'fa-key', label: 'Senhas do MidiaChat', href: 'senhas_chat.html' },
+                { icon: 'fa-key', label: 'Cadastro de Consultores', href: 'senhas_chat.html' },
                 { icon: 'fa-comments', label: 'Atribuição de Chat', href: 'atribuicao_chat.html' }
             ];
             const igItems = [
@@ -230,8 +230,19 @@
                 return;
             }
 
-            await carregarOrfaos(workflow);
             selectSender.disabled = false;
+            await sincronizarSenderNovaSala();
+        }
+
+        // Reconstrói o dropdown de sender do formulário "Criar sala" a partir do
+        // estado atual de orfaosPorWorkflow — chamado sempre que esse estado pode
+        // ter mudado (ex: depois de atrelar/desatrelar um sender em qualquer sala).
+        async function sincronizarSenderNovaSala() {
+            const workflow = document.getElementById('select-novo-workflow').value;
+            if (!workflow) return;
+
+            await carregarOrfaos(workflow);
+            const selectSender = document.getElementById('select-novo-sender');
             selectSender.innerHTML = '<option value="">Nenhum (criar sem sender)</option>' +
                 (orfaosPorWorkflow[workflow] || []).map(s => `<option value="${s.sender}">${s.nome_instancia} (${s.sender})</option>`).join('');
         }
@@ -289,6 +300,7 @@
                 await Promise.all(workflowsUnicos.map(w => carregarOrfaos(w)));
 
                 renderizarSalas();
+                await sincronizarSenderNovaSala();
             } catch (e) {
                 console.error("Falha ao carregar salas:", e);
                 showToast("Erro ao processar solicitação.", "error");
