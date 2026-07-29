@@ -70,7 +70,7 @@ Opcionais, só se o fluxo do cliente precisar:
 ## Tabelas do banco (PostgreSQL, schema `public`)
 
 ### `midiabot_cad_usuarios` (pré-existente)
-Cadastro de clientes/usuários. Campos usados: `id`, `email`, `nome`, `whatsapp`, `plano_id`, `ativo`, `criado_em`. `id` é referenciado como `id_cliente` em quase todas as outras tabelas.
+Cadastro de clientes/usuários. Campos usados: `id`, `email`, `nome`, `whatsapp`, `plano_id`, `ativo`, `criado_em`, `nome_fantasia` (adicionado nesta sessão — `TEXT`, `UNIQUE`, nullable até existir tela de cadastro; usado como identificador digitável do cliente no login do Midiabot_chat, evitando expor a lista de clientes numa tela pública; comparar sempre com `LOWER(TRIM(...))` pra tolerar diferença de maiúscula/espaço). `id` é referenciado como `id_cliente` em quase todas as outras tabelas.
 
 ### `midiabot_a_workflows`
 Catálogo global de workflows disponíveis (lista reduzida, curada pelo admin).
@@ -120,15 +120,16 @@ PRIMARY KEY (id_cliente, chat_id)
 ```
 `chat_id` é **gerado pelo banco** (negativo, decrescente a partir de -1) — nunca digitado pelo gestor do cliente. Criada só pela tela **Conectores de Chat** (`origem: conect_telegram`, ação `criar_sala`); a tela **Atribuição de Chat** nunca cria sala, só move um `remotejid` entre salas já existentes do mesmo workflow. Uma sala pode existir sem nenhum sender atrelado.
 
-### `midiabot_remotejid_chatid` (Atribuição de Chat)
-Atribuição explícita de um cliente final (`remote_jid`) a uma sala, sobrepondo a sala padrão do sender que recebeu a mensagem.
+### `midiabot_remotejid_chatid` (Atribuição de Chat + Midiabot_chat)
+Sala atual de cada cliente final (`remote_jid`) — inclui `arquivada`, usado pelo Midiabot_chat (ver `midiabot_chat/Midiabot_chat.md`).
 ```sql
 id_cliente INTEGER NOT NULL REFERENCES midiabot_cad_usuarios(id),
 remotejid TEXT NOT NULL,
 chat_id INTEGER,
+arquivada SMALLINT NOT NULL DEFAULT 0,  -- adicionado nesta sessão, uso do Midiabot_chat
 PRIMARY KEY (id_cliente, remotejid)
 ```
-Um `remotejid` só pode ter uma atribuição por cliente seu (`PRIMARY KEY`), mas o mesmo `remotejid` pode aparecer sob vários dos seus clientes (`id_cliente`) independentemente. Sala efetiva de um `remote_jid` = `COALESCE` entre esta tabela (explícita) e `midiabot_sender_chatid` (padrão do sender que recebeu a mensagem, via `midiabot_historico_mensagens.sender`).
+**Lógica de preenchimento (decisão desta sessão, muda o modelo mental da tabela)**: ao chegar mensagem, o fluxo verifica se aquele `remotejid` já tem `chat_id` aqui; se não tiver, atribui o `chat_id` a partir do padrão do sender (`midiabot_sender_chatid`) e grava. Ou seja, a tabela deixa de ser esparsa (só atribuição manual) e passa a ganhar uma linha pra **toda** conversa, logo na primeira mensagem. Consequência: uma vez atribuído, o `chat_id` fica fixo pra aquele cliente mesmo que o padrão do sender mude depois — é assim que o gestor consegue transferir um cliente de um vendedor/sala pra outro sem que isso seja desfeito pela próxima mudança de padrão. O `COALESCE` com `midiabot_sender_chatid` (usado em `listar_remotejids`) vira rede de segurança pra dado anterior a essa lógica, não o mecanismo principal.
 
 ### `midiabot_sorteio_vendedor` (Atribuição a Consultores)
 Configuração de distribuição de leads por workflow.

@@ -69,17 +69,8 @@
             <section class="p-8 overflow-y-auto flex-1">
                 <div class="max-w-5xl mx-auto">
 
-                    <!-- SELEÇÃO DE FLUXO -->
-                    <div class="bg-white p-6 rounded-2xl shadow-sm mb-8 border border-gray-200">
-                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Fluxo</label>
-                        <select id="select-workflow" onchange="onWorkflowChange()"
-                            class="w-full max-w-md bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
-                            <option value="">Selecione um fluxo...</option>
-                        </select>
-                    </div>
-
                     <!-- TABELA DE CONSULTORES -->
-                    <div id="painel-tabela" class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hidden">
+                    <div id="painel-tabela" class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                         <table class="w-full text-left">
                             <thead class="bg-gray-50 border-b border-gray-200">
                                 <tr>
@@ -116,7 +107,6 @@
 
         let user = null;
         let plataforma = 'whatsapp';
-        let workflowSelecionado = '';
 
         // Inicialização e Proteção de Rota
         document.addEventListener('DOMContentLoaded', () => {
@@ -135,14 +125,13 @@
 
             // Exposição de funções para o escopo global (necessário para onclick em módulos)
             window.setPlataforma = setPlataforma;
-            window.onWorkflowChange = onWorkflowChange;
             window.salvarVendedor = salvarVendedor;
             window.abrirAjuda = abrirAjuda;
             window.fecharAjuda = fecharAjuda;
             window.logout = logout;
 
             renderMenu();
-            carregarWorkflows();
+            carregarVendedores();
             carregarAjuda();
         });
 
@@ -182,7 +171,7 @@
             const payload = {
                 origem: 'vendedores',
                 plataforma: plataforma,
-                acao: acao, // 'listar_workflows', 'listar', 'salvar'
+                acao: acao, // 'listar', 'salvar'
                 id_cliente: user.id_cliente,
                 dados: dadosExtra
             };
@@ -197,36 +186,9 @@
             return await res.json();
         }
 
-        async function carregarWorkflows() {
-            try {
-                const data = await chamarApi('listar_workflows', {});
-                const select = document.getElementById('select-workflow');
-                const lista = Array.isArray(data) ? data : [];
-                select.innerHTML = '<option value="">Selecione um fluxo...</option>' +
-                    lista.map(item => `<option value="${item.workflow_name}">${item.workflow_name}</option>`).join('');
-            } catch (e) {
-                console.error("Falha ao carregar fluxos:", e);
-                showToast("Erro ao processar solicitação.", "error");
-            }
-        }
-
-        function onWorkflowChange() {
-            const select = document.getElementById('select-workflow');
-            workflowSelecionado = select.value;
-            const painel = document.getElementById('painel-tabela');
-
-            if (!workflowSelecionado) {
-                painel.classList.add('hidden');
-                return;
-            }
-
-            painel.classList.remove('hidden');
-            carregarVendedores();
-        }
-
         async function carregarVendedores() {
             try {
-                const data = await chamarApi('listar', { workflow_name: workflowSelecionado });
+                const data = await chamarApi('listar', {});
                 renderizarTabela(Array.isArray(data) ? data : []);
             } catch (e) {
                 console.error("Falha ao carregar consultores:", e);
@@ -263,7 +225,6 @@
 
             try {
                 await chamarApi('salvar', {
-                    workflow_name: workflowSelecionado,
                     id_vendedor: idVendedor,
                     sender: inputSender.value
                 });
