@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Midiabot_chat</title>
+    <link rel="icon" type="image/png" href="../logo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] } } } };
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-[#f5f0e8] font-sans h-screen overflow-hidden flex flex-col">
+
+    <!-- SELETOR DE SALAS -->
+    <header class="bg-[#001f3f] text-white flex-shrink-0">
+        <!-- Desktop: faixa de abas -->
+        <div id="abas-salas" class="hidden sm:flex items-center gap-1 px-3 overflow-x-auto"></div>
+        <!-- Mobile: dropdown -->
+        <div class="sm:hidden p-2">
+            <select id="select-sala-mobile"
+                class="w-full bg-[#00284f] text-white border border-blue-900 rounded-lg px-3 py-2 text-sm outline-none">
+                <option value="">Selecione uma sala...</option>
+            </select>
+        </div>
+    </header>
+
+    <!-- LISTA DE CONVERSAS -->
+    <main class="flex-1 overflow-y-auto">
+        <div id="lista-conversas" class="divide-y divide-gray-200">
+            <div class="p-12 text-center text-gray-400 text-xs font-bold uppercase tracking-widest">
+                Selecione uma sala acima
+            </div>
+        </div>
+    </main>
+
+    <script type="module">
+        import { CONFIG, showToast } from "./config.js";
+
+        const API_URL = CONFIG.API_URL;
+
+        let sessao = null;
+        let salas = [];
+        let salaSelecionada = '';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const raw = localStorage.getItem('midiachat_session');
+            if (!raw) {
+                window.location.href = 'index.html';
+                return;
+            }
+            sessao = JSON.parse(raw);
+
+            document.getElementById('select-sala-mobile').addEventListener('change', (e) => {
+                selecionarSala(e.target.value);
+            });
+
+            carregarSalas();
+        });
+
+        async function chamarApi(acao, dadosExtra) {
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    acao: acao,
+                    token: sessao.token,
+                    dados: dadosExtra || {}
+                })
+            });
+
+            if (!res.ok) throw new Error("Erro na API");
+            return await res.json();
+        }
+
+        async function carregarSalas() {
+            try {
+                const data = await chamarApi('listar_salas', {});
+                salas = (Array.isArray(data) ? data : []).filter(item => item && item.chat_id != null);
+                renderizarAbas();
+
+                if (salas.length > 0) {
+                    selecionarSala(String(salas[0].chat_id));
+                } else {
+                    document.getElementById('lista-conversas').innerHTML =
+                        '<div class="p-12 text-center text-gray-400 text-xs font-bold uppercase tracking-widest">Nenhuma sala cadastrada ainda</div>';
+                }
+            } catch (e) {
+                console.error("Falha ao carregar salas:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
+        function renderizarAbas() {
+            const abas = document.getElementById('abas-salas');
+            const selectMobile = document.getElementById('select-sala-mobile');
+
+            abas.innerHTML = salas.map(sala => `
+                <button onclick="window.__selecionarSala('${sala.chat_id}')"
+                    data-chat-id="${sala.chat_id}"
+                    class="aba-sala flex-shrink-0 px-4 py-2 text-xs font-bold uppercase tracking-widest whitespace-nowrap border-b-2 border-transparent text-blue-200 hover:text-white transition-all">
+                    ${sala.chat_id_nome || sala.chat_id}
+                </button>
+            `).join('');
+
+            selectMobile.innerHTML = '<option value="">Selecione uma sala...</option>' +
+                salas.map(sala => `<option value="${sala.chat_id}">${sala.chat_id_nome || sala.chat_id} (${sala.workflow_name})</option>`).join('');
+        }
+
+        window.__selecionarSala = selecionarSala;
+
+        async function selecionarSala(chatId) {
+            if (!chatId) return;
+            salaSelecionada = chatId;
+
+            document.getElementById('select-sala-mobile').value = chatId;
+            document.querySelectorAll('.aba-sala').forEach(btn => {
+                const ativa = btn.dataset.chatId === String(chatId);
+                btn.classList.toggle('border-[#00b34d]', ativa);
+                btn.classList.toggle('text-white', ativa);
+                btn.classList.toggle('text-blue-200', !ativa);
+            });
+
+            await carregarConversas();
+        }
+
+        async function carregarConversas() {
+            const container = document.getElementById('lista-conversas');
+            try {
+                const data = await chamarApi('listar_conversas', { chat_id: salaSelecionada });
+                const conversas = (Array.isArray(data) ? data : []).filter(item => item && item.remotejid != null);
+
+                if (conversas.length === 0) {
+                    container.innerHTML = '<div class="p-12 text-center text-gray-400 text-xs font-bold uppercase tracking-widest">Nenhuma conversa nessa sala</div>';
+                    return;
+                }
+
+                container.innerHTML = conversas.map(c => `
+                    <div class="flex items-center gap-3 px-4 py-3 hover:bg-white cursor-pointer transition-all">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-bold text-gray-800 font-mono">${c.remotejid}</p>
+                            <p class="text-xs text-gray-400 truncate">${c.mensagem || c.caption || '(sem prévia)'}</p>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error("Falha ao carregar conversas:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+    </script>
+</body>
+</html>
