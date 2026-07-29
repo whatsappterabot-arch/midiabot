@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Midiabot_chat - Login</title>
+    <link rel="icon" type="image/png" href="../logo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] } } } };
+    </script>
+</head>
+<body class="bg-gray-100 font-sans min-h-screen flex items-center justify-center p-4">
+
+    <div class="w-full max-w-sm">
+        <div class="text-center mb-8">
+            <img src="../logo.png" alt="Logo" class="w-14 mx-auto mb-3">
+            <h1 class="font-black tracking-tighter text-2xl text-[#001f3f]">MIDIABOT_CHAT</h1>
+        </div>
+
+        <form id="form-login" class="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 space-y-4">
+            <div>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Empresa</label>
+                <input type="text" id="input-nome-fantasia" autocomplete="organization" required
+                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all"
+                    placeholder="Nome da sua empresa">
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Login</label>
+                <input type="text" id="input-login" autocomplete="username" required
+                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all"
+                    placeholder="Seu login">
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Senha</label>
+                <input type="password" id="input-senha" autocomplete="current-password" required
+                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all"
+                    placeholder="Sua senha">
+            </div>
+            <button type="submit" id="btn-entrar"
+                class="w-full bg-[#001f3f] text-white py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-black transition-all shadow-lg active:scale-95">
+                Entrar
+            </button>
+        </form>
+    </div>
+
+    <script type="module">
+        import { CONFIG, showToast } from "./config.js";
+
+        const API_URL = CONFIG.API_URL;
+
+        // Se já existe uma sessão válida guardada, pula direto pro chat.
+        document.addEventListener('DOMContentLoaded', () => {
+            const sessao = localStorage.getItem('midiachat_session');
+            if (sessao) {
+                window.location.href = 'chat.html';
+            }
+        });
+
+        document.getElementById('form-login').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const nomeFantasia = document.getElementById('input-nome-fantasia').value.trim();
+            const login = document.getElementById('input-login').value.trim();
+            const senha = document.getElementById('input-senha').value;
+            const btnEntrar = document.getElementById('btn-entrar');
+
+            if (!nomeFantasia || !login || !senha) {
+                showToast("Preencha todos os campos.", "warning");
+                return;
+            }
+
+            btnEntrar.disabled = true;
+            btnEntrar.innerText = 'Entrando...';
+
+            try {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        acao: 'login',
+                        dados: { nome_fantasia: nomeFantasia, login: login, senha: senha }
+                    })
+                });
+
+                if (!res.ok) throw new Error("Erro na API");
+
+                const data = await res.json();
+                const item = Array.isArray(data) ? data[0] : data;
+
+                if (!item || !item.token) {
+                    showToast("Empresa, login ou senha incorretos.", "error");
+                    return;
+                }
+
+                localStorage.setItem('midiachat_session', JSON.stringify({
+                    token: item.token,
+                    id_cliente: item.id_cliente,
+                    id_vendedor: item.id_vendedor,
+                    nome_vendedor: item.nome_vendedor
+                }));
+
+                window.location.href = 'chat.html';
+            } catch (e) {
+                console.error("Falha no login:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            } finally {
+                btnEntrar.disabled = false;
+                btnEntrar.innerText = 'Entrar';
+            }
+        });
+    </script>
+</body>
+</html>
