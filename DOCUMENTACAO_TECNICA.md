@@ -318,6 +318,5 @@ Desenho original (pode estar desatualizado): cada linha de `midiabot_a_workflows
 - Tela de criação de vendedores (hoje só edição, sem inclusão/exclusão — decisão consciente).
 - Textos de ajuda ("?") ainda só existem pra tela de Instâncias; falta adicionar nas outras, aos poucos.
 - Decidir como o Midiabot_chat vai saber por qual instância responder (`midiabot_remotejid_chatid` não guarda isso hoje — ver seção "Tabelas encontradas nesta sessão").
-- Derrubar a FK antiga e duplicada em `midiabot_sorteio_vendedor` (a que aponta pra `midiabot_vendedores`; manter só a que aponta pra `midiabot_login_chat`).
 - Confirmar como `salvar_workflow` aponta o webhook de uma instância hoje, já que `midiabot_a_workflows.webhook_url` não existe (a seção "Webhook por workflow" pode estar desatualizada).
 - Confirmar se `midiabot_sender_chatid.chat_id_nome` ainda é usado em algum lugar ou é resquício.

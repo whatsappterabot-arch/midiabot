@@ -30,13 +30,15 @@ Consequência prática: **não é preciso construir a tabela de roteamento** que
 **Coluna do meio — conversa aberta**
 - Fundo da tela: bege-clarinho. Estilo das mensagens inspirado no WhatsApp: enviadas em balão verde-claro, fonte preta, alinhadas à direita, até 90% da largura da coluna. Recebidas em balão branco, fonte preta, alinhadas à esquerda, até 90% da largura.
 - Não repete apelido nem controle de arquivar — isso já está na coluna esquerda.
+- **Cabeçalho fino no topo** (nome/número do contato + ícone "⋮"), presente tanto no desktop quanto no celular (no celular ocupa o topo da tela cheia da conversa). O "⋮" abre um menu com os **botões de controle de fluxo** — ações sobre a conversa aberta, escondidas ali de propósito pra não gastar espaço fixo na tela (importante no celular) e pra sobrar espaço pra crescer com mais botões no futuro. Primeiro botão: **pausar a IA por N horas** nesse `remote_jid` — diferente de "Proibições de IA" (`midiabot_remotejid_proibidos`), que é permanente e só o gestor mexe; esse é temporário, o próprio vendedor ativa, e expira sozinho. Implementação: chave no **Redis** com TTL (nunca precisa de rotina de limpeza depois).
 
 **Coluna direita — assistente de IA**
-- Retrátil: pode ser escondida e reaberta com um clique. **Não aparece no celular.**
+- **Redimensionável, arrastando a divisória entre ela e a coluna do meio** — mas nunca pode desaparecer de todo: fica sempre um mínimo de **10% de largura visível**, pra o vendedor nunca achar que ela deixou de existir. Só essa divisória é arrastável (a da esquerda, entre contatos e conversa, fica fixa — decisão consciente, pra não correr o mesmo risco de "sumiço" também na lista de contatos, que não teria tanto ganho em ser redimensionável). **Não aparece no celular.**
 - De cima pra baixo:
   1. Espaço onde a resposta da IA aparece.
   2. Campo onde o consultor escreve a pergunta pra IA.
   3. Campo numérico editável (**4 a 15**) — quantas mensagens do histórico daquela conversa entram como contexto pra IA — e o botão de enviar, os dois juntos, abaixo do campo de pergunta.
+- O prompt/instrução dessa IA conselheira **não é o mesmo** cadastrado em "Prompts" (que fala com o cliente final) — é um texto separado. Decisão: por ora (v1) fica **fixo direto no node do n8n**, sem tela de cadastro; formalizar isso num cadastro editável fica pra v2, quando o chat principal já estiver funcionando.
 
 ### Seletor de salas
 - Uma faixa horizontal fina de abas, no topo de tudo (acima das 3 colunas).
@@ -51,7 +53,16 @@ Consequência prática: **não é preciso construir a tabela de roteamento** que
 
 ## Tempo real (mensagem chegando ao vivo)
 
-**Saída (chat → n8n → WhatsApp)**: chamada HTTP direta do navegador pro webhook do n8n, igual a todas as outras telas do painel. Não passa por serviço de tempo real nenhum — o navegador já está ativo, é ele que inicia a ação.
+**Saída (chat → n8n → WhatsApp)**: **decisão revista** — usa o mesmo mecanismo *notify-then-fetch* da entrada, não aparece na tela na hora que o vendedor aperta enviar.
+```
+Vendedor manda mensagem → webhook n8n
+    → ramo 1: Evolution API (envia de verdade pro WhatsApp)
+    → ramo 2: INSERT no Postgres (midiabot_historico_mensagens, from_me = true)
+    → Pusher dispara evento leve no canal do cliente
+    → navegador do vendedor (o mesmo que mandou) recebe o evento
+    → chat faz o SELECT e só aí renderiza a mensagem como enviada
+```
+Motivo da escolha consciente: só mostra como "enviada" depois que o banco confirma que foi processada — se a Evolution API falhar (instância desconectada, número bloqueado), não corre o risco de exibir como enviada uma mensagem que não saiu de verdade. Custo aceito: pequena demora entre apertar enviar e ver a mensagem aparecer. Um único caminho de renderização serve tanto pra mensagem enviada quanto recebida, sem lógica separada de exibição otimista.
 
 **Entrada (WhatsApp → n8n → chat)**: padrão *notify-then-fetch*, usando Pusher.
 ```
@@ -75,11 +86,17 @@ Isso só é seguro de verdade se esse endpoint souber provar quem está pedindo 
 
 **Decisão**: não é preciso corrigir a lacuna de autenticação do painel inteiro antes de construir o chat. O MidiaChat já nasce com login de verdade (usuário+senha, via "Senhas do MidiaChat" — diferente do resto do painel). Ao validar login com sucesso, o backend deve emitir um **token de sessão assinado**, e é esse token — não um `id_cliente` alegado pelo navegador — que autentica tanto as chamadas normais do chat quanto o endpoint de autorização do canal Pusher.
 
+## Decisões fechadas nesta rodada
+
+- **Token de sessão**: validade de **7 dias**.
+- **Armazenamento de mídia**: confirmado reaproveitar `midiabot_historico_mensagens` — já tem tudo que precisa (`from_me`, `instance`, `chat_id`, campos de mídia). O contador de pendência da faixa de salas ("conversas sem resposta") também dá pra calcular direto dali, sem coluna nova: basta checar se a mensagem mais recente daquele `remote_jid` tem `from_me = false`.
+- **Por qual instância responder**: resolvido no fluxo de mensagens (fora desta sessão) — o n8n grava `last_instance` por `remotejid` ao chegar mensagem, hoje em `midiabot_whats_versus_telegram`; será redesenhado quando o fluxo de produção for atualizado pro Midiabot_chat.
+- **Prompt da IA conselheira**: separado do de "Prompts", fixo no n8n por ora, cadastro editável fica pra v2.
+
 ## Pendências / decisões em aberto
 
-- Formato exato do token de sessão do MidiaChat (o que ele carrega, validade, onde fica guardado no navegador) e do endpoint de autorização de canal do Pusher que o valida.
-- Armazenamento de mensagens com mídia (áudio/vídeo/imagem/documento): reaproveita `midiabot_historico_mensagens` (já tem `base64`, `midia`, `mime_type`, `messagetype`) ou precisa de tabela própria?
 - Renderização de cada tipo de mídia na tela (player de áudio, miniatura de imagem, link de documento etc.).
-- Origem do prompt do assistente de IA (coluna direita): mesmo prompt cadastrado em Prompts (por `chat_id`), ou um prompt separado, específico pra aconselhar o vendedor (tarefa diferente de responder o cliente)?
 - Onde/como o quadrinho de login aparece fisicamente na tela inicial do `midiabot.com.br` (seção fixa, modal, etc.).
 - Aviso de erro amigável quando `nome_fantasia` já estiver em uso (a constraint `UNIQUE` já existe no banco; falta a tela tratar o erro).
+- Formato exato da chave/TTL no Redis pra "pausar IA por N horas", e quais outros botões entram no menu "⋮" além desse.
+- Endpoint de autorização de canal do Pusher que valida o token de sessão (o token em si já está definido — 7 dias — falta desenhar o endpoint).
