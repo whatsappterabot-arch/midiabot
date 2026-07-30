@@ -31,10 +31,17 @@
 
     <main class="flex-1 flex overflow-hidden">
         <!-- PAINEL: LISTA DE CONVERSAS -->
-        <div id="painel-lista" class="w-full sm:w-80 sm:flex-shrink-0 sm:block sm:border-r border-gray-300 overflow-y-auto bg-[#f5f0e8]">
-            <div id="lista-conversas" class="divide-y divide-gray-200">
-                <div class="p-12 text-center text-gray-400 text-xs font-bold uppercase tracking-widest">
-                    Selecione uma sala acima
+        <div id="painel-lista" class="w-full sm:w-80 sm:flex-shrink-0 flex flex-col sm:flex border-r border-gray-300 bg-[#f5f0e8]">
+            <div class="p-3 border-b border-gray-300 bg-white flex-shrink-0">
+                <button onclick="abrirNovaConversa()" class="w-full text-xs font-bold text-[#00b34d] uppercase tracking-widest py-2 hover:underline">
+                    + Nova conversa
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto">
+                <div id="lista-conversas" class="divide-y divide-gray-200">
+                    <div class="p-12 text-center text-gray-400 text-xs font-bold uppercase tracking-widest">
+                        Selecione uma sala acima
+                    </div>
                 </div>
             </div>
         </div>
@@ -59,6 +66,35 @@
         </div>
     </main>
 
+    <!-- MODAL: NOVA CONVERSA -->
+    <div id="modal-nova-conversa" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <h3 class="text-sm font-bold text-gray-700 uppercase tracking-widest mb-4">Nova conversa</h3>
+
+            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Número (sem @, só dígitos)</label>
+            <input type="text" id="input-novo-numero" placeholder="Ex: 5511999999999"
+                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm mb-4 outline-none focus:ring-2 focus:ring-[#00b34d] focus:bg-white transition-all">
+
+            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Instância</label>
+            <select id="select-nova-instancia"
+                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm mb-1 outline-none focus:ring-2 focus:ring-[#00b34d] focus:bg-white transition-all">
+                <option value="">Selecione uma instância...</option>
+            </select>
+            <p id="sugestao-instancia" class="text-[10px] text-gray-400 mb-4 min-h-[1em]"></p>
+
+            <div class="flex gap-2">
+                <button onclick="fecharNovaConversa()"
+                    class="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-gray-200 transition-all">
+                    Cancelar
+                </button>
+                <button onclick="confirmarNovaConversa()"
+                    class="flex-1 bg-[#001f3f] text-white py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-black transition-all active:scale-95">
+                    Iniciar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { CONFIG, showToast } from "./config.js";
 
@@ -68,6 +104,7 @@
         let salas = [];
         let salaSelecionada = '';
         let conversaSelecionada = null;
+        let instanciasCliente = [];
 
         document.addEventListener('DOMContentLoaded', () => {
             const raw = localStorage.getItem('midiachat_session');
@@ -80,6 +117,8 @@
             document.getElementById('select-sala-mobile').addEventListener('change', (e) => {
                 selecionarSala(e.target.value);
             });
+
+            document.getElementById('input-novo-numero').addEventListener('blur', buscarSugestaoInstancia);
 
             carregarSalas();
         });
@@ -264,6 +303,103 @@
                 enviarMensagem();
             }
         });
+
+        window.abrirNovaConversa = abrirNovaConversa;
+        window.fecharNovaConversa = fecharNovaConversa;
+        window.confirmarNovaConversa = confirmarNovaConversa;
+
+        async function abrirNovaConversa() {
+            if (!salaSelecionada) {
+                showToast("Selecione uma sala primeiro.", "warning");
+                return;
+            }
+            document.getElementById('input-novo-numero').value = '';
+            document.getElementById('sugestao-instancia').innerText = '';
+
+            if (instanciasCliente.length === 0) {
+                await carregarInstancias();
+            }
+            renderizarSelectInstancias();
+
+            document.getElementById('modal-nova-conversa').classList.remove('hidden');
+        }
+
+        function fecharNovaConversa() {
+            document.getElementById('modal-nova-conversa').classList.add('hidden');
+        }
+
+        async function carregarInstancias() {
+            try {
+                const data = await chamarApi('listar_instancias', {});
+                instanciasCliente = (Array.isArray(data) ? data : []).filter(item => item && item.nome_instancia != null);
+            } catch (e) {
+                console.error("Falha ao carregar instâncias:", e);
+                instanciasCliente = [];
+            }
+        }
+
+        function renderizarSelectInstancias(sugestao) {
+            const select = document.getElementById('select-nova-instancia');
+            select.innerHTML = '<option value="">Selecione uma instância...</option>' +
+                instanciasCliente.map(i => `<option value="${escapeHtml(i.nome_instancia)}">${escapeHtml(i.nome_instancia)} (${escapeHtml(i.sender)})</option>`).join('');
+            if (sugestao) select.value = sugestao;
+        }
+
+        async function buscarSugestaoInstancia() {
+            const numero = document.getElementById('input-novo-numero').value.trim();
+            const aviso = document.getElementById('sugestao-instancia');
+            if (!numero) {
+                aviso.innerText = '';
+                return;
+            }
+
+            const remotejid = numero + '@s.whatsapp.net';
+            try {
+                const data = await chamarApi('buscar_instancia_sugerida', { remotejid });
+                const item = Array.isArray(data) ? data[0] : data;
+
+                if (item && item.last_instance) {
+                    renderizarSelectInstancias(item.last_instance);
+                    aviso.innerText = `Sugestão: ${item.last_instance} (já falou com este número antes).`;
+                } else {
+                    renderizarSelectInstancias();
+                    aviso.innerText = 'Nenhuma instância anterior encontrada — escolha uma.';
+                }
+            } catch (e) {
+                console.error("Falha ao buscar sugestão de instância:", e);
+            }
+        }
+
+        async function confirmarNovaConversa() {
+            const numero = document.getElementById('input-novo-numero').value.trim();
+            const instancia = document.getElementById('select-nova-instancia').value;
+
+            if (!numero) {
+                showToast("Digite o número.", "warning");
+                return;
+            }
+            if (!instancia) {
+                showToast("Escolha uma instância.", "warning");
+                return;
+            }
+
+            const remotejid = numero + '@s.whatsapp.net';
+
+            try {
+                await chamarApi('iniciar_conversa', {
+                    remotejid: remotejid,
+                    chat_id: salaSelecionada,
+                    instancia: instancia
+                });
+                fecharNovaConversa();
+                showToast("Conversa iniciada.", "success");
+                await carregarConversas();
+                abrirConversa(remotejid);
+            } catch (e) {
+                console.error("Falha ao iniciar conversa:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
     </script>
 </body>
 </html>
