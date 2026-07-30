@@ -101,7 +101,9 @@ CREATE TABLE midiabot_midiachat_sessao (
 ```
 Fluxo de login (workflow n8n próprio, webhook dedicado): valida `nome_fantasia`+`login`+`senha` (`crypt()` contra `midiabot_login_chat`), se achar, gera o token (`encode(gen_random_bytes(32), 'hex')`) e grava aqui com `expira_em = now() + interval '7 days'`. Front-end (`midiabot_chat/index.html`) guarda o token no `localStorage` (chave `midiachat_session`) e redireciona pra `chat.html`.
 
-**Status: construído e testado de ponta a ponta** — login certo (gera token, salva sessão, redireciona) e login errado (mostra erro, sem sessão) confirmados funcionando. Falta só `chat.html` existir (próxima tela a construir — lista de contatos).
+**Status: construído e testado de ponta a ponta** — login certo (gera token, salva sessão, redireciona) e login errado (mostra erro, sem sessão) confirmados funcionando.
+
+**`chat.html` (seletor de salas + lista de conversas): construído e testado.** Ações `listar_salas` e `listar_conversas` (mesmo workflow do login), as duas usando "Respond to Webhook" com **"All Incoming Items"** (não JSON escrito à mão — isso é só pra respostas que combinam campos de nodes diferentes, como o login) e "Always Output Data" ativado (zero linhas é caso real). Confirmado mostrando as salas certas e as conversas de `midiabot_remotejid_chatid` na sala certa. Próximo passo: a tela de conversa aberta (coluna do meio).
 - **Armazenamento de mídia**: confirmado reaproveitar `midiabot_historico_mensagens` — já tem tudo que precisa (`from_me`, `instance`, `chat_id`, campos de mídia). O contador de pendência da faixa de salas ("conversas sem resposta") também dá pra calcular direto dali, sem coluna nova: basta checar se a mensagem mais recente daquele `remote_jid` tem `from_me = false`.
 - **Por qual instância responder**: resolvido no fluxo de mensagens (fora desta sessão) — o n8n grava `last_instance` por `remotejid` ao chegar mensagem, hoje em `midiabot_whats_versus_telegram`; será redesenhado quando o fluxo de produção for atualizado pro Midiabot_chat.
 - **Prompt da IA conselheira**: separado do de "Prompts", fixo no n8n por ora, cadastro editável fica pra v2.
