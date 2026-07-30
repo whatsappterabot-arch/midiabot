@@ -147,6 +147,19 @@
                 .replace(/"/g, '&quot;');
         }
 
+        // Converte marcação estilo WhatsApp (*negrito*, _itálico_, ~riscado~) em HTML.
+        // Só chamar DEPOIS de escapeHtml — as tags aqui são fixas, não abrem brecha nenhuma.
+        function formatarWhatsApp(textoEscapado) {
+            return textoEscapado
+                .replace(/\*([^\*\n]+)\*/g, '<b>$1</b>')
+                .replace(/_([^_\n]+)_/g, '<i>$1</i>')
+                .replace(/~([^~\n]+)~/g, '<s>$1</s>');
+        }
+
+        function numeroSemSufixo(remotejid) {
+            return remotejid ? remotejid.split('@')[0] : '';
+        }
+
         async function carregarSalas() {
             try {
                 const data = await chamarApi('listar_salas', {});
@@ -211,15 +224,19 @@
                     return;
                 }
 
-                container.innerHTML = conversas.map(c => `
+                container.innerHTML = conversas.map(c => {
+                    const numero = numeroSemSufixo(c.remotejid);
+                    const titulo = c.pushname ? `${c.pushname} - ${numero}` : numero;
+                    return `
                     <div onclick="window.__abrirConversa('${c.remotejid}')"
                         class="flex items-center gap-3 px-4 py-3 hover:bg-white cursor-pointer transition-all">
                         <div class="flex-1 min-w-0">
-                            <p class="text-sm font-bold text-gray-800 font-mono">${escapeHtml(c.remotejid)}</p>
+                            <p class="text-sm font-bold text-gray-800">${escapeHtml(titulo)}</p>
                             <p class="text-xs text-gray-400 truncate">${escapeHtml(c.mensagem || c.caption) || '(sem prévia)'}</p>
                         </div>
                     </div>
-                `).join('');
+                `;
+                }).join('');
             } catch (e) {
                 console.error("Falha ao carregar conversas:", e);
                 showToast("Erro ao processar solicitação.", "error");
@@ -260,7 +277,7 @@
                 container.innerHTML = mensagens.map(m => `
                     <div class="flex ${m.from_me ? 'justify-end' : 'justify-start'}">
                         <div class="max-w-[90%] rounded-2xl px-4 py-2 text-sm text-black ${m.from_me ? 'bg-[#dcf8c6]' : 'bg-white'}">
-                            ${escapeHtml(m.mensagem || m.caption) || '(mensagem sem texto)'}
+                            ${(m.mensagem || m.caption) ? formatarWhatsApp(escapeHtml(m.mensagem || m.caption)) : '(mensagem sem texto)'}
                         </div>
                     </div>
                 `).join('');
