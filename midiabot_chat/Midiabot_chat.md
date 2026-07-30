@@ -103,9 +103,10 @@ Fluxo de login (workflow n8n próprio, webhook dedicado): valida `nome_fantasia`
 
 **Status: construído e testado de ponta a ponta** — login certo (gera token, salva sessão, redireciona) e login errado (mostra erro, sem sessão) confirmados funcionando.
 
-**`chat.html` (seletor de salas + lista de conversas): construído e testado.** Ações `listar_salas` e `listar_conversas` (mesmo workflow do login), as duas usando "Respond to Webhook" com **"All Incoming Items"** (não JSON escrito à mão — isso é só pra respostas que combinam campos de nodes diferentes, como o login) e "Always Output Data" ativado (zero linhas é caso real). Confirmado mostrando as salas certas e as conversas de `midiabot_remotejid_chatid` na sala certa. Próximo passo: a tela de conversa aberta (coluna do meio).
-- **Armazenamento de mídia**: confirmado reaproveitar `midiabot_historico_mensagens` — já tem tudo que precisa (`from_me`, `instance`, `chat_id`, campos de mídia). O contador de pendência da faixa de salas ("conversas sem resposta") também dá pra calcular direto dali, sem coluna nova: basta checar se a mensagem mais recente daquele `remote_jid` tem `from_me = false`.
-- **Por qual instância responder**: resolvido no fluxo de mensagens (fora desta sessão) — o n8n grava `last_instance` por `remotejid` ao chegar mensagem, hoje em `midiabot_whats_versus_telegram`; será redesenhado quando o fluxo de produção for atualizado pro Midiabot_chat.
+**`chat.html` (seletor de salas + lista de conversas + conversa aberta + enviar mensagem): construído e testado de ponta a ponta.** Ações `listar_salas`/`listar_conversas`/`listar_mensagens` usando "Respond to Webhook" com **"All Incoming Items"**; `enviar_mensagem` faz um `INSERT` só em `midiabot_historico_mensagens`, sem chamar a Evolution API ainda (o usuário configura esse pedaço depois, quando quiser). Mensagens do cliente passam por `escapeHtml()` antes de renderizar (proteção contra XSS).
+
+**`midiabot_whats_versus_telegram` renomeada pra `midiabot_midiachat_ultima_instancia`** — guarda por qual instância (`last_instance`) responder a um `remote_jid`. **Decisão importante corrigida nesta sessão**: a resolução da instância **não pode depender do `chat_id`** — mover um cliente de sala (Atribuição de Chat) não pode quebrar o envio de mensagem. A query de `enviar_mensagem` busca só por `remote_jid` (com `DISTINCT ON` de proteção contra linha duplicada antiga), o `chat_id` da sala atual só é usado pra achar o `workflow_name`, não a instância.
+
 - **Prompt da IA conselheira**: separado do de "Prompts", fixo no n8n por ora, cadastro editável fica pra v2.
 
 ## Pendências / decisões em aberto

@@ -133,7 +133,7 @@
             abas.innerHTML = salas.map(sala => `
                 <button onclick="window.__selecionarSala('${sala.chat_id}')"
                     data-chat-id="${sala.chat_id}"
-                    class="aba-sala flex-shrink-0 px-4 py-2 text-xs font-bold uppercase tracking-widest whitespace-nowrap border-b-2 border-transparent text-blue-200 hover:text-white transition-all">
+                    class="aba-sala flex-shrink-0 px-4 py-2 my-2 rounded-full text-xs font-bold uppercase tracking-widest whitespace-nowrap text-blue-200 hover:text-white transition-all">
                     ${escapeHtml(sala.chat_id_nome || sala.chat_id)}
                 </button>
             `).join('');
@@ -152,7 +152,8 @@
             document.getElementById('select-sala-mobile').value = chatId;
             document.querySelectorAll('.aba-sala').forEach(btn => {
                 const ativa = btn.dataset.chatId === String(chatId);
-                btn.classList.toggle('border-[#00b34d]', ativa);
+                btn.classList.toggle('bg-[#00b34d]', ativa);
+                btn.classList.toggle('shadow-md', ativa);
                 btn.classList.toggle('text-white', ativa);
                 btn.classList.toggle('text-blue-200', !ativa);
             });
