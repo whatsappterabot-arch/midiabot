@@ -24,7 +24,7 @@ Consequência prática: **não é preciso construir a tabela de roteamento** que
 - Lista os contatos mais recentes que mandaram mensagem (não arquivados), com link pra abrir os **arquivados**.
 - Cada linha mostra só o número, com um ícone pequeno de edição ao lado.
 - Clicar no ícone abre um painel com todas as informações do contato: campo de observações, e a possibilidade de colocar um emoji no início do apelido do cliente. Emoji e apelido são livres — cada equipe de vendedores define o próprio significado pra eles (não é um código fixo do sistema).
-- Observações e apelido/emoji são **compartilhados**: qualquer consultor que atenda aquele cliente vê e edita o mesmo dado, não é pessoal por consultor. Guardados em `midiabot_midiachat_contato` (`id_cliente`, `remote_jid`, `apelido`, `emoji`, `observacoes` — PK `id_cliente, remote_jid`).
+- Observações e apelido/emoji são **compartilhados**: qualquer consultor que atenda aquele cliente vê e edita o mesmo dado, não é pessoal por consultor. Guardados em `midiabot_midiachat_contato` (ver schema na seção "Decisões fechadas nesta rodada").
 - Arquivar também é **compartilhado** (não é por consultor): uma conversa arquivada some da lista principal pra todo mundo, e volta a aparecer sozinha assim que o cliente manda mensagem nova. Clicar em "ARQUIVADAS" mostra as arquivadas pra qualquer consultor. Guardado na coluna `arquivada` de `midiabot_remotejid_chatid` (ver seção "Como a mensagem chega numa sala").
 
 **Coluna do meio — conversa aberta**
@@ -108,6 +108,20 @@ Fluxo de login (workflow n8n próprio, webhook dedicado): valida `nome_fantasia`
 **`midiabot_whats_versus_telegram` renomeada pra `midiabot_midiachat_ultima_instancia`** — guarda por qual instância (`last_instance`) responder a um `remote_jid`. **Decisão importante corrigida nesta sessão**: a resolução da instância **não pode depender do `chat_id`** — mover um cliente de sala (Atribuição de Chat) não pode quebrar o envio de mensagem. A query de `enviar_mensagem` busca só por `remote_jid` (com `DISTINCT ON` de proteção contra linha duplicada antiga), o `chat_id` da sala atual só é usado pra achar o `workflow_name`, não a instância.
 
 - **Prompt da IA conselheira**: separado do de "Prompts", fixo no n8n por ora, cadastro editável fica pra v2.
+
+- **`midiabot_midiachat_contato` (apelido/emoji/observações do contato, desenhada em 2026-07-30)**:
+```sql
+CREATE TABLE midiabot_midiachat_contato (
+    id_cliente INTEGER NOT NULL REFERENCES midiabot_cad_usuarios(id),
+    remotejid TEXT NOT NULL,
+    apelido TEXT,
+    emoji TEXT,
+    observacoes TEXT,
+    PRIMARY KEY (id_cliente, remotejid),
+    FOREIGN KEY (id_cliente, remotejid) REFERENCES midiabot_remotejid_chatid (id_cliente, remotejid)
+);
+```
+Coluna `remotejid` (sem underscore) escolhida pra bater com `midiabot_remotejid_chatid`, sua tabela-irmã de mesma PK/grão (`midiabot_historico_mensagens` usa `remote_jid`, com underscore — inconsistência antiga, não replicada aqui). A FK pra `midiabot_remotejid_chatid` é segura porque toda conversa passa por lá primeiro (mensagem recebida ou botão "Nova conversa", ambos gravam ali antes de a conversa aparecer em qualquer tela) — nunca existe apelido pendurado num `remotejid` que ainda não é uma conversa de verdade.
 
 ## Pendências / decisões em aberto
 
