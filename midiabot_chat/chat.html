@@ -337,6 +337,9 @@
             conversaSelecionada = null;
             document.getElementById('painel-lista').classList.remove('hidden');
             document.getElementById('painel-conversa').classList.add('hidden');
+            document.getElementById('titulo-conversa').innerText = '';
+            document.getElementById('mensagens').innerHTML =
+                '<div class="p-8 text-center text-gray-400 text-xs">Selecione uma conversa</div>';
             destacarConversaAtiva();
         }
 
