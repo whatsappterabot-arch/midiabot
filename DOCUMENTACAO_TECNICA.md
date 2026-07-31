@@ -315,8 +315,9 @@ Desenho original (pode estar desatualizado): cada linha de `midiabot_a_workflows
 
 - Confirmar `groupsIgnore: true` no node "Criar Instância".
 - Autenticação real por requisição (adiado deliberadamente).
-- Tela de criação de vendedores (hoje só edição, sem inclusão/exclusão — decisão consciente).
 - Textos de ajuda ("?") ainda só existem pra tela de Instâncias; falta adicionar nas outras, aos poucos.
+- **Conectores de Chat não tem editar nem excluir sala** — hoje só cria sala (`criar_sala`) e atrela/desatrela sender; falta ação pra editar `chat_id_nome` de uma sala existente e pra excluir uma sala (encontrado em 2026-07-31).
+- **Ao criar uma instância, precisa ligar o base64** — falta confirmar onde esse ajuste entra no fluxo de criação de instância hoje (encontrado em 2026-07-31).
 - Decidir como o Midiabot_chat vai saber por qual instância responder (`midiabot_remotejid_chatid` não guarda isso hoje — ver seção "Tabelas encontradas nesta sessão").
 - Confirmar como `salvar_workflow` aponta o webhook de uma instância hoje, já que `midiabot_a_workflows.webhook_url` não existe (a seção "Webhook por workflow" pode estar desatualizada).
 - Confirmar se `midiabot_sender_chatid.chat_id_nome` ainda é usado em algum lugar ou é resquício.

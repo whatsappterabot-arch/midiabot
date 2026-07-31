@@ -152,6 +152,7 @@ Coluna `remotejid` (sem underscore) escolhida pra bater com `midiabot_remotejid_
 
 ## Pendências / decisões em aberto
 
+- **Teste do fluxo de mensagem chegando será feito à parte, não no fluxo de produção real** (esse é considerado complexo demais pra mexer direto). Decisão de 2026-07-31: usar o workflow **"Publi ScentyStore v1"**, desconectando o webhook dele da produção e movendo pra outro lugar só pra teste — URL: `https://awkwardgiantpanda-n8n.cloudfy.live/webhook/scenty-store-v1-ae48-e0d4599b95e0`. Depois de validado nesse ambiente isolado, replicar a montagem no fluxo de produção de verdade.
 - Construir o fluxo de **mensagem chegando** (WhatsApp → Evolution API → webhook n8n → INSERT em `midiabot_historico_mensagens` → chamada HTTP servidor-a-servidor pro Pusher disparando o evento leve `{chat_id, remote_jid, message_id}` no canal `private-cliente-{id_cliente}`) — ainda não desenhado o node que dispara esse evento (precisa montar a chamada HTTP assinada pro Pusher, provavelmente outro node Code com `crypto`, já que o n8n Cloud não tem node nativo do Pusher).
 - Depois: o lado do navegador que escuta o evento (`channel.bind(...)`) e reage fazendo o refetch — ainda não escrito no `chat.html`.
 - Depois: revisar o fluxo de **enviar mensagem** pra seguir o mesmo padrão notify-then-fetch (hoje `enviar_mensagem` só faz `INSERT`, sem chamar a Evolution API nem o Pusher — o vendedor só vê a própria mensagem porque o front-end refaz o fetch manualmente).
