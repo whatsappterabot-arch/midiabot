@@ -176,7 +176,7 @@
                     carregarConversas();
                 }
                 if (dados.remote_jid === conversaSelecionada) {
-                    carregarMensagens();
+                    carregarMensagens(false);
                 }
                 atualizarContadoresSalas();
             });
@@ -397,9 +397,11 @@
             destacarConversaAtiva();
         }
 
-        async function carregarMensagens() {
+        async function carregarMensagens(mostrarCarregando = true) {
             const container = document.getElementById('mensagens');
-            container.innerHTML = '<div class="p-8 text-center text-gray-400 text-xs">Carregando...</div>';
+            if (mostrarCarregando) {
+                container.innerHTML = '<div class="p-8 text-center text-gray-400 text-xs">Carregando...</div>';
+            }
 
             try {
                 const data = await chamarApi('listar_mensagens', { remotejid: conversaSelecionada });
@@ -441,7 +443,7 @@
                     mensagem: texto
                 });
                 input.value = '';
-                await carregarMensagens();
+                await carregarMensagens(false);
             } catch (e) {
                 console.error("Falha ao enviar mensagem:", e);
                 showToast("Erro ao processar solicitação.", "error");
