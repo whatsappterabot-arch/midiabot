@@ -71,7 +71,7 @@
         <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
             <h3 class="text-sm font-bold text-gray-700 uppercase tracking-widest mb-4">Nova conversa</h3>
 
-            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Número (sem @, só dígitos)</label>
+            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Número do WhatsApp</label>
             <input type="text" id="input-novo-numero" placeholder="Ex: 5511999999999"
                 class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm mb-4 outline-none focus:ring-2 focus:ring-[#00b34d] focus:bg-white transition-all">
 
@@ -227,9 +227,11 @@
                 container.innerHTML = conversas.map(c => {
                     const numero = numeroSemSufixo(c.remotejid);
                     const titulo = c.pushname ? `${c.pushname} - ${numero}` : numero;
+                    const ativa = c.remotejid === conversaSelecionada;
                     return `
                     <div onclick="window.__abrirConversa('${c.remotejid}')"
-                        class="flex items-center gap-3 px-4 py-3 hover:bg-white cursor-pointer transition-all">
+                        data-remotejid="${escapeHtml(c.remotejid)}"
+                        class="linha-conversa flex items-center gap-3 px-4 py-3 cursor-pointer transition-all ${ativa ? 'bg-gray-200' : 'hover:bg-white'}">
                         <div class="flex-1 min-w-0">
                             <p class="text-sm font-bold text-gray-800">${escapeHtml(titulo)}</p>
                             <p class="text-xs text-gray-400 truncate">${escapeHtml(c.mensagem || c.caption) || '(sem prévia)'}</p>
@@ -250,7 +252,16 @@
             document.getElementById('painel-lista').classList.add('hidden');
             document.getElementById('painel-conversa').classList.remove('hidden');
             document.getElementById('titulo-conversa').innerText = remotejid;
+            destacarConversaAtiva();
             carregarMensagens();
+        }
+
+        function destacarConversaAtiva() {
+            document.querySelectorAll('.linha-conversa').forEach(linha => {
+                const ativa = linha.dataset.remotejid === conversaSelecionada;
+                linha.classList.toggle('bg-gray-200', ativa);
+                linha.classList.toggle('hover:bg-white', !ativa);
+            });
         }
 
         window.fecharConversa = fecharConversa;
@@ -259,6 +270,7 @@
             conversaSelecionada = null;
             document.getElementById('painel-lista').classList.remove('hidden');
             document.getElementById('painel-conversa').classList.add('hidden');
+            destacarConversaAtiva();
         }
 
         async function carregarMensagens() {
