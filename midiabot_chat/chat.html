@@ -237,16 +237,26 @@
             const abas = document.getElementById('abas-salas');
             const selectMobile = document.getElementById('select-sala-mobile');
 
-            abas.innerHTML = salas.map(sala => `
+            abas.innerHTML = salas.map(sala => {
+                const pendentes = Number(sala.pendentes) || 0;
+                const badge = pendentes > 0
+                    ? `<span class="ml-1 bg-red-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5">${pendentes}</span>`
+                    : '';
+                return `
                 <button onclick="window.__selecionarSala('${sala.chat_id}')"
                     data-chat-id="${sala.chat_id}"
                     class="aba-sala flex-shrink-0 px-4 py-2 my-2 rounded-full text-xs font-bold uppercase tracking-widest whitespace-nowrap text-blue-200 hover:text-white transition-all">
-                    ${escapeHtml(sala.chat_id_nome || sala.chat_id)} - ${escapeHtml(sala.workflow_name)}
+                    ${escapeHtml(sala.chat_id_nome || sala.chat_id)} - ${escapeHtml(sala.workflow_name)}${badge}
                 </button>
-            `).join('');
+            `;
+            }).join('');
 
             selectMobile.innerHTML = '<option value="">Selecione uma sala...</option>' +
-                salas.map(sala => `<option value="${sala.chat_id}">${escapeHtml(sala.chat_id_nome || sala.chat_id)} - ${escapeHtml(sala.workflow_name)}</option>`).join('');
+                salas.map(sala => {
+                    const pendentes = Number(sala.pendentes) || 0;
+                    const sufixo = pendentes > 0 ? ` (${pendentes})` : '';
+                    return `<option value="${sala.chat_id}">${escapeHtml(sala.chat_id_nome || sala.chat_id)} - ${escapeHtml(sala.workflow_name)}${sufixo}</option>`;
+                }).join('');
         }
 
         window.__selecionarSala = selecionarSala;
@@ -290,10 +300,14 @@
                         ? `${c.emoji ? c.emoji + ' ' : ''}${c.apelido}`
                         : (c.pushname ? `${c.pushname} - ${numero}` : numero);
                     const ativa = c.remotejid === conversaSelecionada;
+                    const pontoNaoLida = c.nao_lida
+                        ? '<span class="ponto-nao-lida flex-shrink-0 w-2.5 h-2.5 rounded-full bg-[#00b34d]"></span>'
+                        : '';
                     return `
                     <div onclick="window.__abrirConversa('${c.remotejid}')"
                         data-remotejid="${escapeHtml(c.remotejid)}"
                         class="linha-conversa flex items-center gap-3 px-4 py-3 cursor-pointer transition-all ${ativa ? 'bg-gray-200' : 'hover:bg-white'}">
+                        ${pontoNaoLida}
                         <div class="flex-1 min-w-0">
                             <p class="text-sm font-bold text-gray-800">${escapeHtml(titulo)}</p>
                             <p class="text-xs text-gray-400 truncate">${escapeHtml(c.mensagem || c.caption) || '(sem prévia)'}</p>
@@ -321,6 +335,37 @@
             document.getElementById('titulo-conversa').innerText = numeroSemSufixo(remotejid);
             destacarConversaAtiva();
             carregarMensagens();
+            marcarLida(remotejid);
+        }
+
+        async function marcarLida(remotejid) {
+            try {
+                await chamarApi('marcar_lida', { remotejid: remotejid, chat_id: salaSelecionada });
+                const linha = document.querySelector(`.linha-conversa[data-remotejid="${CSS.escape(remotejid)}"]`);
+                const ponto = linha ? linha.querySelector('.ponto-nao-lida') : null;
+                if (ponto) ponto.remove();
+                atualizarContadoresSalas();
+            } catch (e) {
+                console.error("Falha ao marcar como lida:", e);
+            }
+        }
+
+        async function atualizarContadoresSalas() {
+            try {
+                const data = await chamarApi('listar_salas', {});
+                salas = (Array.isArray(data) ? data : []).filter(item => item && item.chat_id != null);
+                renderizarAbas();
+                document.getElementById('select-sala-mobile').value = salaSelecionada;
+                document.querySelectorAll('.aba-sala').forEach(btn => {
+                    const ativa = btn.dataset.chatId === String(salaSelecionada);
+                    btn.classList.toggle('bg-[#00b34d]', ativa);
+                    btn.classList.toggle('shadow-md', ativa);
+                    btn.classList.toggle('text-white', ativa);
+                    btn.classList.toggle('text-blue-200', !ativa);
+                });
+            } catch (e) {
+                console.error("Falha ao atualizar contadores de salas:", e);
+            }
         }
 
         function destacarConversaAtiva() {
