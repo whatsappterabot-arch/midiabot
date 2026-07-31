@@ -107,6 +107,15 @@ Fluxo de login (workflow n8n próprio, webhook dedicado): valida `nome_fantasia`
 
 **`midiabot_whats_versus_telegram` renomeada pra `midiabot_midiachat_ultima_instancia`** — guarda por qual instância (`last_instance`) responder a um `remote_jid`. **Decisão importante corrigida nesta sessão**: a resolução da instância **não pode depender do `chat_id`** — mover um cliente de sala (Atribuição de Chat) não pode quebrar o envio de mensagem. A query de `enviar_mensagem` busca só por `remote_jid` (com `DISTINCT ON` de proteção contra linha duplicada antiga), o `chat_id` da sala atual só é usado pra achar o `workflow_name`, não a instância.
 
+**Bug real encontrado em 2026-07-31, com migração em andamento**: testando com uma instância nova atrelada a outro workflow, uma mensagem de um `remote_jid` que já tinha conversado com **outro workflow** do mesmo cliente caiu na sala errada — porque `midiabot_remotejid_chatid` guardava só uma linha por `(id_cliente, remotejid)`, ignorando o workflow. Pior: a chave primária de `midiabot_midiachat_ultima_instancia` (`midiabot_whats_versus_telegram_pkey2`, antiga) era `(remote_jid, chat_id, workflow_name)` — ou seja, **incluía o `chat_id`**, contrariando a decisão acima ("não pode depender do chat_id"). Na prática, cada troca de sala (mesmo dentro do mesmo workflow) criava uma linha nova em vez de atualizar a existente, deixando linhas duplicadas/órfãs e fazendo `enviar_mensagem` escolher a instância errada quase na sorte (o `DISTINCT ON` não tinha `ORDER BY` que garantisse pegar a mais recente).
+
+**Correção em andamento — migração de banco, passos concluídos:**
+1. ~~Apagar linhas de teste duplicadas.~~ Feito.
+2. ~~Trocar a chave de `midiabot_midiachat_ultima_instancia` de `(remote_jid, chat_id, workflow_name)` pra `(remote_jid, workflow_name)`~~ — feito (`chat_id` continua como coluna normal da tabela, só não faz mais parte da chave; é só informativo agora).
+3. ~~Ajustar `ON CONFLICT` do Passo 2 de `iniciar_conversa`~~ pra `(remote_jid, workflow_name)`, atualizando `chat_id` também no `DO UPDATE`. Feito.
+
+**Ainda faltam** (ver "Pendências" no fim do documento): ajustar a query de `enviar_mensagem` (tirar o `DISTINCT ON`, filtrar direto por `workflow_name` já que a chave nova garante unicidade); derrubar a FK `midiabot_midiachat_contato_id_cliente_remotejid_fkey` (apelido/observação é por pessoa, não por workflow — não faz mais sentido depois dessa mudança); e adicionar `workflow_name` em `midiabot_remotejid_chatid`, trocando a chave dela de `(id_cliente, remotejid)` pra `(id_cliente, remotejid, workflow_name)`.
+
 - **Prompt da IA conselheira**: separado do de "Prompts", fixo no n8n por ora, cadastro editável fica pra v2.
 
 - **`midiabot_midiachat_contato` (apelido/emoji/observações do contato, desenhada em 2026-07-30)**:
@@ -152,6 +161,12 @@ Coluna `remotejid` (sem underscore) escolhida pra bater com `midiabot_remotejid_
 
 ## Pendências / decisões em aberto
 
+- **Migração "workflow precisa fazer parte da identidade da conversa" (2026-07-31), passos que faltam:**
+  - Ajustar a query de `enviar_mensagem` (ação do Midiabot_chat) — tirar o `DISTINCT ON`, `JOIN` direto em `midiabot_midiachat_ultima_instancia` filtrando por `remote_jid` **e** `workflow_name` (a chave nova já garante uma linha só).
+  - Derrubar a FK `midiabot_midiachat_contato_id_cliente_remotejid_fkey` (`ALTER TABLE midiabot_midiachat_contato DROP CONSTRAINT midiabot_midiachat_contato_id_cliente_remotejid_fkey`) — deixou de fazer sentido, apelido/observação é por pessoa, não por workflow.
+  - Adicionar `workflow_name` em `midiabot_remotejid_chatid` (backfill via `JOIN midiabot_chatid_workflowname` pelo `chat_id` existente) e trocar a chave de `(id_cliente, remotejid)` pra `(id_cliente, remotejid, workflow_name)`.
+  - Atualizar a query do node "resolver chat_id" no workflow de teste (Publi ScentyStore v1) pra gravar/consultar já considerando `workflow_name`.
+  - Revisar se **Atribuição de Chat** (`listar_remotejids`/`salvar_atribuicao`, no painel admin) e o fluxo de produção real (roteamento de mensagens) também precisam desse ajuste — ainda não avaliado.
 - **Teste do fluxo de mensagem chegando será feito à parte, não no fluxo de produção real** (esse é considerado complexo demais pra mexer direto). Decisão de 2026-07-31: usar o workflow **"Publi ScentyStore v1"**, desconectando o webhook dele da produção e movendo pra outro lugar só pra teste — URL: `https://awkwardgiantpanda-n8n.cloudfy.live/webhook/scenty-store-v1-ae48-e0d4599b95e0`. Depois de validado nesse ambiente isolado, replicar a montagem no fluxo de produção de verdade.
 - Construir o fluxo de **mensagem chegando** (WhatsApp → Evolution API → webhook n8n → INSERT em `midiabot_historico_mensagens` → chamada HTTP servidor-a-servidor pro Pusher disparando o evento leve `{chat_id, remote_jid, message_id}` no canal `private-cliente-{id_cliente}`) — ainda não desenhado o node que dispara esse evento (precisa montar a chamada HTTP assinada pro Pusher, provavelmente outro node Code com `crypto`, já que o n8n Cloud não tem node nativo do Pusher).
 - Depois: o lado do navegador que escuta o evento (`channel.bind(...)`) e reage fazendo o refetch — ainda não escrito no `chat.html`.
