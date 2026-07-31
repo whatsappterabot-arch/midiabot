@@ -268,8 +268,9 @@
                         emoji: c.emoji || '',
                         observacoes: c.observacoes || ''
                     };
-                    const nomeBase = c.apelido ? `${c.emoji ? c.emoji + ' ' : ''}${c.apelido}` : c.pushname;
-                    const titulo = nomeBase ? `${nomeBase} - ${numero}` : numero;
+                    const titulo = c.apelido
+                        ? `${c.emoji ? c.emoji + ' ' : ''}${c.apelido}`
+                        : (c.pushname ? `${c.pushname} - ${numero}` : numero);
                     const ativa = c.remotejid === conversaSelecionada;
                     return `
                     <div onclick="window.__abrirConversa('${c.remotejid}')"
@@ -299,7 +300,7 @@
             conversaSelecionada = remotejid;
             document.getElementById('painel-lista').classList.add('hidden');
             document.getElementById('painel-conversa').classList.remove('hidden');
-            document.getElementById('titulo-conversa').innerText = remotejid;
+            document.getElementById('titulo-conversa').innerText = numeroSemSufixo(remotejid);
             destacarConversaAtiva();
             carregarMensagens();
         }
