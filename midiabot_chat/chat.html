@@ -66,6 +66,41 @@
         </div>
     </main>
 
+    <!-- MODAL: EDITAR CONTATO -->
+    <div id="modal-contato" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <h3 class="text-sm font-bold text-gray-700 uppercase tracking-widest mb-4">Editar contato</h3>
+
+            <div class="flex gap-2 mb-4">
+                <div class="w-16 flex-shrink-0">
+                    <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Emoji</label>
+                    <input type="text" id="input-contato-emoji" maxlength="4"
+                        class="w-full bg-gray-50 border border-gray-200 rounded-xl px-2 py-3 text-sm text-center outline-none focus:ring-2 focus:ring-[#00b34d] focus:bg-white transition-all">
+                </div>
+                <div class="flex-1">
+                    <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Apelido</label>
+                    <input type="text" id="input-contato-apelido" placeholder="Como esse cliente aparece na lista"
+                        class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#00b34d] focus:bg-white transition-all">
+                </div>
+            </div>
+
+            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Observações</label>
+            <textarea id="input-contato-observacoes" rows="3" placeholder="Anotações sobre esse cliente, visíveis pra toda a equipe"
+                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm mb-4 outline-none focus:ring-2 focus:ring-[#00b34d] focus:bg-white transition-all resize-none"></textarea>
+
+            <div class="flex gap-2">
+                <button onclick="fecharContato()"
+                    class="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-gray-200 transition-all">
+                    Cancelar
+                </button>
+                <button onclick="confirmarContato()"
+                    class="flex-1 bg-[#001f3f] text-white py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-black transition-all active:scale-95">
+                    Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL: NOVA CONVERSA -->
     <div id="modal-nova-conversa" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
         <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
@@ -105,6 +140,8 @@
         let salaSelecionada = '';
         let conversaSelecionada = null;
         let instanciasCliente = [];
+        let contatosCache = {};
+        let contatoSelecionado = null;
 
         document.addEventListener('DOMContentLoaded', () => {
             const raw = localStorage.getItem('midiachat_session');
@@ -226,7 +263,13 @@
 
                 container.innerHTML = conversas.map(c => {
                     const numero = numeroSemSufixo(c.remotejid);
-                    const titulo = c.pushname ? `${c.pushname} - ${numero}` : numero;
+                    contatosCache[c.remotejid] = {
+                        apelido: c.apelido || '',
+                        emoji: c.emoji || '',
+                        observacoes: c.observacoes || ''
+                    };
+                    const nomeBase = c.apelido ? `${c.emoji ? c.emoji + ' ' : ''}${c.apelido}` : c.pushname;
+                    const titulo = nomeBase ? `${nomeBase} - ${numero}` : numero;
                     const ativa = c.remotejid === conversaSelecionada;
                     return `
                     <div onclick="window.__abrirConversa('${c.remotejid}')"
@@ -236,6 +279,11 @@
                             <p class="text-sm font-bold text-gray-800">${escapeHtml(titulo)}</p>
                             <p class="text-xs text-gray-400 truncate">${escapeHtml(c.mensagem || c.caption) || '(sem prévia)'}</p>
                         </div>
+                        <button onclick="event.stopPropagation(); window.__abrirContato('${c.remotejid}')"
+                            title="Editar contato"
+                            class="flex-shrink-0 text-gray-300 hover:text-gray-600 transition-all p-1">
+                            <i class="fas fa-pen text-xs"></i>
+                        </button>
                     </div>
                 `;
                 }).join('');
@@ -332,6 +380,47 @@
                 enviarMensagem();
             }
         });
+
+        window.__abrirContato = abrirContato;
+        window.fecharContato = fecharContato;
+        window.confirmarContato = confirmarContato;
+
+        function abrirContato(remotejid) {
+            contatoSelecionado = remotejid;
+            const dados = contatosCache[remotejid] || { apelido: '', emoji: '', observacoes: '' };
+            document.getElementById('input-contato-emoji').value = dados.emoji;
+            document.getElementById('input-contato-apelido').value = dados.apelido;
+            document.getElementById('input-contato-observacoes').value = dados.observacoes;
+            document.getElementById('modal-contato').classList.remove('hidden');
+        }
+
+        function fecharContato() {
+            contatoSelecionado = null;
+            document.getElementById('modal-contato').classList.add('hidden');
+        }
+
+        async function confirmarContato() {
+            if (!contatoSelecionado) return;
+
+            const apelido = document.getElementById('input-contato-apelido').value.trim();
+            const emoji = document.getElementById('input-contato-emoji').value.trim();
+            const observacoes = document.getElementById('input-contato-observacoes').value.trim();
+
+            try {
+                await chamarApi('salvar_contato', {
+                    remotejid: contatoSelecionado,
+                    apelido: apelido,
+                    emoji: emoji,
+                    observacoes: observacoes
+                });
+                fecharContato();
+                showToast("Contato atualizado.", "success");
+                await carregarConversas();
+            } catch (e) {
+                console.error("Falha ao salvar contato:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
 
         window.abrirNovaConversa = abrirNovaConversa;
         window.fecharNovaConversa = fecharNovaConversa;
