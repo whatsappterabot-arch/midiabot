@@ -1,6 +1,9 @@
 // config.js — Midiabot_chat (produto separado do painel admin, config própria)
 export const CONFIG = {
     API_URL: 'https://awkwardgiantpanda-n8n.cloudfy.live/webhook/3321f05a-290e-484a-9298-8804daee55d2',
+    PUSHER_AUTH_URL: 'https://awkwardgiantpanda-n8n.cloudfy.live/webhook/pusher-auth',
+    PUSHER_KEY: '8112484fe599e854a7e4',
+    PUSHER_CLUSTER: 'sa1',
 
     APP_NAME: 'Midiabot_chat'
 };

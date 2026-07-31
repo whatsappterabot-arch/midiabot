@@ -121,12 +121,42 @@ CREATE TABLE midiabot_midiachat_contato (
     FOREIGN KEY (id_cliente, remotejid) REFERENCES midiabot_remotejid_chatid (id_cliente, remotejid)
 );
 ```
-Coluna `remotejid` (sem underscore) escolhida pra bater com `midiabot_remotejid_chatid`, sua tabela-irmã de mesma PK/grão (`midiabot_historico_mensagens` usa `remote_jid`, com underscore — inconsistência antiga, não replicada aqui). A FK pra `midiabot_remotejid_chatid` é segura porque toda conversa passa por lá primeiro (mensagem recebida ou botão "Nova conversa", ambos gravam ali antes de a conversa aparecer em qualquer tela) — nunca existe apelido pendurado num `remotejid` que ainda não é uma conversa de verdade.
+Coluna `remotejid` (sem underscore) escolhida pra bater com `midiabot_remotejid_chatid`, sua tabela-irmã de mesma PK/grão (`midiabot_historico_mensagens` usa `remote_jid`, com underscore — inconsistência antiga, não replicada aqui). A FK pra `midiabot_remotejid_chatid` é segura porque toda conversa passa por lá primeiro (mensagem recebida ou botão "Nova conversa", ambos gravam ali antes de a conversa aparecer em qualquer tela) — nunca existe apelido pendurado num `remotejid` que ainda não é uma conversa de verdade. **Tabela criada no banco em 2026-07-30.**
+
+**UI de contato (`chat.html`), construída em 2026-07-30**: cada linha da lista de conversas tem um ícone de lápis que abre um modal (Emoji + Apelido + Observações), chamando a ação `salvar_contato` (`UPSERT` em `midiabot_midiachat_contato`, via `ON CONFLICT (id_cliente, remotejid) DO UPDATE`). Quando o contato tem `apelido`, a lista mostra só `emoji + apelido` (sem repetir o número — o número já aparece no cabeçalho da conversa aberta); sem apelido, continua `pushname - número` ou só número. **Status: `salvar_contato` deu erro "Host not found" no último teste (credencial de Postgres do node provavelmente não selecionada/errada) — não confirmado funcionando ainda.** `listar_conversas` foi ajustada com `LEFT JOIN midiabot_midiachat_contato ct ON ct.id_cliente = rc.id_cliente AND ct.remotejid = rc.remotejid` trazendo `ct.apelido, ct.emoji, ct.observacoes` — configurada, mas teste também não confirmado depois da criação da tabela.
+
+- **"+ Nova conversa" (`iniciar_conversa`), construído e testado em 2026-07-30**: modal no `chat.html` pra começar uma conversa com um número que nunca mandou mensagem. Sugere a última instância usada por aquele número, se houver (ação `buscar_instancia_sugerida`, busca em `midiabot_midiachat_ultima_instancia` por `remote_jid`); senão, o vendedor escolhe manualmente entre as instâncias do cliente (ação `listar_instancias`). Ao confirmar, a ação `iniciar_conversa` faz dois upserts: **Passo 1** em `midiabot_remotejid_chatid` (cria a conversa na sala atual) e **Passo 2** em `midiabot_midiachat_ultima_instancia` (grava a instância escolhida como `last_instance`). Os dois upserts precisam estar como um único `INSERT ... ON CONFLICT`, nunca um `SELECT` solto antes do `ON CONFLICT` (causa erro de sintaxe).
+
+- **Destaque visual de UI, feito em 2026-07-30**: conversa aberta fica com fundo cinza na lista da esquerda (antes as duas cores de aba pareciam parecidas demais). Cabeçalho da conversa aberta mostra o número sem o sufixo `@s.whatsapp.net` (`numeroSemSufixo()`). Campo de número do modal "Nova conversa" não menciona mais "@" (rótulo virou "Número do WhatsApp") — jargão técnico que só o desenvolvedor entendia, não devia estar visível pro vendedor.
+
+- **Pusher — conta e app criados em 2026-07-30**: plano Sandbox (gratuito), produto **Channels** (não confundir com "Beams", que é push notification, produto diferente). App único (sem separação de ambientes dev/prod). Cluster **`sa1`** (São Paulo). Credenciais: `app_id = 2181791`, `key = 8112484fe599e854a7e4`, `cluster = sa1` (não sensíveis, já estão em `midiabot_chat/config.js`, que é versionado). O `secret` do Pusher **não é documentado aqui de propósito** (segurança) — está hardcoded só dentro do node Code do endpoint `pusher-auth` no n8n (ver abaixo); se precisar consultá-lo de novo, é só abrir esse node no n8n.
+
+- **Endpoint de autorização de canal Pusher (`pusher-auth`), construído em 2026-07-30**: webhook dedicado, separado do webhook principal do Midiabot_chat (porque quem chama essa URL é a própria biblioteca do Pusher no navegador, num formato fixo dela, não o nosso `chamarApi()`). URL: `https://awkwardgiantpanda-n8n.cloudfy.live/webhook/pusher-auth` — o token da sessão vai colado na query string (`?token=...`), montado pelo próprio `chat.html`, não fixo na URL do node. Cadeia de nodes:
+  1. **Webhook1** (POST, "Respond" = "Using 'Respond to Webhook' Node"). Pusher manda `channel_name` e `socket_id` no body, como `application/x-www-form-urlencoded` (formato diferente do resto do projeto, que é sempre JSON).
+  2. **Validar sessão** (Postgres, Always Output Data ligado):
+     ```sql
+     SELECT id_cliente
+     FROM midiabot_midiachat_sessao
+     WHERE token = $1 AND expira_em > now()
+     ```
+     Parâmetro: `{{ $json.query.token }}`.
+  3. **IF** — duas condições em AND: `{{ $json.id_cliente }}` não vazio (sessão válida) E `{{ $('Webhook1').item.json.body.channel_name }}` igual a `{{ 'private-cliente-' + $json.id_cliente }}` (impede um vendedor de se inscrever no canal de outro cliente).
+  4. **Saída true** → node **Code** calcula a assinatura HMAC-SHA256 (`crypto.createHmac('sha256', secret).update(socket_id + ':' + channel_name).digest('hex')`) e devolve `{ auth: "key:assinatura" }` → **Respond to Webhook** ("All Incoming Items").
+  5. **Saída false** → **Respond to Webhook** direto, JSON `{"erro": "não autorizado"}`, Response Code **403**.
+
+  Lado do navegador (`chat.html`): biblioteca `https://js.pusher.com/8.4.0/pusher.min.js` carregada no `<head>`; função `conectarPusher()`, chamada no `DOMContentLoaded` (depois de confirmar a sessão), cria o cliente Pusher com `channelAuthorization.endpoint = CONFIG.PUSHER_AUTH_URL + '?token=' + sessao.token` e se inscreve em `private-cliente-{sessao.id_cliente}`. `Pusher.logToConsole = true` está ligado de propósito, temporário, só pra debug (dá pra ver no console do navegador se apareceu "Subscription succeeded" ou erro) — **desligar depois de confirmar que funciona**.
+
+  **Status: construído (5 nodes do webhook + código do `chat.html`), mas ainda NÃO testado de ponta a ponta.** Falta: deploy (`npm run build` + Cloudfy), abrir o `chat.html` logado, e olhar o console do navegador.
 
 ## Pendências / decisões em aberto
 
+- **Testar o `pusher-auth` de ponta a ponta** (ver seção acima) — próximo passo imediato.
+- Depois de confirmado o `pusher-auth`: construir o fluxo de **mensagem chegando** (WhatsApp → Evolution API → webhook n8n → INSERT em `midiabot_historico_mensagens` → chamada HTTP servidor-a-servidor pro Pusher disparando o evento leve `{chat_id, remote_jid, message_id}` no canal `private-cliente-{id_cliente}`) — ainda não desenhado o node que dispara esse evento (precisa montar a chamada HTTP assinada pro Pusher, provavelmente outro node Code com `crypto`, já que o n8n Cloud não tem node nativo do Pusher).
+- Depois: o lado do navegador que escuta o evento (`channel.bind(...)`) e reage fazendo o refetch — ainda não escrito no `chat.html`.
+- Depois: revisar o fluxo de **enviar mensagem** pra seguir o mesmo padrão notify-then-fetch (hoje `enviar_mensagem` só faz `INSERT`, sem chamar a Evolution API nem o Pusher — o vendedor só vê a própria mensagem porque o front-end refaz o fetch manualmente).
+- Corrigir a credencial do node de `salvar_contato` (erro "Host not found" no último teste) e reconfirmar `listar_conversas` com o `LEFT JOIN` de `midiabot_midiachat_contato` (a tabela só foi criada depois do primeiro teste ter falhado).
+- Desligar `Pusher.logToConsole` no `chat.html` depois que o `pusher-auth` for confirmado funcionando.
 - Renderização de cada tipo de mídia na tela (player de áudio, miniatura de imagem, link de documento etc.).
 - Onde/como o quadrinho de login aparece fisicamente na tela inicial do `midiabot.com.br` (seção fixa, modal, etc.).
 - Aviso de erro amigável quando `nome_fantasia` já estiver em uso (a constraint `UNIQUE` já existe no banco; falta a tela tratar o erro).
-- Formato exato da chave/TTL no Redis pra "pausar IA por N horas", e quais outros botões entram no menu "⋮" além desse.
-- Endpoint de autorização de canal do Pusher que valida o token de sessão (o token em si já está definido — 7 dias — falta desenhar o endpoint).
+- Formato exato da chave/TTL no Redis pra "pausar IA por N horas", e quais outros botões entram no menu "⋮" além desse — esse menu vai depender de um webhook diferente do que estamos usando agora (ainda não é hora de construir).
