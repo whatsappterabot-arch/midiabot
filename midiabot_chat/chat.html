@@ -170,7 +170,16 @@
                     transport: 'ajax'
                 }
             });
-            pusher.subscribe(`private-cliente-${sessao.id_cliente}`);
+            const canal = pusher.subscribe(`private-cliente-${sessao.id_cliente}`);
+            canal.bind('nova-mensagem', (dados) => {
+                if (String(dados.chat_id) === String(salaSelecionada)) {
+                    carregarConversas();
+                }
+                if (dados.remote_jid === conversaSelecionada) {
+                    carregarMensagens();
+                }
+                atualizarContadoresSalas();
+            });
         }
 
         async function chamarApi(acao, dadosExtra) {
