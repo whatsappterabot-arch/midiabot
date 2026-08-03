@@ -37,6 +37,9 @@
                 <button onclick="abrirNovaConversa()" class="w-full text-xs font-bold text-[#00b34d] uppercase tracking-widest py-2 hover:underline">
                     + Nova conversa
                 </button>
+                <button id="btn-toggle-arquivadas" onclick="window.__alternarModoArquivadas()" class="w-full text-xs font-bold text-gray-400 uppercase tracking-widest py-1 hover:underline hover:text-gray-600">
+                    Arquivadas
+                </button>
             </div>
             <div class="flex-1 overflow-y-auto">
                 <div id="lista-conversas" class="divide-y divide-gray-200">
@@ -143,6 +146,7 @@
         let instanciasCliente = [];
         let contatosCache = {};
         let contatoSelecionado = null;
+        let modoArquivadas = false;
 
         document.addEventListener('DOMContentLoaded', () => {
             const raw = localStorage.getItem('midiachat_session');
@@ -275,6 +279,11 @@
             salaSelecionada = chatId;
             fecharConversa();
 
+            if (modoArquivadas) {
+                modoArquivadas = false;
+                document.getElementById('btn-toggle-arquivadas').innerText = 'Arquivadas';
+            }
+
             document.getElementById('select-sala-mobile').value = chatId;
             document.querySelectorAll('.aba-sala').forEach(btn => {
                 const ativa = btn.dataset.chatId === String(chatId);
@@ -290,11 +299,13 @@
         async function carregarConversas() {
             const container = document.getElementById('lista-conversas');
             try {
-                const data = await chamarApi('listar_conversas', { chat_id: salaSelecionada });
+                const acao = modoArquivadas ? 'listar_arquivadas' : 'listar_conversas';
+                const data = await chamarApi(acao, { chat_id: salaSelecionada });
                 const conversas = (Array.isArray(data) ? data : []).filter(item => item && item.remotejid != null);
 
                 if (conversas.length === 0) {
-                    container.innerHTML = '<div class="p-12 text-center text-gray-400 text-xs font-bold uppercase tracking-widest">Nenhuma conversa nessa sala</div>';
+                    const mensagemVazio = modoArquivadas ? 'Nenhuma conversa arquivada' : 'Nenhuma conversa nessa sala';
+                    container.innerHTML = `<div class="p-12 text-center text-gray-400 text-xs font-bold uppercase tracking-widest">${mensagemVazio}</div>`;
                     return;
                 }
 
@@ -312,6 +323,17 @@
                     const pontoNaoLida = c.nao_lida
                         ? '<span class="ponto-nao-lida flex-shrink-0 w-2.5 h-2.5 rounded-full bg-[#00b34d]"></span>'
                         : '';
+                    const botaoArquivo = modoArquivadas
+                        ? `<button onclick="event.stopPropagation(); window.__desarquivarConversa('${c.remotejid}')"
+                            title="Desarquivar conversa"
+                            class="flex-shrink-0 text-gray-300 hover:text-gray-600 transition-all p-1">
+                            <i class="fas fa-undo text-xs"></i>
+                        </button>`
+                        : `<button onclick="event.stopPropagation(); window.__arquivarConversa('${c.remotejid}')"
+                            title="Arquivar conversa"
+                            class="flex-shrink-0 text-gray-300 hover:text-gray-600 transition-all p-1">
+                            <i class="fas fa-box-archive text-xs"></i>
+                        </button>`;
                     return `
                     <div onclick="window.__abrirConversa('${c.remotejid}')"
                         data-remotejid="${escapeHtml(c.remotejid)}"
@@ -326,11 +348,49 @@
                             class="flex-shrink-0 text-gray-300 hover:text-gray-600 transition-all p-1">
                             <i class="fas fa-pen text-xs"></i>
                         </button>
+                        ${botaoArquivo}
                     </div>
                 `;
                 }).join('');
             } catch (e) {
                 console.error("Falha ao carregar conversas:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
+        window.__alternarModoArquivadas = alternarModoArquivadas;
+
+        function alternarModoArquivadas() {
+            modoArquivadas = !modoArquivadas;
+            const btn = document.getElementById('btn-toggle-arquivadas');
+            btn.innerText = modoArquivadas ? '← Voltar para conversas' : 'Arquivadas';
+            fecharConversa();
+            carregarConversas();
+        }
+
+        window.__arquivarConversa = arquivarConversa;
+        window.__desarquivarConversa = desarquivarConversa;
+
+        async function arquivarConversa(remotejid) {
+            try {
+                await chamarApi('arquivar_conversa', { remotejid: remotejid, chat_id: salaSelecionada });
+                showToast("Conversa arquivada.", "success");
+                await carregarConversas();
+                atualizarContadoresSalas();
+            } catch (e) {
+                console.error("Falha ao arquivar conversa:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
+        async function desarquivarConversa(remotejid) {
+            try {
+                await chamarApi('desarquivar_conversa', { remotejid: remotejid, chat_id: salaSelecionada });
+                showToast("Conversa desarquivada.", "success");
+                await carregarConversas();
+                atualizarContadoresSalas();
+            } catch (e) {
+                console.error("Falha ao desarquivar conversa:", e);
                 showToast("Erro ao processar solicitação.", "error");
             }
         }
