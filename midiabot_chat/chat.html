@@ -18,16 +18,19 @@
 <body class="bg-[#f5f0e8] font-sans h-screen overflow-hidden flex flex-col">
 
     <!-- SELETOR DE SALAS -->
-    <header class="bg-[#001f3f] text-white flex-shrink-0">
+    <header class="bg-[#001f3f] text-white flex-shrink-0 flex items-center">
         <!-- Desktop: faixa de abas -->
-        <div id="abas-salas" class="hidden sm:flex items-center gap-1 px-3 overflow-x-auto"></div>
+        <div id="abas-salas" class="hidden sm:flex items-center gap-1 px-3 overflow-x-auto flex-1"></div>
         <!-- Mobile: dropdown -->
-        <div class="sm:hidden p-2">
+        <div class="sm:hidden p-2 flex-1">
             <select id="select-sala-mobile"
                 class="w-full bg-[#00284f] text-white border border-blue-900 rounded-lg px-3 py-2 text-sm outline-none">
                 <option value="">Selecione uma sala...</option>
             </select>
         </div>
+        <button onclick="sair()" title="Sair" class="flex-shrink-0 text-blue-200 hover:text-white px-3">
+            <i class="fas fa-right-from-bracket"></i>
+        </button>
     </header>
 
     <main class="flex-1 flex overflow-hidden">
@@ -147,6 +150,13 @@
         let contatosCache = {};
         let contatoSelecionado = null;
         let modoArquivadas = false;
+
+        window.sair = sair;
+
+        function sair() {
+            localStorage.removeItem('midiachat_session');
+            window.location.href = 'index.html';
+        }
 
         document.addEventListener('DOMContentLoaded', () => {
             const raw = localStorage.getItem('midiachat_session');
@@ -464,7 +474,7 @@
             }
 
             try {
-                const data = await chamarApi('listar_mensagens', { remotejid: conversaSelecionada });
+                const data = await chamarApi('listar_mensagens', { remotejid: conversaSelecionada, chat_id: salaSelecionada });
                 const mensagens = (Array.isArray(data) ? data : []).filter(item => item && item.datetime != null);
 
                 if (mensagens.length === 0) {
