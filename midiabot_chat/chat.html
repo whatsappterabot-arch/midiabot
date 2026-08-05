@@ -226,7 +226,13 @@
             return textoEscapado
                 .replace(/\*([^\*\n]+)\*/g, '<b>$1</b>')
                 .replace(/_([^_\n]+)_/g, '<i>$1</i>')
-                .replace(/~([^~\n]+)~/g, '<s>$1</s>');
+                .replace(/~([^~\n]+)~/g, '<s>$1</s>')
+                .replace(/https?:\/\/[^\s<]+/g, (url) => {
+                    const trailing = url.match(/[.,;:!?)]+$/);
+                    const trim = trailing ? trailing[0] : '';
+                    const limpa = trim ? url.slice(0, -trim.length) : url;
+                    return `<a href="${limpa}" target="_blank" rel="noopener noreferrer" class="underline text-blue-600">${limpa}</a>${trim}`;
+                });
         }
 
         function numeroSemSufixo(remotejid) {
