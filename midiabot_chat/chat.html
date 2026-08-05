@@ -523,6 +523,8 @@
             const tipo = tipoMidia(bolha.dataset.messagetype);
             const mimeType = bolha.dataset.mimeType || '';
             const nomeArquivo = bolha.dataset.nomeArquivo || 'arquivo';
+            const caption = bolha.dataset.caption || '';
+            const legenda = caption ? `<div class="mt-1 text-xs">${formatarWhatsApp(escapeHtml(caption))}</div>` : '';
 
             try {
                 const data = await chamarApi('buscar_midia', { id });
@@ -534,13 +536,13 @@
                 }
                 const src = `data:${mimeType};base64,${base64}`;
                 if (tipo === 'imagem') {
-                    conteudo.innerHTML = `<img src="${src}" class="max-w-full rounded-lg">`;
+                    conteudo.innerHTML = `<img src="${src}" class="max-w-full rounded-lg">${legenda}`;
                 } else if (tipo === 'audio') {
-                    conteudo.innerHTML = `<audio controls src="${src}" class="max-w-full"></audio>`;
+                    conteudo.innerHTML = `<audio controls src="${src}" class="max-w-full"></audio>${legenda}`;
                 } else if (tipo === 'video') {
-                    conteudo.innerHTML = `<video controls src="${src}" class="max-w-full rounded-lg"></video>`;
+                    conteudo.innerHTML = `<video controls src="${src}" class="max-w-full rounded-lg"></video>${legenda}`;
                 } else if (tipo === 'documento') {
-                    conteudo.innerHTML = `<a href="${src}" download="${nomeArquivo}" class="text-blue-600 underline flex items-center gap-1"><i class="fas fa-download"></i> Baixar ${escapeHtml(nomeArquivo)}</a>`;
+                    conteudo.innerHTML = `<a href="${src}" download="${nomeArquivo}" class="text-blue-600 underline flex items-center gap-1"><i class="fas fa-download"></i> Baixar ${escapeHtml(nomeArquivo)}</a>${legenda}`;
                 }
             } catch (e) {
                 console.error("Falha ao carregar mídia:", e);
@@ -565,7 +567,7 @@
 
                 container.innerHTML = mensagens.map(m => `
                     <div class="flex ${m.from_me ? 'justify-end' : 'justify-start'}">
-                        <div data-msg-id="${m.id}" data-messagetype="${escapeHtml(m.messagetype || '')}" data-mime-type="${escapeHtml(m.mime_type || '')}" data-nome-arquivo="${escapeHtml(m.midia || '')}" class="max-w-[90%] rounded-2xl px-4 py-2 text-sm text-black ${m.from_me ? 'bg-[#dcf8c6]' : 'bg-white'}">
+                        <div data-msg-id="${m.id}" data-messagetype="${escapeHtml(m.messagetype || '')}" data-mime-type="${escapeHtml(m.mime_type || '')}" data-nome-arquivo="${escapeHtml(m.midia || '')}" data-caption="${escapeHtml(m.caption || '')}" class="max-w-[90%] rounded-2xl px-4 py-2 text-sm text-black ${m.from_me ? 'bg-[#dcf8c6]' : 'bg-white'}">
                             <div class="conteudo-mensagem">${renderizarConteudoMensagem(m)}</div>
                             <div class="text-[10px] text-gray-400 text-right mt-1">${formatarDataHora(m.datetime)}</div>
                         </div>
