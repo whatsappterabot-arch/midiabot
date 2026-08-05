@@ -467,6 +467,77 @@
             destacarConversaAtiva();
         }
 
+        const ICONES_MIDIA = {
+            imagem: 'fa-image',
+            audio: 'fa-music',
+            video: 'fa-video',
+            documento: 'fa-file'
+        };
+
+        function tipoMidia(messagetype) {
+            if (messagetype === 'imageMessage') return 'imagem';
+            if (messagetype === 'audioMessage') return 'audio';
+            if (messagetype === 'videoMessage') return 'video';
+            if (messagetype === 'documentMessage') return 'documento';
+            return null;
+        }
+
+        function renderizarConteudoMensagem(m) {
+            const tipo = tipoMidia(m.messagetype);
+            if (!tipo) {
+                const texto = m.mensagem || m.caption;
+                if (texto) return formatarWhatsApp(escapeHtml(texto));
+                if (m.messagetype && m.messagetype !== 'conversation') {
+                    return '<span class="text-gray-400 italic">Tipo de mensagem ainda não suportado</span>';
+                }
+                return '(mensagem sem texto)';
+            }
+            const rotulo = escapeHtml(m.midia || m.caption || (tipo.charAt(0).toUpperCase() + tipo.slice(1)));
+            const legenda = (m.caption && m.midia) ? `<div class="mt-1 text-xs">${formatarWhatsApp(escapeHtml(m.caption))}</div>` : '';
+            return `
+                <div class="cursor-pointer flex items-center gap-2 text-gray-700" onclick="window.__verMidia(${m.id})">
+                    <i class="fas ${ICONES_MIDIA[tipo]}"></i>
+                    <span>${rotulo}</span>
+                    <span class="text-[10px] text-gray-400">(toque para abrir)</span>
+                </div>
+                ${legenda}
+            `;
+        }
+
+        window.__verMidia = verMidia;
+
+        async function verMidia(id) {
+            const bolha = document.querySelector(`[data-msg-id="${id}"]`);
+            if (!bolha) return;
+            const conteudo = bolha.querySelector('.conteudo-mensagem');
+            const tipo = tipoMidia(bolha.dataset.messagetype);
+            const mimeType = bolha.dataset.mimeType || '';
+            const nomeArquivo = bolha.dataset.nomeArquivo || 'arquivo';
+
+            try {
+                const data = await chamarApi('buscar_midia', { id });
+                const item = Array.isArray(data) ? data[0] : data;
+                const base64 = item && item.base64;
+                if (!base64) {
+                    showToast("Não foi possível carregar a mídia.", "error");
+                    return;
+                }
+                const src = `data:${mimeType};base64,${base64}`;
+                if (tipo === 'imagem') {
+                    conteudo.innerHTML = `<img src="${src}" class="max-w-full rounded-lg">`;
+                } else if (tipo === 'audio') {
+                    conteudo.innerHTML = `<audio controls src="${src}" class="max-w-full"></audio>`;
+                } else if (tipo === 'video') {
+                    conteudo.innerHTML = `<video controls src="${src}" class="max-w-full rounded-lg"></video>`;
+                } else if (tipo === 'documento') {
+                    conteudo.innerHTML = `<a href="${src}" download="${nomeArquivo}" class="text-blue-600 underline flex items-center gap-1"><i class="fas fa-download"></i> Baixar ${escapeHtml(nomeArquivo)}</a>`;
+                }
+            } catch (e) {
+                console.error("Falha ao carregar mídia:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
         async function carregarMensagens(mostrarCarregando = true) {
             const container = document.getElementById('mensagens');
             if (mostrarCarregando) {
@@ -484,8 +555,8 @@
 
                 container.innerHTML = mensagens.map(m => `
                     <div class="flex ${m.from_me ? 'justify-end' : 'justify-start'}">
-                        <div class="max-w-[90%] rounded-2xl px-4 py-2 text-sm text-black ${m.from_me ? 'bg-[#dcf8c6]' : 'bg-white'}">
-                            <div>${(m.mensagem || m.caption) ? formatarWhatsApp(escapeHtml(m.mensagem || m.caption)) : '(mensagem sem texto)'}</div>
+                        <div data-msg-id="${m.id}" data-messagetype="${escapeHtml(m.messagetype || '')}" data-mime-type="${escapeHtml(m.mime_type || '')}" data-nome-arquivo="${escapeHtml(m.midia || '')}" class="max-w-[90%] rounded-2xl px-4 py-2 text-sm text-black ${m.from_me ? 'bg-[#dcf8c6]' : 'bg-white'}">
+                            <div class="conteudo-mensagem">${renderizarConteudoMensagem(m)}</div>
                             <div class="text-[10px] text-gray-400 text-right mt-1">${formatarHora(m.datetime)}</div>
                         </div>
                     </div>
