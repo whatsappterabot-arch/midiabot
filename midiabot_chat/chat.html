@@ -492,6 +492,17 @@
             return null;
         }
 
+        function resumoMensagemCitada(m) {
+            if (!m) return '(mensagem não encontrada)';
+            if (m.mensagem) return m.mensagem;
+            const tipo = tipoMidia(m.messagetype);
+            if (tipo === 'imagem') return `📷 Imagem${m.caption ? ': ' + m.caption : ''}`;
+            if (tipo === 'video') return `🎥 Vídeo${m.caption ? ': ' + m.caption : ''}`;
+            if (tipo === 'audio') return '🎵 Áudio';
+            if (tipo === 'documento') return `📄 ${m.midia || 'Documento'}`;
+            return '(mensagem)';
+        }
+
         function renderizarConteudoMensagem(m) {
             const tipo = tipoMidia(m.messagetype);
             if (!tipo) {
@@ -565,14 +576,25 @@
                     return;
                 }
 
-                container.innerHTML = mensagens.map(m => `
+                const porId = new Map(mensagens.map(m => [m.id, m]));
+
+                container.innerHTML = mensagens.map(m => {
+                    const citada = m.resposta_a ? porId.get(m.resposta_a) : null;
+                    const citacaoHtml = m.resposta_a ? `
+                        <div class="border-l-4 border-[#00b34d] bg-black/5 rounded px-2 py-1 mb-1 text-xs text-gray-600 truncate">
+                            ${formatarWhatsApp(escapeHtml(resumoMensagemCitada(citada)))}
+                        </div>
+                    ` : '';
+                    return `
                     <div class="flex ${m.from_me ? 'justify-end' : 'justify-start'}">
                         <div data-msg-id="${m.id}" data-messagetype="${escapeHtml(m.messagetype || '')}" data-mime-type="${escapeHtml(m.mime_type || '')}" data-nome-arquivo="${escapeHtml(m.midia || '')}" data-caption="${escapeHtml(m.caption || '')}" class="max-w-[90%] rounded-2xl px-4 py-2 text-sm text-black ${m.from_me ? 'bg-[#dcf8c6]' : 'bg-white'}">
+                            ${citacaoHtml}
                             <div class="conteudo-mensagem">${renderizarConteudoMensagem(m)}</div>
                             <div class="text-[10px] text-gray-400 text-right mt-1">${formatarDataHora(m.datetime)}</div>
                         </div>
                     </div>
-                `).join('');
+                `;
+                }).join('');
 
                 container.scrollTop = container.scrollHeight;
             } catch (e) {
