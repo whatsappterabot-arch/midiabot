@@ -174,13 +174,40 @@ Coluna `remotejid` (sem underscore) escolhida pra bater com `midiabot_remotejid_
 
   Lado do navegador: `conectarPusher()` (em `chat.html`) agora também faz `canal.bind('nova-mensagem', ...)` — ao receber o evento, recarrega a lista de conversas se for da sala aberta no momento, recarrega as mensagens se for da conversa aberta no momento, e sempre atualiza os contadores de pendências das abas (`atualizarContadoresSalas()`). **Ainda falta replicar essa montagem (resolver chat_id → INSERT → Code → HTTP Request) no fluxo de produção real** — foi construída e testada só no workflow isolado até aqui.
 
+## Mídia — recebimento e exibição (desenhado em 2026-08-05, construção em andamento)
+
+**Arquitetura combinada**: `listar_mensagens` traz `id`, `mensagem`, `caption`, `from_me`, `datetime`, `messagetype`, `mime_type`, `midia` — **sem** `base64` (lista fica leve). Ação nova `buscar_midia` (`id` → `base64` + `mime_type`), **construída e testada** — o `chat.html` só chama ela quando o vendedor clica pra abrir uma mídia específica, não no carregamento da lista. `midia` guarda o nome do arquivo (ex: `"relatorio.pdf"`).
+
+**`chat.html` (construído e commitado)**: mensagem de mídia aparece como um cartão clicável (ícone + nome do arquivo, "toque para abrir"); ao clicar, busca o `base64` e troca pelo conteúdo real (`<img>`, `<audio controls>`, `<video controls>`, ou link de download). Tipo de mensagem desconhecido nunca quebra nem esconde a linha — mostra o texto se tiver algum, senão um aviso "Tipo de mensagem ainda não suportado".
+
+**Fluxo de entrada — ordem das peças**: a query que resolve `id_cliente`/`workflow_name`/`chat_id` (a partir de `instance`+`remotejid`, com `COALESCE` entre `midiabot_remotejid_chatid` e `midiabot_sender_chatid`) roda **primeiro**, sempre — não depende do tipo de mensagem. Depois dela, um **node `Code`** (não um Switch com vários ramos de `INSERT` duplicado) normaliza qualquer tipo de mensagem pro mesmo formato de campos (`mensagem`, `caption`, `messagetype`, `mime_type`, `midia`, `base64`) antes de chegar no `INSERT` — que continua sendo **um node só**, não duplicado por tipo.
+
+**Tratamento por tipo de mensagem** (convenção do Baileys, motor por trás da Evolution API):
+- **Tratados direto, com mídia de verdade**: `imageMessage`, `audioMessage`, `videoMessage`, `documentMessage`. Qualquer arquivo (PDF, DWG do AutoCAD, o que for) cai em `documentMessage` — não existe tipo por extensão, só `mimetype`/`fileName` variam dentro dele.
+- **Tratados como "quase texto"**: `extendedTextMessage` (vira texto normal), `stickerMessage` (tratado como imagem), `contactMessage` (resumo em texto), `buttonsResponseMessage`/`listResponseMessage` (resposta do cliente a botão/lista, vira texto legível).
+- **`locationMessage`**: importante, mas a forma de representar na tela ainda não foi decidida.
+- **`reactionMessage`**: estruturalmente diferente dos outros — não é uma mensagem nova, é uma referência a uma mensagem já existente (tem um `key` apontando pra qual) mais um emoji. Tratamento ainda não decidido (linha própria vs. marcar na mensagem original).
+- **`pollCreationMessage`**: deixado de propósito só no aviso genérico, sem tratamento especial — baixa prioridade num contexto de atendimento 1:1 (não é recurso comum fora de grupos).
+- **`protocolMessage` tem subtipos, tratados diferente entre si** (não é um tipo só):
+  - Apagar mensagem (revoke): **decisão consciente de ignorar por completo** — nenhuma linha é gravada. O cliente não consegue apagar histórico do nosso lado, mesmo apagando a mensagem no WhatsApp dele. Não existe forma de impedir a edição/exclusão do lado de quem manda (é recurso do WhatsApp do remetente, fora do nosso controle) — por isso a decisão foi tratar o aviso, não bloquear a ação em si.
+  - Editar mensagem: gera uma **linha nova** no histórico com o texto editado — a mensagem original nunca é sobrescrita nem apagada, pelo mesmo princípio de preservar histórico completo.
+
+**Nome do vendedor no envio**: sem coluna nova em `midiabot_historico_mensagens` — o n8n vai embutir o nome do vendedor dentro do próprio texto da mensagem, antes de mandar pra Evolution API e gravar, pra o cliente saber quem respondeu. A sessão (`midiabot_midiachat_sessao`) já guarda `id_vendedor`, então o dado pra isso já está disponível, só falta o formato exato do texto.
+
+**Ainda em aberto, decidir antes de construir cada parte**:
+- Como representar `locationMessage` na tela (link de mapa? latitude/longitude em texto?).
+- Como tratar `reactionMessage` (linha própria no histórico vs. atualizar/marcar a mensagem original reagida).
+- Os valores reais de `messagetype` que a Evolution manda nesse servidor — a lista usada aqui é convenção conhecida do Baileys, **não confirmada** contra o servidor real (a documentação da Evolution já se mostrou errada antes, no "Set Webhook").
+- Os campos exatos do payload de onde extrair `base64`/`mime_type`/`midia`/`caption`, pra cada tipo de mídia — não testado ainda, precisa mandar um exemplo real de cada tipo e conferir.
+- Formato exato de como o nome do vendedor entra no texto da mensagem de saída (ex: `"Nome: texto"` ou outro formato).
+- Se/quando vale reconsiderar `pollCreationMessage`, caso vire relevante no futuro.
+
 ## Pendências / decisões em aberto
 
 - **Replicar o fluxo de mensagem chegando (Pusher) no fluxo de produção real** — hoje só existe no workflow de teste isolado "Publi ScentyStore v1" (URL: `https://awkwardgiantpanda-n8n.cloudfy.live/webhook/scenty-store-v1-ae48-e0d4599b95e0`).
 - Revisar se **Atribuição de Chat** (`listar_remotejids`/`salvar_atribuicao`, no painel admin) e o fluxo de produção real (roteamento de mensagens) também precisam do ajuste de workflow na identidade da conversa — ainda não avaliado.
 - Revisar o fluxo de **enviar mensagem** pra seguir o mesmo padrão notify-then-fetch (hoje `enviar_mensagem` só faz `INSERT`, sem chamar a Evolution API nem o Pusher — o vendedor só vê a própria mensagem porque o front-end refaz o fetch manualmente).
 - Corrigir a credencial do node de `salvar_contato` (erro "Host not found" no último teste — ainda não reconfirmado). O `LEFT JOIN` de `midiabot_midiachat_contato` em `listar_conversas` já está confirmado funcionando (campos `apelido`/`emoji`/`observacoes` vindo certos, ainda que `null` por falta de teste do `salvar_contato`).
-- Renderização de cada tipo de mídia na tela (player de áudio, miniatura de imagem, link de documento etc.).
 - Onde/como o quadrinho de login aparece fisicamente na tela inicial do `midiabot.com.br` (seção fixa, modal, etc.).
 - Aviso de erro amigável quando `nome_fantasia` já estiver em uso (a constraint `UNIQUE` já existe no banco; falta a tela tratar o erro).
 - Formato exato da chave/TTL no Redis pra "pausar IA por N horas", e quais outros botões entram no menu "⋮" além desse — esse menu vai depender de um webhook diferente do que estamos usando agora (ainda não é hora de construir).
