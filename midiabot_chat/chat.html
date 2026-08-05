@@ -594,7 +594,7 @@
                     ` : '';
                     return `
                     <div class="flex ${m.from_me ? 'justify-end' : 'justify-start'}">
-                        <div data-msg-id="${m.id}" data-messagetype="${escapeHtml(m.messagetype || '')}" data-mime-type="${escapeHtml(m.mime_type || '')}" data-nome-arquivo="${escapeHtml(m.midia || '')}" data-caption="${escapeHtml(m.caption || '')}" class="max-w-[90%] rounded-2xl px-4 py-2 text-sm text-black ${m.from_me ? 'bg-[#dcf8c6]' : 'bg-white'}">
+                        <div data-msg-id="${m.id}" data-messagetype="${escapeHtml(m.messagetype || '')}" data-mime-type="${escapeHtml(m.mime_type || '')}" data-nome-arquivo="${escapeHtml(m.midia || '')}" data-caption="${escapeHtml(m.caption || '')}" class="max-w-[90%] rounded-2xl px-4 py-2 text-sm text-black whitespace-pre-line ${m.from_me ? 'bg-[#dcf8c6]' : 'bg-white'}">
                             ${citacaoHtml}
                             <div class="conteudo-mensagem">${renderizarConteudoMensagem(m)}</div>
                             <div class="text-[10px] text-gray-400 text-right mt-1">${formatarDataHora(m.datetime)}</div>
