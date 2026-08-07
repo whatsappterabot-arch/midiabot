@@ -114,7 +114,7 @@ Fluxo de login (workflow n8n próprio, webhook dedicado): valida `nome_fantasia`
 2. ~~Trocar a chave de `midiabot_midiachat_ultima_instancia` de `(remote_jid, chat_id, workflow_name)` pra `(remote_jid, workflow_name)`~~ — feito (`chat_id` continua como coluna normal da tabela, só não faz mais parte da chave; é só informativo agora).
 3. ~~Ajustar `ON CONFLICT` do Passo 2 de `iniciar_conversa`~~ pra `(remote_jid, workflow_name)`, atualizando `chat_id` também no `DO UPDATE`. Feito.
 
-**Ainda faltam** (ver "Pendências" no fim do documento): ajustar a query de `enviar_mensagem` (tirar o `DISTINCT ON`, filtrar direto por `workflow_name` já que a chave nova garante unicidade); derrubar a FK `midiabot_midiachat_contato_id_cliente_remotejid_fkey` (apelido/observação é por pessoa, não por workflow — não faz mais sentido depois dessa mudança); e adicionar `workflow_name` em `midiabot_remotejid_chatid`, trocando a chave dela de `(id_cliente, remotejid)` pra `(id_cliente, remotejid, workflow_name)`.
+**Os três itens que faltavam aqui (ajustar `enviar_mensagem`, derrubar a FK antiga, adicionar `workflow_name` à chave de `midiabot_remotejid_chatid`) foram concluídos em 2026-07-31** — ver a entrada "Migração 'workflow precisa fazer parte da identidade da conversa'" mais abaixo, que é o registro correto e atual. Confirmado de novo em 2026-08-07 direto no banco: `midiabot_remotejid_chatid_pkey = PRIMARY KEY (id_cliente, remotejid, workflow_name)`.
 
 - **Prompt da IA conselheira**: separado do de "Prompts", fixo no n8n por ora, cadastro editável fica pra v2.
 
