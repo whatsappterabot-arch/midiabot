@@ -514,14 +514,14 @@
             const tipo = tipoMidia(m.messagetype);
             if (!tipo) {
                 const texto = m.mensagem || m.caption;
-                if (texto) return formatarWhatsApp(escapeHtml(texto));
+                if (texto) return `<span class="whitespace-pre-line">${formatarWhatsApp(escapeHtml(texto))}</span>`;
                 if (m.messagetype && m.messagetype !== 'conversation') {
                     return '<span class="text-gray-400 italic">Tipo de mensagem ainda não suportado</span>';
                 }
                 return '(mensagem sem texto)';
             }
             const rotulo = escapeHtml(tipo === 'documento' && m.midia ? m.midia : ROTULOS_MIDIA[tipo]);
-            const legenda = m.caption ? `<div class="mt-1 text-xs">${formatarWhatsApp(escapeHtml(m.caption))}</div>` : '';
+            const legenda = m.caption ? `<div class="mt-1 text-xs whitespace-pre-line">${formatarWhatsApp(escapeHtml(m.caption))}</div>` : '';
             return `
                 <div class="cursor-pointer flex items-center gap-2 text-gray-700" onclick="window.__verMidia(${m.id})">
                     <i class="fas ${ICONES_MIDIA[tipo]}"></i>
@@ -542,7 +542,7 @@
             const mimeType = bolha.dataset.mimeType || '';
             const nomeArquivo = bolha.dataset.nomeArquivo || 'arquivo';
             const caption = bolha.dataset.caption || '';
-            const legenda = caption ? `<div class="mt-1 text-xs">${formatarWhatsApp(escapeHtml(caption))}</div>` : '';
+            const legenda = caption ? `<div class="mt-1 text-xs whitespace-pre-line">${formatarWhatsApp(escapeHtml(caption))}</div>` : '';
 
             try {
                 const data = await chamarApi('buscar_midia', { id });
@@ -594,7 +594,7 @@
                     ` : '';
                     return `
                     <div class="flex ${m.from_me ? 'justify-end' : 'justify-start'}">
-                        <div data-msg-id="${m.id}" data-messagetype="${escapeHtml(m.messagetype || '')}" data-mime-type="${escapeHtml(m.mime_type || '')}" data-nome-arquivo="${escapeHtml(m.midia || '')}" data-caption="${escapeHtml(m.caption || '')}" class="max-w-[90%] rounded-2xl px-4 py-2 text-sm text-black whitespace-pre-line ${m.from_me ? 'bg-[#dcf8c6]' : 'bg-white'}">
+                        <div data-msg-id="${m.id}" data-messagetype="${escapeHtml(m.messagetype || '')}" data-mime-type="${escapeHtml(m.mime_type || '')}" data-nome-arquivo="${escapeHtml(m.midia || '')}" data-caption="${escapeHtml(m.caption || '')}" class="max-w-[90%] rounded-2xl px-4 py-2 text-sm text-black ${m.from_me ? 'bg-[#dcf8c6]' : 'bg-white'}">
                             ${citacaoHtml}
                             <div class="conteudo-mensagem">${renderizarConteudoMensagem(m)}</div>
                             <div class="text-[10px] text-gray-400 text-right mt-1">${formatarDataHora(m.datetime)}</div>
