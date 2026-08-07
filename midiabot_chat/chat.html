@@ -511,6 +511,10 @@
         }
 
         function renderizarConteudoMensagem(m) {
+            if (m.messagetype === 'contactMessage') {
+                const salvar = m.caption ? `<div class="mt-1"><a href="javascript:void(0)" onclick="window.__salvarContato(${m.id})" class="text-xs text-blue-600 underline flex items-center gap-1"><i class="fas fa-download"></i> Salvar contato</a></div>` : '';
+                return `<span class="whitespace-pre-line">${formatarWhatsApp(escapeHtml(m.mensagem || ''))}</span>${salvar}`;
+            }
             const tipo = tipoMidia(m.messagetype);
             if (!tipo) {
                 const texto = m.mensagem || m.caption;
@@ -533,6 +537,25 @@
         }
 
         window.__verMidia = verMidia;
+
+        function salvarContato(id) {
+            const bolha = document.querySelector(`[data-msg-id="${id}"]`);
+            if (!bolha) return;
+            const vcard = bolha.dataset.caption || '';
+            if (!vcard) return;
+            const nomeTexto = bolha.querySelector('.conteudo-mensagem')?.textContent || 'contato';
+            const nome = nomeTexto.split('\n')[0].replace(/^👤\s*/, '').trim() || 'contato';
+            const blob = new Blob([vcard], { type: 'text/vcard' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${nome}.vcf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        window.__salvarContato = salvarContato;
 
         async function verMidia(id) {
             const bolha = document.querySelector(`[data-msg-id="${id}"]`);
