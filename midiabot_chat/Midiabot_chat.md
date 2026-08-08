@@ -251,7 +251,7 @@ Com os ecos voltando a chegar, apareceu um erro separado, esse sim identificado 
 
 **Bug real encontrado e corrigido: `base64` intermitentemente vazio em `audioMessage`.** Mesmo com a flag Base64 ativa na instância (confirmado repetidas vezes), `body.data.message.base64` às vezes chega vazio/ausente no payload do webhook — visto tanto em áudio comum quanto em `ptt: true` (nota de voz), sem diferença de configuração entre instâncias que funcionaram e que falharam na mesma sessão de teste. Não é um problema estável por instância nem por tipo (ptt vs. arquivo) — é intermitente de verdade (mesma instância, mesmo tipo, funcionou → falhou → voltou a funcionar). Causa raiz não identificada (nunca chegou a ser uma teoria específica descartável, só "instabilidade da própria Evolution API").
 
-**Correção**: o Code node de conversão base64→binário (o mesmo citado acima) ganhou um fallback embutido — se `body.data.message.base64` vier vazio, o próprio node chama `POST {server_url}/chat/getBase64FromMediaMessage/{instance}` (endpoint da Evolution API que baixa a mídia sob demanda a partir do `message.key.id`) via `this.helpers.httpRequest`, usando `server_url` e `apikey` **direto do payload do webhook** (`body.server_url`/`body.apikey`, presentes em todo evento — não fixos no código, funciona pra qualquer instância). A resposta desse endpoint traz o campo `base64` direto (`response.base64`, confirmado contra payload real, não chutado). **Testado e confirmado funcionando** pelo usuário num caso real de base64 vazio — o fallback baixou e converteu o áudio corretamente:
+**Correção**: o Code node de conversão base64→binário (nomeado **"b64 para bin"**) ganhou um fallback embutido — se `body.data.message.base64` vier vazio, o próprio node chama `POST {server_url}/chat/getBase64FromMediaMessage/{instance}` (endpoint da Evolution API que baixa a mídia sob demanda a partir do `message.key.id`) via `this.helpers.httpRequest`, usando `server_url` e `apikey` **direto do payload do webhook** (`body.server_url`/`body.apikey`, presentes em todo evento — não fixos no código, funciona pra qualquer instância). A resposta desse endpoint traz o campo `base64` direto (`response.base64`, confirmado contra payload real, não chutado). O valor recuperado (`base64_recuperado`) é mantido no `json` de saída (não só usado pro binário), pra o Edit Fields seguinte poder reaproveitá-lo:
 ```js
 let base64Data = $('Webhook2').first().json.body?.data?.message?.base64;
 
@@ -278,10 +278,30 @@ if (!base64Data) {
 const binaryBuffer = Buffer.from(base64Data, 'base64');
 
 return [{
-  json: $input.item.json,
+  json: { ...$input.item.json, base64_recuperado: base64Data },
   binary: { audio: await this.helpers.prepareBinaryData(binaryBuffer, 'audio.ogg', 'audio/ogg') }
 }];
 ```
+
+**Posição no fluxo e integração com o Insert — decidido e construído (2026-08-08), confirmado funcionando.** O "verifica messagetype" continua rodando pra **todas** as mensagens, na posição de sempre. Um IF logo depois checa `{{ $('Webhook2').item.json.body.data.messageType }} = audioMessage`; a saída `true` passa por **"b64 para bin" → "transcricao de audio" (Deepgram, HTTP Request) → "Edit Fields"**, e depois volta ao fluxo principal por um node **Merge** antes do Insert (a saída `false` vai direto pro Merge, sem passar por esses três nodes). Isso significa que, pra mensagens que não são áudio, nada muda; só o ramo de áudio ganha esse desvio extra.
+
+O node "transcricao de audio" é uma chamada HTTP direta à API do Deepgram — a resposta **substitui o `json` inteiro** do item (não preserva nada de antes, nem `base64_recuperado`), com a transcrição em `results.channels[0].alternatives[0].transcript`. Por isso o "Edit Fields" seguinte referencia `$('b64 para bin').item.json.base64_recuperado` **por nome** (não dá pra pegar do `$json` cru nesse ponto) e monta dois campos:
+- `base64`: `={{ $('b64 para bin').item.json.base64_recuperado }}`
+- `caption`: `={{ ($json.caption ? $json.caption + ' ' : '') + $json.results.channels[0].alternatives[0].transcript }}`
+
+O Insert (query principal em `midiabot_historico_mensagens`) precisou trocar só as posições de `caption` (`$6`) e `base64` (`$10`) no array de parâmetros, pra escolher a fonte certa dependendo do tipo de mensagem — sem isso, o Insert continuaria usando os campos (potencialmente vazios) calculados pelo "verifica messagetype", ignorando a correção do ramo de áudio:
+```
+$('verifica messagetype').item.json.messagetype === 'audioMessage'
+  ? $('Edit Fields').item.json.caption
+  : $('verifica messagetype').item.json.caption,
+...
+$('verifica messagetype').item.json.messagetype === 'audioMessage'
+  ? $('Edit Fields').item.json.base64
+  : $('verifica messagetype').item.json.base64,
+```
+Os outros parâmetros (`mensagem`, `messagetype`, `mime_type`, `midia`, `wa_message_id`, `stanza_id`, `workflow_name`, `id_cliente`, `chat_id`) continuam vindo do "verifica messagetype"/"Verifica parâmetros" sem mudança — a referência por nome funciona independente de qual ramo do IF rodou, porque cada node fica endereçável pelo nome durante toda a execução.
+
+**Status: áudio chegando certo no chat (mídia carrega, legenda mostra a transcrição), confirmado pelo usuário.** Pendente, à parte: ligar "On Error: Continue" em "b64 para bin" e "transcricao de audio" (recomendado, não bloqueante); e o roteamento da transcrição pra IA (checar pausa via Redis, mandar resposta de verdade se não pausado, logar como linha `from_me=true` separada) — desenhado em conversa anterior, construção ainda não iniciada.
 
 **Bug real encontrado e corrigido: `instancias.html` quebrava quando uma instância era apagada por fora do sistema** (direto no painel da Evolution API, não pelo botão "APAGAR INSTÂNCIA" do MidiaBot). A ação `listar_instancias` busca o status ao vivo de cada instância uma por uma (node "Buscar instancia", loop); quando uma não é encontrada (404), os nodes seguintes ("Atualizar Sender", "Buscar Sender atualizado", "Montar item final") assumiam que a resposta sempre tinha `data[0]`, quebrando a lista inteira por causa de uma única instância órfã. Correção aplicada (3 partes): (1) IF novo checando `{{ $json.data }}` antes de "Atualizar Sender", pulando o UPDATE quando não achar; (2) "Buscar Sender atualizado" trocou a origem do parâmetro pra `$('Loop Over Items').item.json.nome_instancia` (não depende da resposta da API); (3) "Montar item final" ganhou expressões com fallback (`data?.[0]?.name || ...`, `data?.[0]?.connectionStatus || 'not_found'`). Itens 1 e 2 confirmados aplicados pelo usuário; item 3 foi explicado passo a passo, aplicação não confirmada ainda.
 
@@ -317,7 +337,7 @@ Decisão: dar ao Claude acesso **só leitura** ao Postgres (nunca escrita), via 
 
 ## Pendências / decisões em aberto
 
-- **Terminar a reconstrução do fluxo de recebimento**: posição definitiva do node de transcrição de áudio (antes/depois de "verifica messagetype"), integração da transcrição com o roteamento IA/pausa-por-Redis (ver seção de áudio→IA, ainda em aberto), aplicar o item 3 da correção de `instancias.html`.
+- **Terminar a reconstrução do fluxo de recebimento**: roteamento da transcrição de áudio pra IA (checar pausa via Redis, mandar resposta de verdade se não pausado, logar como linha `from_me=true` separada — áudio já chega certo no chat, falta só essa parte), ligar "On Error: Continue" em "b64 para bin"/"transcricao de audio", aplicar o item 3 da correção de `instancias.html`.
 - **Reconectar a instância "Marcelo-1"** com o número certo (não o de teste "TesteChat-1").
 - Construir as 3 telas da seção "Salas compartilhadas vs. dedicadas" acima.
 - **Envio de mídia e outros tipos de mensagem do lado do vendedor** (upload de arquivo, resposta citando mensagem) — ainda não iniciado; só começa depois do item acima.
