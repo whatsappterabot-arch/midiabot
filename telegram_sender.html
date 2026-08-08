@@ -163,6 +163,7 @@
             window.atrelarSender = atrelarSender;
             window.desatrelarSender = desatrelarSender;
             window.apagarSala = apagarSala;
+            window.alternarCompartilhada = alternarCompartilhada;
             window.abrirAjuda = abrirAjuda;
             window.fecharAjuda = fecharAjuda;
             window.logout = logout;
@@ -342,6 +343,17 @@
             }
         }
 
+        async function alternarCompartilhada(chatId, novoValor) {
+            try {
+                await chamarApi('atualizar_sala_compartilhada', { chat_id: chatId, sala_compartilhada: novoValor });
+                showToast("Sala atualizada.", "success");
+                await carregarSalas();
+            } catch (e) {
+                console.error("Falha ao atualizar sala:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
         async function carregarSalas() {
             try {
                 const data = await chamarApi('listar', {});
@@ -389,9 +401,11 @@
                         <div>
                             <p class="text-sm font-bold text-gray-800">${sala.chat_id_nome || '(sem nome)'}</p>
                             <p class="text-[10px] text-gray-400 font-mono mt-1">Chat ID: ${sala.chat_id} &middot; ${sala.workflow_name}</p>
-                            <span class="inline-block mt-2 text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full ${sala.sala_compartilhada == 1 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'}">
+                            <button onclick="alternarCompartilhada(${sala.chat_id}, ${sala.sala_compartilhada == 1 ? 0 : 1})"
+                                title="Clique para alternar"
+                                class="inline-block mt-2 text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full transition-all hover:opacity-75 ${sala.sala_compartilhada == 1 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'}">
                                 ${sala.sala_compartilhada == 1 ? 'Compartilhada' : 'Dedicada'}
-                            </span>
+                            </button>
                         </div>
                         <button onclick="apagarSala(${sala.chat_id})" title="Apagar sala"
                             class="text-gray-300 hover:text-red-500 transition-colors p-2">
