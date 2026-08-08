@@ -328,7 +328,12 @@
             }
 
             try {
-                await chamarApi('apagar_sala', { chat_id: chatId });
+                const data = await chamarApi('apagar_sala', { chat_id: chatId });
+                const item = Array.isArray(data) ? data[0] : data;
+                if (item?.erro) {
+                    showToast(item.erro, "warning");
+                    return;
+                }
                 showToast("Sala apagada com sucesso.", "success");
                 await carregarSalas();
             } catch (e) {
