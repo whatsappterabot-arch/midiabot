@@ -444,7 +444,11 @@ WHERE i.id_cliente = $1
   AND (w.sala_compartilhada IS NULL OR w.sala_compartilhada = 0)
 ORDER BY i.nome_instancia;
 ```
-`listar`/`salvar` (ações já existentes) não precisaram mudar. A garantia de "sender já salvo continua aparecendo mesmo fora do filtro" é resolvida no front-end (`vendedores.html`), não na query: se o sender atual do vendedor não estiver na lista filtrada, ele é adicionado como opção extra rotulada "(sala compartilhada)". **Pendente**: texto de ajuda da tela (`texto_instrucao`, `info_pagina: 'vendedores'`, editado direto no banco) ainda não explica por que alguns números não aparecem no dropdown.
+`listar`/`salvar` (ações já existentes) não precisaram mudar. **Correção nesta sessão**: a primeira versão tinha uma lógica extra pra "preservar" o sender de um vendedor mesmo que ele não estivesse na lista filtrada (rotulando como "(sala compartilhada)") — **removida**, por ser baseada numa hipótese que o usuário confirmou não ser plausível. A regra real, mais simples: `midiabot_chatid_workflowname.sala_compartilhada` só é definida em **"Conectores de Chat"** (único lugar que estabelece isso — o toggle não é bloqueado por nada) e o dropdown de "Telefones dos Consultores" **nunca oferece** senders de sala compartilhada como opção. Como resultado, um vendedor nunca fica com um sender de sala compartilhada atribuído — não existe efeito automático em nenhuma direção (nem atribuir sender vira dedicada sozinha, nem desatribuir vira compartilhada sozinha); os dois estados vivem cada um no seu lugar, sem sincronização automática entre eles.
+
+**Bug do n8n encontrado ao testar "desatribuir" um número** (selecionar "Nenhum número atribuído" e salvar): erro `there is no parameter $3`, mesmo o payload chegando certo (`dados.sender: ""`, confirmado no payload bruto do webhook). Causa: o node Postgres do n8n, quando uma expressão de parâmetro dá **string vazia**, descarta esse parâmetro da lista em vez de mandar como texto vazio — reduzindo a contagem de parâmetros enviados ao banco. Correção: trocar a expressão do parâmetro de `{{ $json.body.dados.sender }}` pra `{{ $json.body.dados.sender || null }}` (`null` é um valor de verdade, não é descartado) — também mais correto semanticamente, já que "desatribuir" deve gravar `NULL` na coluna, não string vazia.
+
+**Pendente**: texto de ajuda da tela (`texto_instrucao`, `info_pagina: 'vendedores'`, editado direto no banco) já escrito e aplicado.
 
 ## Acesso somente-leitura ao banco para o Claude (2026-08-08, em configuração)
 
@@ -462,9 +466,8 @@ Decisão: dar ao Claude acesso **só leitura** ao Postgres (nunca escrita), via 
 
 - **Terminar a reconstrução do fluxo de recebimento**: roteamento da transcrição de áudio pra IA (checar pausa via Redis, mandar resposta de verdade se não pausado, logar como linha `from_me=true` separada — áudio já chega certo no chat, falta só essa parte), ligar "On Error: Continue" em "b64 para bin"/"transcricao de audio", aplicar o item 3 da correção de `instancias.html`.
 - **Reconectar a instância "Marcelo-1"** com o número certo (não o de teste "TesteChat-1").
-- **Testar de ponta a ponta a rotação de vendedor em sala compartilhada** (roteamento + emoji + dropdown de sender) — tudo construído, mas sem estrutura de vários números de telefone pra simular de verdade ainda.
-- Aplicar a query `listar_instancias_disponiveis` no workflow "Midiabot painel config" (`vendedores.html`) — código já commitado, falta só o n8n.
-- Escrever o texto de ajuda de `vendedores.html` explicando por que alguns números não aparecem no dropdown.
+- **Testar de ponta a ponta a rotação de vendedor em sala compartilhada** (roteamento + emoji) — falta estrutura de vários números de telefone pra simular de verdade.
+- Aplicar a correção `{{ $json.body.dados.sender || null }}` no parâmetro `$3` do node "Execute a SQL query8" (ação `salvar`, "Telefones dos Consultores") — corrige erro `there is no parameter $3` ao desatribuir um número.
 - **Envio de mídia e outros tipos de mensagem do lado do vendedor** (upload de arquivo, resposta citando mensagem) — ainda não iniciado; só começa depois dos itens acima.
 - Revisar se **Atribuição de Chat** (`listar_remotejids`/`salvar_atribuicao`, no painel admin) também precisa do ajuste de workflow na identidade da conversa — ainda não avaliado.
 - Revisar o fluxo de **enviar mensagem** pra seguir o mesmo padrão notify-then-fetch via Pusher (hoje `enviar_mensagem` manda de verdade pra Evolution API e grava no histórico, mas não dispara evento Pusher — o vendedor só vê a própria mensagem porque o front-end refaz o fetch manualmente; outros vendedores olhando a mesma conversa não são avisados ao vivo).
