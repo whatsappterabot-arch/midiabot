@@ -307,21 +307,134 @@ Os outros parâmetros (`mensagem`, `messagetype`, `mime_type`, `midia`, `wa_mess
 
 **Efeito colateral não resolvido**: ao tentar recriar a instância apagada ("Marcelo-1") pra corrigir na raiz, o usuário escaneou o QR Code com o número que já é `sender` da instância "TesteChat-1" (usada a sessão inteira pros testes) — `midiabot_a_instancias.sender` tem `UNIQUE`, então o "Atualizar Sender" quebrou de novo, agora com erro de chave duplicada. Não resolvido — precisa reconectar "Marcelo-1" com um número diferente (o "1155490351" mencionado quando essa instância foi criada, não o número de teste de sempre).
 
-## Salas compartilhadas vs. dedicadas (2026-08-08, desenhado, construção não iniciada)
+## Salas compartilhadas vs. dedicadas (2026-08-08, roteamento e atribuição de vendedor construídos)
 
-**Contexto**: "Atribuição a Consultores" (`consultores.html`) hoje configura sorteio/escolha manual de vendedor **por workflow inteiro** — mas só faz sentido pra salas "porta de entrada" (várias possíveis vendedores, cliente novo sem dono óbvio). Salas onde o sender já é 1:1 com um vendedor específico não precisam de sorteio nenhum.
+**Contexto**: "Atribuição a Consultores" (`consultores.html`) configura sorteio/escolha manual de vendedor **por sala** — só faz sentido pra salas "porta de entrada" (vários vendedores possíveis, cliente novo sem dono óbvio). Salas onde o sender já é 1:1 com um vendedor específico não precisam de sorteio nenhum.
 
 **Decisões fechadas:**
-- Nova coluna **`midiabot_chatid_workflowname.sala_compartilhada INTEGER NOT NULL DEFAULT 0`** — criada em 2026-08-08. `1` = sala compartilhada (usa sorteio/escolha manual); `0` = sala dedicada (dono já determinado pelo sender atrelado a um vendedor).
-- **`midiabot_midiachat_sala_vendedor` confirmado que não existe** (checado direto no banco via `information_schema.columns` em 2026-08-08, não só por falta de tela usando ela) — a menção no MidiaChat (N-pra-N, pra destacar aba do dono no `chat.html`) nunca foi implementada. A posse de uma sala dedicada será **derivada**: sender atrelado à sala (`midiabot_sender_chatid`, via "Conectores de Chat") + esse sender atribuído a um vendedor (`midiabot_vendedores`, escrito por `vendedores.html`/"Telefones dos Consultores") = esse vendedor é o dono, por transitividade. Isso não afeta `midiabot_remotejid_chatid` (atribuição de conversa a sala), que é um mecanismo totalmente separado.
-- **Regra de "apagar sala"** (pendência antiga, revisada): fica com **2** condições, não 3 — sem sender atrelado (`midiabot_sender_chatid`) e sem conversa atribuída (`midiabot_remotejid_chatid`). "Sem vendedor dono" não é checagem separada, já está coberta por "sem sender" (dado que posse é derivada do sender).
-- **Tabela real por trás de "Atribuição a Consultores"**: `midiabot_sorteio_vendedor` (`workflow_name`, `sorteio` smallint, `vendedor_escolhido` integer, `id_cliente`) — confirmado direto no banco em 2026-08-08. Hoje com chave/escopo em `workflow_name`; precisa migrar pra `chat_id` (trocar a coluna, já que `chat_id` não existe nela ainda).
-- **Tabela real por trás de "Telefones dos Consultores"**: `midiabot_vendedores` (`id_vendedor`, `sender`, `id_cliente`) — separada de `midiabot_login_chat` (login/senha/nome/cor, usado pro login do MidiaChat).
+- **`midiabot_chatid_workflowname.sala_compartilhada INTEGER NOT NULL DEFAULT 0`** — `1` = sala compartilhada; `0` = sala dedicada (dono derivado do sender atrelado a um vendedor).
+- **`midiabot_midiachat_sala_vendedor` confirmado que não existe** — a posse de sala dedicada é **derivada**: sender atrelado à sala (`midiabot_sender_chatid`) + esse sender atribuído a um vendedor (`midiabot_vendedores`) = esse vendedor é o dono. Não afeta `midiabot_remotejid_chatid` (atribuição de conversa a sala), mecanismo separado.
+- **Regra de "apagar sala"**: 2 condições — sem sender atrelado (`midiabot_sender_chatid`) e sem conversa atribuída (`midiabot_remotejid_chatid`). "Sem vendedor dono" já está coberta por "sem sender".
+- **Em sala compartilhada, a conversa NUNCA muda de `chat_id`** — decisão explícita corrigindo uma primeira proposta errada (que faria a conversa "mudar de sala" pra sala dedicada do vendedor sorteado). `chat_id` só muda por ação manual do gestor (Atribuição de Chat), igual já funcionava antes. O vendedor sorteado é só uma marcação — "quem é responsável" —, sem mexer em roteamento.
 
-**Ainda não construído** (ordem sugerida):
-1. **"Conectores de Chat" (`telegram_sender.html`)**: toggle "Sala compartilhada" no formulário "Criar sala"; botão "Apagar sala" em cada card, com as 2 condições acima.
-2. **"Atribuição a Consultores" (`consultores.html`)**: rescopear `midiabot_sorteio_vendedor` de `workflow_name` pra `chat_id` (precisa `ALTER TABLE` trocando/adicionando a coluna).
-3. **"Telefones dos Consultores" (`vendedores.html`)**: trocar o campo `sender` de `midiabot_vendedores` de texto livre pra um `<select>`, mostrando **"NomeDaInstância / número"** (não o `sender` cru, buscado via JOIN com `midiabot_a_instancias`), listando só senders de salas **não** compartilhadas (`sala_compartilhada = 0`) — o sender já salvo daquele vendedor precisa continuar aparecendo mesmo se a regra mudasse depois. Texto de ajuda da tela precisa explicar em linguagem simples por que alguns números não aparecem (números de sala compartilhada são divididos automaticamente, não fazem sentido atribuir a um consultor só).
+**"Atribuição a Consultores" — tabela `midiabot_sorteio_vendedor`, migrada de `workflow_name` pra `chat_id` (2026-08-08)**: colunas atuais `id_cliente`, `chat_id`, `sorteio` (smallint, `0`=manual/`1`=automático), `vendedor_escolhido` (integer, **nullable** — só usado no modo manual; `ALTER TABLE ... ALTER COLUMN vendedor_escolhido DROP NOT NULL` rodado pra permitir automático sem precisar de valor de preenchimento). `PRIMARY KEY (id_cliente, chat_id)`, `FK (id_cliente, vendedor_escolhido) → midiabot_login_chat`. Tela `consultores.html` corrigida nesta sessão (estava quebrada desde a migração — ainda mandava `workflow_name`, coluna que não existe mais na tabela): trocado o seletor de "fluxo" por seletor de "sala compartilhada" (`listar_salas_compartilhadas`, só lista salas com `sala_compartilhada = 1`), e as ações `buscar_config`/`salvar` passaram a usar `chat_id` em vez de `workflow_name`. `buscar_config` também trocou de node "Select" pronto pra "Execute Query" (SQL escrito à mão, padrão do resto do projeto).
+
+**Tabela nova `midiabot_remotejid_consultor_salacompartilhada`** — guarda qual vendedor ficou responsável por qual cliente, numa sala compartilhada (registro por conversa, não configuração):
+```sql
+CREATE TABLE midiabot_remotejid_consultor_salacompartilhada (
+    id_cliente INTEGER NOT NULL,
+    remotejid TEXT NOT NULL,
+    chat_id INTEGER NOT NULL,
+    id_vendedor INTEGER NOT NULL,
+    criado_em TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (id_cliente, remotejid, chat_id)
+);
+```
+`criado_em` não é só registro — é usado pra saber quem foi o **último** vendedor a receber um cliente naquela sala, base do critério de rotação abaixo.
+
+**Critério de rotação — decisão importante**: não é por contagem total de clientes já atendidos (isso puniria um vendedor que voltasse de férias, jogando um volume grande de clientes de uma vez pra "compensar" o tempo fora — considerado um comportamento "brutal"). É por **alternância pura**: sempre passa pro próximo vendedor (ativo, ordenado por `id_vendedor`) depois de quem recebeu por último naquela sala, não importa quantos cada um já teve no total. Não guarda um "ponteiro" à parte — calcula a posição na hora, a partir do `criado_em` mais recente em `midiabot_remotejid_consultor_salacompartilhada`.
+
+**Candidatos à rotação**: todos os vendedores **ativos** do cliente em `midiabot_login_chat` (`ativo = 1`) — não depende de ter sala/telefone dedicado (`midiabot_vendedores`), decisão explícita pra permitir que uma empresa tenha vendedores que só atendem salas compartilhadas, sem precisar comprar número próprio pra cada um.
+
+**Node "define sala e vendedor" (antigo "Verifica parâmetros"), reescrito** — resolve `chat_id` (como antes) e, quando a sala resolvida é compartilhada e é a primeira mensagem daquele cliente, também escolhe e grava o vendedor responsável (manual, se `sorteio = 0`; rotação, se `sorteio = 1`):
+```sql
+WITH resolvido AS (
+    SELECT
+        i.id_cliente,
+        i.workflow_name,
+        COALESCE(rc.chat_id, sc.chat_id) AS chat_id,
+        rc.chat_id IS NULL AS precisa_gravar
+    FROM midiabot_a_instancias i
+    LEFT JOIN midiabot_remotejid_chatid rc
+        ON rc.id_cliente = i.id_cliente AND rc.remotejid = $2 AND rc.workflow_name = i.workflow_name
+    LEFT JOIN midiabot_sender_chatid sc
+        ON sc.id_cliente = i.id_cliente AND sc.sender = i.sender
+    WHERE i.nome_instancia = $1
+),
+gravado AS (
+    INSERT INTO midiabot_remotejid_chatid (id_cliente, remotejid, workflow_name, chat_id, arquivada)
+    SELECT id_cliente, $2, workflow_name, chat_id, 0
+    FROM resolvido
+    WHERE precisa_gravar AND chat_id IS NOT NULL
+    ON CONFLICT (id_cliente, remotejid, workflow_name) DO NOTHING
+),
+sala_info AS (
+    SELECT r.id_cliente, r.chat_id, sv.sorteio, sv.vendedor_escolhido
+    FROM resolvido r
+    JOIN midiabot_chatid_workflowname w
+        ON w.id_cliente = r.id_cliente AND w.chat_id = r.chat_id
+    LEFT JOIN midiabot_sorteio_vendedor sv
+        ON sv.id_cliente = r.id_cliente AND sv.chat_id = r.chat_id
+    WHERE r.precisa_gravar AND r.chat_id IS NOT NULL AND w.sala_compartilhada = 1
+),
+candidatos AS (
+    SELECT si.id_cliente, si.chat_id, lc.id_vendedor,
+           ROW_NUMBER() OVER (ORDER BY lc.id_vendedor) AS posicao,
+           COUNT(*) OVER () AS total
+    FROM sala_info si
+    JOIN midiabot_login_chat lc
+        ON lc.id_cliente = si.id_cliente AND lc.ativo = 1
+    WHERE si.sorteio = 1
+),
+ultimo_vendedor AS (
+    SELECT rcs.id_vendedor
+    FROM sala_info si
+    JOIN midiabot_remotejid_consultor_salacompartilhada rcs
+        ON rcs.id_cliente = si.id_cliente AND rcs.chat_id = si.chat_id
+    WHERE si.sorteio = 1
+    ORDER BY rcs.criado_em DESC
+    LIMIT 1
+),
+proxima_posicao AS (
+    SELECT COALESCE(
+        (SELECT (c.posicao % c.total) + 1 FROM candidatos c WHERE c.id_vendedor = (SELECT id_vendedor FROM ultimo_vendedor)),
+        1
+    ) AS posicao
+),
+vendedor_escolhido AS (
+    SELECT id_cliente, chat_id, vendedor_escolhido AS id_vendedor
+    FROM sala_info
+    WHERE sorteio = 0
+
+    UNION ALL
+
+    SELECT c.id_cliente, c.chat_id, c.id_vendedor
+    FROM candidatos c, proxima_posicao p
+    WHERE c.posicao = p.posicao
+),
+gravado_vendedor AS (
+    INSERT INTO midiabot_remotejid_consultor_salacompartilhada (id_cliente, remotejid, chat_id, id_vendedor)
+    SELECT id_cliente, $2, chat_id, id_vendedor
+    FROM vendedor_escolhido
+    ON CONFLICT (id_cliente, remotejid, chat_id) DO NOTHING
+)
+SELECT id_cliente, workflow_name, chat_id FROM resolvido;
+```
+Se a sala for compartilhada mas ainda não tiver linha em `midiabot_sorteio_vendedor` (config nunca criada), nenhum vendedor é escolhido — mas isso deixou de ser um problema real (ver próximo item).
+
+**Ação `atualizar_sala_compartilhada` (Conectores de Chat), corrigida** — ao marcar uma sala como compartilhada, cria automaticamente a linha de configuração em `midiabot_sorteio_vendedor` (`sorteio = 1`, `vendedor_escolhido = NULL`), só se ainda não existir:
+```sql
+WITH atualizado AS (
+    UPDATE midiabot_chatid_workflowname
+    SET sala_compartilhada = $1
+    WHERE chat_id = $2 AND id_cliente = $3
+    RETURNING chat_id, id_cliente, sala_compartilhada
+),
+criado_sorteio AS (
+    INSERT INTO midiabot_sorteio_vendedor (id_cliente, chat_id, sorteio, vendedor_escolhido)
+    SELECT id_cliente, chat_id, 1, NULL
+    FROM atualizado
+    WHERE sala_compartilhada = 1
+    ON CONFLICT (id_cliente, chat_id) DO NOTHING
+)
+SELECT * FROM atualizado;
+```
+
+**Emoji do vendedor responsável no `chat.html`, construído**: `listar_conversas` (workflow **Midiabot Chat**) ganhou `LEFT JOIN midiabot_remotejid_consultor_salacompartilhada` + `LEFT JOIN midiabot_login_chat` trazendo `lc.cor_emoji AS vendedor_emoji` (vem vazio em salas dedicadas, sem tratamento condicional extra — o `LEFT JOIN` resolve sozinho). `chat.html` prefixa o título de cada conversa com esse emoji, antes do apelido/emoji do contato (que é outro emoji, de `midiabot_midiachat_contato` — os dois convivem sem conflito).
+
+**Status**: tudo construído e aplicado no n8n (queries confirmadas pelo usuário como já aplicadas). **Não testado de ponta a ponta ainda** — falta estrutura com vários números de telefone disponíveis pra simular rotação de verdade entre vendedores; usuário vai testar num dia com essa estrutura pronta.
+
+**Ainda não construído**: **"Telefones dos Consultores" (`vendedores.html`)** — trocar o campo `sender` de `midiabot_vendedores` de texto livre pra um `<select>`, mostrando **"NomeDaInstância / número"** (via JOIN com `midiabot_a_instancias`), listando só senders de salas **não** compartilhadas — o sender já salvo daquele vendedor precisa continuar aparecendo mesmo se a regra mudasse depois. Texto de ajuda precisa explicar por que alguns números não aparecem.
 
 ## Acesso somente-leitura ao banco para o Claude (2026-08-08, em configuração)
 
@@ -339,7 +452,8 @@ Decisão: dar ao Claude acesso **só leitura** ao Postgres (nunca escrita), via 
 
 - **Terminar a reconstrução do fluxo de recebimento**: roteamento da transcrição de áudio pra IA (checar pausa via Redis, mandar resposta de verdade se não pausado, logar como linha `from_me=true` separada — áudio já chega certo no chat, falta só essa parte), ligar "On Error: Continue" em "b64 para bin"/"transcricao de audio", aplicar o item 3 da correção de `instancias.html`.
 - **Reconectar a instância "Marcelo-1"** com o número certo (não o de teste "TesteChat-1").
-- Construir as 3 telas da seção "Salas compartilhadas vs. dedicadas" acima.
+- **Testar de ponta a ponta a rotação de vendedor em sala compartilhada** (roteamento + emoji) — construído, aplicado no n8n, mas sem estrutura de vários números de telefone pra simular de verdade ainda.
+- **"Telefones dos Consultores" (`vendedores.html`)** — última tela pendente da seção "Salas compartilhadas vs. dedicadas": trocar `sender` de texto livre pra `<select>` (ver detalhe na seção acima).
 - **Envio de mídia e outros tipos de mensagem do lado do vendedor** (upload de arquivo, resposta citando mensagem) — ainda não iniciado; só começa depois do item acima.
 - Revisar se **Atribuição de Chat** (`listar_remotejids`/`salvar_atribuicao`, no painel admin) também precisa do ajuste de workflow na identidade da conversa — ainda não avaliado.
 - Revisar o fluxo de **enviar mensagem** pra seguir o mesmo padrão notify-then-fetch via Pusher (hoje `enviar_mensagem` manda de verdade pra Evolution API e grava no histórico, mas não dispara evento Pusher — o vendedor só vê a própria mensagem porque o front-end refaz o fetch manualmente; outros vendedores olhando a mesma conversa não são avisados ao vivo).
