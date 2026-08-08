@@ -230,12 +230,8 @@
 
             corpo.innerHTML = dados.map(item => {
                 const senderAtual = item.sender || '';
-                const opcoes = [...instanciasDisponiveis];
-                if (senderAtual && !opcoes.some(i => i.sender === senderAtual)) {
-                    opcoes.unshift({ nome_instancia: '(sala compartilhada)', sender: senderAtual });
-                }
                 const optionsHtml = '<option value="">Nenhum número atribuído</option>' +
-                    opcoes.map(i => `<option value="${escapeHtml(i.sender)}" ${i.sender === senderAtual ? 'selected' : ''}>${escapeHtml(i.nome_instancia)} / ${escapeHtml(i.sender)}</option>`).join('');
+                    instanciasDisponiveis.map(i => `<option value="${escapeHtml(i.sender)}" ${i.sender === senderAtual ? 'selected' : ''}>${escapeHtml(i.nome_instancia)} / ${escapeHtml(i.sender)}</option>`).join('');
                 return `
                 <tr class="hover:bg-gray-50 transition-colors group">
                     <td class="px-6 py-4 text-sm text-gray-700 font-medium">${escapeHtml(item.nome_vendedor) || '(sem nome cadastrado)'}</td>
