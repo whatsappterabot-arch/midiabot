@@ -336,9 +336,10 @@
                         emoji: c.emoji || '',
                         observacoes: c.observacoes || ''
                     };
-                    const titulo = c.apelido
+                    const prefixoVendedor = c.vendedor_emoji ? `${c.vendedor_emoji} ` : '';
+                    const titulo = prefixoVendedor + (c.apelido
                         ? `${c.emoji ? c.emoji + ' ' : ''}${c.apelido}`
-                        : (c.pushname ? `${c.pushname} - ${numero}` : numero);
+                        : (c.pushname ? `${c.pushname} - ${numero}` : numero));
                     const ativa = c.remotejid === conversaSelecionada;
                     const pontoNaoLida = c.nao_lida
                         ? '<span class="ponto-nao-lida flex-shrink-0 w-2.5 h-2.5 rounded-full bg-[#00b34d]"></span>'
