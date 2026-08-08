@@ -107,6 +107,16 @@
 
         let user = null;
         let plataforma = 'whatsapp';
+        let instanciasDisponiveis = [];
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
 
         // Inicialização e Proteção de Rota
         document.addEventListener('DOMContentLoaded', () => {
@@ -131,9 +141,24 @@
             window.logout = logout;
 
             renderMenu();
-            carregarVendedores();
+            iniciarTabela();
             carregarAjuda();
         });
+
+        async function iniciarTabela() {
+            await carregarInstanciasDisponiveis();
+            carregarVendedores();
+        }
+
+        async function carregarInstanciasDisponiveis() {
+            try {
+                const data = await chamarApi('listar_instancias_disponiveis', {});
+                instanciasDisponiveis = Array.isArray(data) ? data : [];
+            } catch (e) {
+                console.error("Falha ao carregar instâncias disponíveis:", e);
+                instanciasDisponiveis = [];
+            }
+        }
 
         // Lógica de Menu Lateral Dinâmico
         function renderMenu() {
@@ -203,12 +228,22 @@
                 return;
             }
 
-            corpo.innerHTML = dados.map(item => `
+            corpo.innerHTML = dados.map(item => {
+                const senderAtual = item.sender || '';
+                const opcoes = [...instanciasDisponiveis];
+                if (senderAtual && !opcoes.some(i => i.sender === senderAtual)) {
+                    opcoes.unshift({ nome_instancia: '(sala compartilhada)', sender: senderAtual });
+                }
+                const optionsHtml = '<option value="">Nenhum número atribuído</option>' +
+                    opcoes.map(i => `<option value="${escapeHtml(i.sender)}" ${i.sender === senderAtual ? 'selected' : ''}>${escapeHtml(i.nome_instancia)} / ${escapeHtml(i.sender)}</option>`).join('');
+                return `
                 <tr class="hover:bg-gray-50 transition-colors group">
-                    <td class="px-6 py-4 text-sm text-gray-700 font-medium">${item.nome_vendedor || '(sem nome cadastrado)'}</td>
+                    <td class="px-6 py-4 text-sm text-gray-700 font-medium">${escapeHtml(item.nome_vendedor) || '(sem nome cadastrado)'}</td>
                     <td class="px-6 py-4">
-                        <input type="text" id="sender-${item.id_vendedor}" value="${item.sender || ''}"
+                        <select id="sender-${item.id_vendedor}"
                             class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                            ${optionsHtml}
+                        </select>
                     </td>
                     <td class="px-6 py-4 text-right">
                         <button onclick="salvarVendedor(${item.id_vendedor})"
@@ -217,7 +252,8 @@
                         </button>
                     </td>
                 </tr>
-            `).join('');
+            `;
+            }).join('');
         }
 
         async function salvarVendedor(idVendedor) {
