@@ -72,7 +72,7 @@
                     <!-- FORMULÁRIO CRIAR SALA -->
                     <div class="bg-white p-6 rounded-2xl shadow-sm mb-8 border border-gray-200">
                         <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Criar sala</label>
-                        <div class="grid grid-cols-4 gap-3 items-end">
+                        <div class="grid grid-cols-4 gap-3 items-end mb-4">
                             <div>
                                 <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Fluxo</label>
                                 <select id="select-novo-workflow" onchange="onNovoWorkflowChange()"
@@ -96,6 +96,20 @@
                                 class="bg-[#001f3f] text-white px-6 py-3 rounded-xl font-bold text-xs hover:bg-black transition-all shadow-lg active:scale-95">
                                 CRIAR SALA
                             </button>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Sala compartilhada</label>
+                            <p class="text-[11px] text-gray-400 mb-2">Compartilhada: dividida entre vários consultores. Não compartilhada: pertence a um único consultor, definido pelo sender atrelado.</p>
+                            <div class="flex bg-gray-100 rounded-full p-1 shadow-inner max-w-xs">
+                                <button type="button" onclick="setCompartilhadaNovaSala(false)" id="btn-nao-compartilhada"
+                                    class="flex-1 py-2 rounded-full text-xs font-bold transition-all">
+                                    NÃO
+                                </button>
+                                <button type="button" onclick="setCompartilhadaNovaSala(true)" id="btn-sim-compartilhada"
+                                    class="flex-1 py-2 rounded-full text-xs font-bold transition-all">
+                                    SIM
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -126,6 +140,7 @@
         let plataforma = 'whatsapp';
         let salas = [];
         let orfaosPorWorkflow = {};
+        let compartilhadaNovaSala = false;
 
         // Inicialização e Proteção de Rota
         document.addEventListener('DOMContentLoaded', () => {
@@ -143,14 +158,17 @@
 
             window.setPlataforma = setPlataforma;
             window.onNovoWorkflowChange = onNovoWorkflowChange;
+            window.setCompartilhadaNovaSala = setCompartilhadaNovaSala;
             window.criarSala = criarSala;
             window.atrelarSender = atrelarSender;
             window.desatrelarSender = desatrelarSender;
+            window.apagarSala = apagarSala;
             window.abrirAjuda = abrirAjuda;
             window.fecharAjuda = fecharAjuda;
             window.logout = logout;
 
             renderMenu();
+            setCompartilhadaNovaSala(false);
             carregarWorkflows();
             carregarSalas();
             carregarAjuda();
@@ -258,6 +276,18 @@
             }
         }
 
+        function setCompartilhadaNovaSala(valor) {
+            compartilhadaNovaSala = valor;
+
+            document.getElementById('btn-nao-compartilhada').className = !valor
+                ? "flex-1 py-2 rounded-full text-xs font-bold transition-all bg-[#00b34d] text-white shadow-md"
+                : "flex-1 py-2 rounded-full text-xs font-bold transition-all text-gray-500 hover:bg-gray-200";
+
+            document.getElementById('btn-sim-compartilhada').className = valor
+                ? "flex-1 py-2 rounded-full text-xs font-bold transition-all bg-[#00b34d] text-white shadow-md"
+                : "flex-1 py-2 rounded-full text-xs font-bold transition-all text-gray-500 hover:bg-gray-200";
+        }
+
         async function criarSala() {
             const workflow = document.getElementById('select-novo-workflow').value;
             const inputNome = document.getElementById('input-nova-sala-nome');
@@ -276,16 +306,33 @@
                 await chamarApi('criar_sala', {
                     workflow_name: workflow,
                     chat_id_nome: inputNome.value.trim(),
-                    sender: sender || null
+                    sender: sender || null,
+                    sala_compartilhada: compartilhadaNovaSala ? 1 : 0
                 });
                 inputNome.value = '';
                 document.getElementById('select-novo-workflow').value = '';
                 document.getElementById('select-novo-sender').disabled = true;
                 document.getElementById('select-novo-sender').innerHTML = '<option value="">Selecione um fluxo primeiro...</option>';
+                setCompartilhadaNovaSala(false);
                 showToast("Sala criada com sucesso.", "success");
                 await carregarSalas();
             } catch (e) {
                 console.error("Falha ao criar sala:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
+        async function apagarSala(chatId) {
+            if (!confirm('Tem certeza que deseja apagar esta sala? Essa ação não pode ser desfeita.')) {
+                return;
+            }
+
+            try {
+                await chamarApi('apagar_sala', { chat_id: chatId });
+                showToast("Sala apagada com sucesso.", "success");
+                await carregarSalas();
+            } catch (e) {
+                console.error("Falha ao apagar sala:", e);
                 showToast("Erro ao processar solicitação.", "error");
             }
         }
@@ -315,6 +362,7 @@
                         chat_id: row.chat_id,
                         chat_id_nome: row.chat_id_nome,
                         workflow_name: row.workflow_name,
+                        sala_compartilhada: row.sala_compartilhada,
                         senders: []
                     };
                 }
@@ -332,9 +380,18 @@
 
             container.innerHTML = salas.map(sala => `
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-                    <div class="mb-4">
-                        <p class="text-sm font-bold text-gray-800">${sala.chat_id_nome || '(sem nome)'}</p>
-                        <p class="text-[10px] text-gray-400 font-mono mt-1">Chat ID: ${sala.chat_id} &middot; ${sala.workflow_name}</p>
+                    <div class="flex items-start justify-between mb-4">
+                        <div>
+                            <p class="text-sm font-bold text-gray-800">${sala.chat_id_nome || '(sem nome)'}</p>
+                            <p class="text-[10px] text-gray-400 font-mono mt-1">Chat ID: ${sala.chat_id} &middot; ${sala.workflow_name}</p>
+                            <span class="inline-block mt-2 text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full ${sala.sala_compartilhada == 1 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'}">
+                                ${sala.sala_compartilhada == 1 ? 'Compartilhada' : 'Dedicada'}
+                            </span>
+                        </div>
+                        <button onclick="apagarSala(${sala.chat_id})" title="Apagar sala"
+                            class="text-gray-300 hover:text-red-500 transition-colors p-2">
+                            <i class="fas fa-trash"></i>
+                        </button>
                     </div>
                     <div class="flex flex-wrap gap-2 mb-4">
                         ${sala.senders.length === 0
