@@ -241,9 +241,47 @@ Retomando o plano combinado em 2026-08-07 (reconstruir o fluxo antes de atacar e
 
 **Resolução de `chat_id` — refeita e concluída.** O node "Verifica parâmetros" antigo só fazia `COALESCE` (roteava, nunca gravava). Decisão confirmada com o usuário: a relação `remotejid`↔`chat_id` deve ser **gravada** na primeira mensagem de um cliente novo (não recalculada a cada mensagem), pra não sofrer efeito colateral se o padrão sender→sala mudar depois — uma atribuição manual (gestor move o cliente de sala) sempre tem prioridade, porque o cálculo por sender só roda quando **não existe** relação nenhuma ainda. Nova query (`WITH resolvido AS (...) , gravado AS (INSERT ... WHERE precisa_gravar ...) SELECT ...`) substitui o node antigo, no mesmo lugar do fluxo (logo após o Switch). O `INSERT` principal (`midiabot_historico_mensagens`) teve o `chat_id` hardcoded (`-4`, atalho de teste) trocado pelo `chat_id` resolvido de verdade (`$15`), e todos os parâmetros passaram a usar **referência por nome** (`$('NomeDoNode')...`) em vez de `$json` cru — decisão explícita do usuário, porque ele está inserindo nodes no meio do fluxo enquanto reconstrói, e `$json` cru muda de significado quando um node novo entra logo antes (referência por nome não quebra com isso).
 
-**Tratamento de mensagens `from_me` — desenhado, parcialmente bloqueado.** Decisão: mensagem `fromMe: true` vinda do próprio vendedor pelo `chat.html` já foi inserida no `enviar_mensagem` (não pode duplicar); vinda direto do celular do vendedor nunca foi vista antes (precisa inserir). Estrutura combinada: IF logo após "Verifica parâmetros" checando `fromMe` — `false` segue o caminho normal; `true` sai pra um sub-fluxo à parte (ainda não terminado). **Bloqueio encontrado**: ao testar, os ecos de mensagem `fromMe: true` pararam de chegar por completo (tanto vindas do chat quanto do celular) — rastreado a um bug conhecido da própria Evolution API (`EvolutionAPI/evolution-api#2110`): o cache Redis de deduplicação descarta mensagens únicas por engano. Correção é a variável de ambiente `CACHE_REDIS_ENABLED=false`, mas o campo está travado pra edição no painel da Cloudfy (confirmado clicando lá, não abre) — precisa pedir pro suporte deles. **Adiado por decisão do usuário**, não é bloqueante pro resto.
+**Tratamento de mensagens `from_me` — desenhado, sub-fluxo "celular" construído e funcionando.** Decisão: mensagem `fromMe: true` vinda do próprio vendedor pelo `chat.html` já foi inserida no `enviar_mensagem` (não pode duplicar); vinda direto do celular do vendedor nunca foi vista antes (precisa inserir). Estrutura combinada: IF logo após "Verifica parâmetros" checando `fromMe` — `false` segue o caminho normal; `true` sai pra um sub-fluxo à parte, node "Insere msg env do celular" (`SELECT id FROM midiabot_historico_mensagens WHERE wa_message_id = $1 LIMIT 1`, insere só se não achar).
+
+**Bloqueio encontrado e resolvido**: durante o teste, os ecos de `fromMe: true` pararam de chegar por completo (tanto vindas do chat quanto do celular) — nesse meio-tempo, também parou de chegar **qualquer** webhook (não só eco). A princípio suspeitou-se do bug conhecido da Evolution API sobre cache Redis de deduplicação (`EvolutionAPI/evolution-api#2110`, corrigido setando `CACHE_REDIS_ENABLED=false`, campo travado no painel da Cloudfy) — mas essa teoria **não foi confirmada como causa raiz**: o usuário diagnosticou a interrupção geral via webhook.site (testando se a Evolution API estava de fato entregando alguma coisa) e resolveu por conta própria; ao voltar a funcionar, os ecos também voltaram. Não está claro se o Redis era mesmo o problema ou se era só a interrupção geral — **tratar essa teoria do Redis como não confirmada** se reaparecer sintoma parecido.
+
+Com os ecos voltando a chegar, apareceu um erro separado, esse sim identificado e corrigido: o node "Insere msg env do celular" falhava com "Host not found" — causa era a credencial Postgres do node estar desconfigurada/diferente das outras (não um problema de query). Corrigido trocando pra credencial "Postgres Terabot" (a mesma usada no resto do fluxo). **Confirmado funcionando** pelo usuário depois da troca.
 
 **Transcrição de áudio — decidido usar Deepgram (não trocar de serviço).** Comparado com Inworld AI (aceita base64 direto, mas free tier menor e serviço menos estabelecido) — Deepgram ganha em crédito grátis total (US$200 único ≈ 775h, contra 400 min/mês do Inworld) e já é testado pelo usuário. Consequência: **precisa** do passo de conversão base64→binário (Deepgram exige binário puro, não aceita base64 — confirmado na doc oficial). Código reaproveitado de um fluxo anterior, com 2 correções feitas: nome do node trocado de `Webhook` pra `Webhook2` (nome real neste fluxo), e o `return` trocado pra preservar `$input.item.json` (o código antigo substituía o `json` inteiro por `{status, message}`, o que apagaria os campos já resolvidos por "verifica messagetype"/"Verifica parâmetros"). Recomendado ligar **"On Error: Continue"** tanto nesse Code node quanto no futuro node de chamada à API do Deepgram, pra uma falha de transcrição não impedir o áudio de ser salvo (só fica sem o `caption` preenchido). Posição exata no fluxo (antes ou depois do "verifica messagetype") ainda não decidida.
+
+**Bug real encontrado e corrigido: `base64` intermitentemente vazio em `audioMessage`.** Mesmo com a flag Base64 ativa na instância (confirmado repetidas vezes), `body.data.message.base64` às vezes chega vazio/ausente no payload do webhook — visto tanto em áudio comum quanto em `ptt: true` (nota de voz), sem diferença de configuração entre instâncias que funcionaram e que falharam na mesma sessão de teste. Não é um problema estável por instância nem por tipo (ptt vs. arquivo) — é intermitente de verdade (mesma instância, mesmo tipo, funcionou → falhou → voltou a funcionar). Causa raiz não identificada (nunca chegou a ser uma teoria específica descartável, só "instabilidade da própria Evolution API").
+
+**Correção**: o Code node de conversão base64→binário (o mesmo citado acima) ganhou um fallback embutido — se `body.data.message.base64` vier vazio, o próprio node chama `POST {server_url}/chat/getBase64FromMediaMessage/{instance}` (endpoint da Evolution API que baixa a mídia sob demanda a partir do `message.key.id`) via `this.helpers.httpRequest`, usando `server_url` e `apikey` **direto do payload do webhook** (`body.server_url`/`body.apikey`, presentes em todo evento — não fixos no código, funciona pra qualquer instância). A resposta desse endpoint traz o campo `base64` direto (`response.base64`, confirmado contra payload real, não chutado). **Testado e confirmado funcionando** pelo usuário num caso real de base64 vazio — o fallback baixou e converteu o áudio corretamente:
+```js
+let base64Data = $('Webhook2').first().json.body?.data?.message?.base64;
+
+if (!base64Data) {
+    const response = await this.helpers.httpRequest({
+        method: 'POST',
+        url: `${$('Webhook2').first().json.body.server_url}/chat/getBase64FromMediaMessage/${$('Webhook2').first().json.body.instance}`,
+        headers: {
+            'apikey': $('Webhook2').first().json.body.apikey,
+            'Content-Type': 'application/json'
+        },
+        body: {
+            message: { key: { id: $('Webhook2').first().json.body.data.key.id } }
+        },
+        json: true
+    });
+    base64Data = response.base64;
+}
+
+if (!base64Data) {
+    throw new Error("O path do Base64 retornou vazio, e o download de fallback também falhou.");
+}
+
+const binaryBuffer = Buffer.from(base64Data, 'base64');
+
+return [{
+  json: $input.item.json,
+  binary: { audio: await this.helpers.prepareBinaryData(binaryBuffer, 'audio.ogg', 'audio/ogg') }
+}];
+```
 
 **Bug real encontrado e corrigido: `instancias.html` quebrava quando uma instância era apagada por fora do sistema** (direto no painel da Evolution API, não pelo botão "APAGAR INSTÂNCIA" do MidiaBot). A ação `listar_instancias` busca o status ao vivo de cada instância uma por uma (node "Buscar instancia", loop); quando uma não é encontrada (404), os nodes seguintes ("Atualizar Sender", "Buscar Sender atualizado", "Montar item final") assumiam que a resposta sempre tinha `data[0]`, quebrando a lista inteira por causa de uma única instância órfã. Correção aplicada (3 partes): (1) IF novo checando `{{ $json.data }}` antes de "Atualizar Sender", pulando o UPDATE quando não achar; (2) "Buscar Sender atualizado" trocou a origem do parâmetro pra `$('Loop Over Items').item.json.nome_instancia` (não depende da resposta da API); (3) "Montar item final" ganhou expressões com fallback (`data?.[0]?.name || ...`, `data?.[0]?.connectionStatus || 'not_found'`). Itens 1 e 2 confirmados aplicados pelo usuário; item 3 foi explicado passo a passo, aplicação não confirmada ainda.
 
@@ -279,8 +317,7 @@ Decisão: dar ao Claude acesso **só leitura** ao Postgres (nunca escrita), via 
 
 ## Pendências / decisões em aberto
 
-- **Terminar a reconstrução do fluxo de recebimento**: sub-fluxo de `fromMe: true` (distinguir chat.html vs celular), posição do node de transcrição de áudio, aplicar o item 3 da correção de `instancias.html`.
-- **Resolver o bug do Redis na Evolution API** (`CACHE_REDIS_ENABLED`) — precisa do suporte da Cloudfy, adiado.
+- **Terminar a reconstrução do fluxo de recebimento**: posição definitiva do node de transcrição de áudio (antes/depois de "verifica messagetype"), integração da transcrição com o roteamento IA/pausa-por-Redis (ver seção de áudio→IA, ainda em aberto), aplicar o item 3 da correção de `instancias.html`.
 - **Reconectar a instância "Marcelo-1"** com o número certo (não o de teste "TesteChat-1").
 - Construir as 3 telas da seção "Salas compartilhadas vs. dedicadas" acima.
 - **Envio de mídia e outros tipos de mensagem do lado do vendedor** (upload de arquivo, resposta citando mensagem) — ainda não iniciado; só começa depois do item acima.
