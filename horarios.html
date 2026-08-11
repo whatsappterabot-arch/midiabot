@@ -302,32 +302,31 @@
 
         function renderizarHorarios(dados) {
             const corpo = document.getElementById('tabela-horarios');
-            if (!dados || dados.length === 0) {
-                corpo.innerHTML = '<tr><td colspan="4" class="p-12 text-center text-gray-300 text-xs font-bold uppercase tracking-widest">Nenhum horário cadastrado</td></tr>';
-                return;
-            }
+            const porDia = {};
+            (dados || []).forEach(item => { porDia[item.dia_semana] = item; });
 
-            const ordenados = [...dados].sort((a, b) => a.dia_semana - b.dia_semana);
-
-            corpo.innerHTML = ordenados.map(item => `
+            corpo.innerHTML = Object.keys(DIAS_SEMANA).map(dia => {
+                const item = porDia[dia] || {};
+                return `
                 <tr class="hover:bg-gray-50 transition-colors group">
-                    <td class="px-6 py-4 text-sm text-gray-700 font-medium">${DIAS_SEMANA[item.dia_semana] || item.dia_semana}</td>
+                    <td class="px-6 py-4 text-sm text-gray-700 font-medium">${DIAS_SEMANA[dia]}</td>
                     <td class="px-6 py-4">
-                        <input type="time" id="inicio-${item.dia_semana}" value="${item.hora_inicio || ''}"
+                        <input type="time" id="inicio-${dia}" value="${item.hora_inicio || ''}"
                             class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
                     </td>
                     <td class="px-6 py-4">
-                        <input type="time" id="fim-${item.dia_semana}" value="${item.hora_fim || ''}"
+                        <input type="time" id="fim-${dia}" value="${item.hora_fim || ''}"
                             class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
                     </td>
                     <td class="px-6 py-4 text-right">
-                        <button onclick="salvarHorario(${item.dia_semana})"
+                        <button onclick="salvarHorario(${dia})"
                             class="bg-[#001f3f] text-white px-4 py-2 rounded-lg font-bold text-xs hover:bg-black transition-all shadow active:scale-95">
                             SALVAR
                         </button>
                     </td>
                 </tr>
-            `).join('');
+            `;
+            }).join('');
         }
 
         async function salvarHorario(diaSemana) {
