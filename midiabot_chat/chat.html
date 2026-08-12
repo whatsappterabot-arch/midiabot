@@ -474,8 +474,13 @@
 
         async function pausarIA() {
             if (!conversaSelecionada) return;
+            const sala = salas.find(s => String(s.chat_id) === String(salaSelecionada));
             try {
-                await chamarApi('pausar_ia', { remotejid: conversaSelecionada, chat_id: salaSelecionada });
+                await chamarApi('pausar_ia', {
+                    remotejid: conversaSelecionada,
+                    chat_id: salaSelecionada,
+                    workflow_name: sala?.workflow_name || null
+                });
                 showToast("IA suspensa por 12 horas nesta conversa.", "success");
             } catch (e) {
                 console.error("Falha ao suspender IA:", e);
