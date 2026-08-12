@@ -548,6 +548,7 @@
             }
             const rotulo = escapeHtml(tipo === 'documento' && m.midia ? m.midia : ROTULOS_MIDIA[tipo]);
             const legenda = m.caption ? `<div class="mt-1 text-xs whitespace-pre-line">${formatarWhatsApp(escapeHtml(m.caption))}</div>` : '';
+            const transcricao = (tipo === 'audio' && m.mensagem) ? `<div class="mt-1 text-xs italic text-gray-500 whitespace-pre-line">${formatarWhatsApp(escapeHtml(m.mensagem))}</div>` : '';
             return `
                 <div class="cursor-pointer flex items-center gap-2 text-gray-700" onclick="window.__verMidia(${m.id})">
                     <i class="fas ${ICONES_MIDIA[tipo]}"></i>
@@ -555,6 +556,7 @@
                     <span class="text-[10px] text-gray-400">(toque para abrir)</span>
                 </div>
                 ${legenda}
+                ${transcricao}
             `;
         }
 
