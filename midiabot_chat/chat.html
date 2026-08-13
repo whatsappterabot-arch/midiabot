@@ -150,6 +150,30 @@
         </div>
     </div>
 
+    <!-- MODAL: ENVIAR ARQUIVO -->
+    <div id="modal-midia" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <h3 class="text-sm font-bold text-gray-700 uppercase tracking-widest mb-4">Enviar arquivo</h3>
+
+            <div id="preview-midia" class="mb-4 flex items-center justify-center bg-gray-50 rounded-xl p-4 min-h-[100px]"></div>
+
+            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Legenda (opcional)</label>
+            <input type="text" id="input-midia-caption" placeholder="Escreva uma legenda..."
+                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm mb-4 outline-none focus:ring-2 focus:ring-[#00b34d] focus:bg-white transition-all">
+
+            <div class="flex gap-2">
+                <button onclick="fecharModalMidia()"
+                    class="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-gray-200 transition-all">
+                    Cancelar
+                </button>
+                <button onclick="confirmarEnvioMidia()"
+                    class="flex-1 bg-[#001f3f] text-white py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-black transition-all active:scale-95">
+                    Enviar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { CONFIG, showToast } from "./config.js";
 
@@ -743,10 +767,37 @@
             }
         }
 
-        document.getElementById('input-anexo').addEventListener('change', async (e) => {
+        let arquivoSelecionado = null;
+
+        document.getElementById('input-anexo').addEventListener('change', (e) => {
             const arquivo = e.target.files[0];
             if (!arquivo || !conversaSelecionada) return;
             e.target.value = '';
+
+            arquivoSelecionado = arquivo;
+            const preview = document.getElementById('preview-midia');
+            if (arquivo.type.startsWith('image/')) {
+                preview.innerHTML = `<img src="${URL.createObjectURL(arquivo)}" class="max-h-48 rounded-lg">`;
+            } else {
+                preview.innerHTML = `<div class="text-center text-gray-500 text-sm"><i class="fas fa-file text-2xl mb-2"></i><br>${escapeHtml(arquivo.name)}</div>`;
+            }
+            document.getElementById('input-midia-caption').value = '';
+            document.getElementById('modal-midia').classList.remove('hidden');
+        });
+
+        window.fecharModalMidia = fecharModalMidia;
+        window.confirmarEnvioMidia = confirmarEnvioMidia;
+
+        function fecharModalMidia() {
+            arquivoSelecionado = null;
+            document.getElementById('modal-midia').classList.add('hidden');
+        }
+
+        async function confirmarEnvioMidia() {
+            if (!arquivoSelecionado) return;
+            const arquivo = arquivoSelecionado;
+            const caption = document.getElementById('input-midia-caption').value.trim();
+            fecharModalMidia();
 
             const base64 = await arquivoParaBase64(arquivo);
             const messagetype = tipoPorMime(arquivo.type);
@@ -755,9 +806,9 @@
                 mime_type: arquivo.type,
                 messagetype,
                 midia: messagetype === 'documentMessage' ? arquivo.name : undefined,
-                caption: document.getElementById('input-mensagem').value.trim() || undefined
+                caption: caption || undefined
             });
-        });
+        }
 
         window.alternarGravacaoAudio = alternarGravacaoAudio;
 
