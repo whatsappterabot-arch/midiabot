@@ -174,6 +174,11 @@
         </div>
     </div>
 
+    <!-- MODAL: LIGHTBOX (imagem em tela cheia) -->
+    <div id="modal-lightbox" onclick="fecharLightbox()" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4 cursor-zoom-out">
+        <img id="lightbox-img" src="" class="max-w-full max-h-full rounded-lg">
+    </div>
+
     <script type="module">
         import { CONFIG, showToast } from "./config.js";
 
@@ -619,6 +624,18 @@
         }
         window.__salvarContato = salvarContato;
 
+        window.abrirLightbox = abrirLightbox;
+        window.fecharLightbox = fecharLightbox;
+
+        function abrirLightbox(src) {
+            document.getElementById('lightbox-img').src = src;
+            document.getElementById('modal-lightbox').classList.remove('hidden');
+        }
+
+        function fecharLightbox() {
+            document.getElementById('modal-lightbox').classList.add('hidden');
+        }
+
         async function verMidia(id) {
             const bolha = document.querySelector(`[data-msg-id="${id}"]`);
             if (!bolha) return;
@@ -641,11 +658,14 @@
                 }
                 const src = `data:${mimeType};base64,${base64}`;
                 if (tipo === 'imagem') {
-                    conteudo.innerHTML = `<img src="${src}" class="max-w-full rounded-lg">${legenda}`;
+                    conteudo.innerHTML = `<img class="max-w-[220px] rounded-lg cursor-pointer">${legenda}`;
+                    const img = conteudo.querySelector('img');
+                    img.addEventListener('click', () => abrirLightbox(src));
+                    img.src = src;
                 } else if (tipo === 'audio') {
                     conteudo.innerHTML = `<audio controls src="${src}" class="max-w-full"></audio>${legenda}${transcricao}`;
                 } else if (tipo === 'video') {
-                    conteudo.innerHTML = `<video controls src="${src}" class="max-w-full rounded-lg"></video>${legenda}`;
+                    conteudo.innerHTML = `<video controls src="${src}" class="max-w-[220px] rounded-lg"></video>${legenda}`;
                 } else if (tipo === 'documento') {
                     conteudo.innerHTML = `<a href="${src}" download="${nomeArquivo}" class="text-blue-600 underline flex items-center gap-1"><i class="fas fa-download"></i> Baixar ${escapeHtml(nomeArquivo)}</a>${legenda}`;
                 } else if (tipo === 'sticker') {
