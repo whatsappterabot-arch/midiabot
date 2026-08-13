@@ -662,12 +662,76 @@ Notificação em tempo real: um **Merge** junta a saída desse Insert novo com a
 - **Endpoint de grupo da Evolution exige apikey global, não a de instância** — diferente do `getBase64FromMediaMessage`, que aceita a de instância.
 - **`$workflow.name` do n8n não é `workflow_name` do negócio** — são dois conceitos com o mesmo nome; o primeiro é fixo (nome do workflow no n8n), o segundo varia por sala/cliente. Confundir os dois gera um valor sempre igual, nunca o esperado.
 
+## Envio de mídia do lado do vendedor — construído (2026-08-13)
+
+Escopo fechado com o usuário: **envio de arquivo** (imagem/vídeo/documento), **gravação de áudio** direto no navegador, e **resposta citando mensagem** (essa última adiada — não existia referência pronta do projeto embrionário, fica pra desenhar do zero depois). Reaproveitado o node nativo `n8n-nodes-evolution-api.evolutionApi` (não HTTP Request cru) — o usuário já tinha usado esses nodes num projeto embrionário anterior (baseado em Telegram Trigger), serviu de referência de formato, mas toda a resolução de instância/gravação foi refeita pro fluxo atual.
+
+**Resolução de instância pro envio**: diferente do fluxo de recebimento (que usa `sender` da própria instância), o envio busca a instância pela **mensagem mais recente** daquele `remotejid`+`chat_id`:
+```sql
+SELECT instance, sender
+FROM midiabot_historico_mensagens
+WHERE remote_jid = $1 AND chat_id = $2
+ORDER BY datetime DESC
+LIMIT 1
+```
+
+### Switch "tipo de envio"
+
+Logo depois da resolução de instância, decide pra qual node de envio ir. **Decisão importante, corrigida em cima de uma proposta errada minha**: as 5 regras (texto incluído) são todas **explícitas**, comparando `{{ $('Webhook').item.json.body.dados.messagetype }}` com um valor exato — **nenhuma regra por "fallback"/ausência de valor**. Pra isso, o `chat.html` foi ajustado pra mandar `messagetype: 'conversation'` explicitamente mesmo no envio de texto simples (antes não mandava nada nesse campo).
+- `conversation` → Enviar texto (já existia)
+- `imageMessage` → Enviar imagem
+- `videoMessage` → Enviar video
+- `documentMessage` → Enviar documento
+- `audioMessage` → Enviar audio
+
+Cada saída tem seu **próprio node de envio + seu próprio Insert dedicado** (não um Insert genérico compartilhado) — mesmo padrão que o "Enviar texto" já usava. Todos terminam num **Respond to Webhook** ("All Incoming Items").
+
+### Padrão dos nodes de envio (nativo Evolution API)
+
+```
+instanceName: {{ $('Execute a SQL query10').item.json.instance }}
+remoteJid: {{ $('Webhook').item.json.body.dados.remotejid }}
+media: {{ $('Webhook').item.json.body.dados.base64 }}
+caption: {{ $('Webhook').item.json.body.dados.caption || '' }}   (imagem/vídeo/documento — áudio não tem caption, WhatsApp não permite)
+fileName: {{ $('Webhook').item.json.body.dados.midia }}          (só documento)
+```
+
+### Padrão dos Inserts (um por tipo, `from_me = true`)
+
+Exemplo (imagem — vídeo e documento seguem o mesmo padrão, trocando `messagetype` fixo e os campos relevantes; áudio não tem `caption`):
+```sql
+INSERT INTO midiabot_historico_mensagens
+    (from_me, instance, remote_jid, sender, caption, messagetype, mime_type, base64, workflow_name, id_cliente, chat_id, datetime, wa_message_id)
+SELECT true, $5, $2, $6, $3, 'imageMessage', $8, $9, w.workflow_name, s.id_cliente, $4, now(), $7
+FROM midiabot_midiachat_sessao s
+JOIN midiabot_chatid_workflowname w ON w.id_cliente = s.id_cliente AND w.chat_id = $4
+WHERE s.token = $1 AND s.expira_em > now()
+RETURNING remote_jid, chat_id
+```
+
+**Bug real e importante — formato de resposta do node nativo muda por operação**: pro `wa_message_id`, o "Enviar texto"/"Whats IA" (envio de texto) devolvem a resposta embrulhada em `{ success, data: { key: { id } } }` — mas o **"Enviar documento"** (e provavelmente os outros envios de mídia) devolve **sem** esse embrulho, direto `{ key: { id }, pushName, status, message }`. Usar `.data.key.id` num node de mídia gera erro (`.data` é `undefined`, quebra a expressão inteira — sintoma: **todos** os parâmetros do array aparecem em vermelho no editor, não só um). Certo pra mídia: `$('Enviar documento').item.json.key.id` (sem `.data`). **Sempre conferir o painel de Output do node real antes de assumir o formato**, não copiar cego de outro node só porque é do mesmo tipo.
+
+**Outro cuidado**: colar o array de "Query Parameters" com quebra de linha deu problema visual (tudo vermelho) num teste — colar em **uma linha só** resolveu a exibição, mesmo com o conteúdo sendo idêntico.
+
+### Frontend (`chat.html`)
+
+- Botão 📎 (anexar arquivo) e 🎤 (gravar áudio) na barra de envio, ao lado do campo de texto.
+- Escolher arquivo abre um **modal de prévia** (`modal-midia`) com miniatura (ou ícone+nome pra não-imagem) e campo de legenda — só confirmando o envio dali é que manda de verdade. Decisão: sem esse modal, não haveria momento nenhum pra digitar legenda (o envio antigo mandava na hora, sem pausa).
+- Gravação de áudio usa `MediaRecorder` do navegador (`getUserMedia({audio:true})`), ícone de microfone vira "parar" durante a gravação. **Formato gravado pelo navegador (`webm`/`ogg`, depende do Chrome) ainda não foi confirmado como 100% compatível com o que a Evolution API/WhatsApp espera** — testar com atenção, pode precisar de conversão se o áudio gravado não tocar certo do lado do cliente.
+- Exibição de imagem/vídeo recebido reduzida pra tamanho fixo (`max-w-[220px]`, antes era `max-w-full`, ocupando a largura toda da coluna). Imagem ganhou **lightbox** (clique na miniatura já carregada abre em tela cheia, `modal-lightbox`) — vídeo não precisou de lightbox próprio, o player nativo já tem botão de tela cheia.
+
+### Pendente
+
+- **Resposta citando mensagem** — desenho ainda não feito, sem referência do embrião pra essa parte.
+- **Confirmar compatibilidade do formato de áudio gravado** (webm/ogg) com o que chega do lado do cliente.
+- Miniatura de imagem **sempre visível sem precisar clicar** (trazer `base64` na própria `listar_mensagens`) — discutido, decisão consciente de deixar pra depois por causa do custo de carregar mais dado por padrão.
+
 ## Pendências / decisões em aberto
 
 - Aplicar o item 3 da correção de `instancias.html` (fallback de `Montar item final` — os outros dois itens já foram aplicados).
 - **Reconectar a instância "Marcelo-1"** com o número certo (não o de teste "TesteChat-1") — a esta altura, pode já estar resolvido, já que "Marcelo-1" foi usada em vários testes recentes sem problema aparente; vale só confirmar.
 - **Testar de ponta a ponta a rotação de vendedor em sala compartilhada** (roteamento + emoji) — falta estrutura de vários números de telefone pra simular de verdade.
-- **Envio de mídia e outros tipos de mensagem do lado do vendedor** (upload de arquivo, resposta citando mensagem) — ainda não iniciado; próximo item grande do projeto.
+- **Resposta citando mensagem do lado do vendedor** — ver seção dedicada acima, único pedaço do envio de mídia que ainda falta desenhar.
 - Revisar se **Atribuição de Chat** (`listar_remotejids`/`salvar_atribuicao`, no painel admin) também precisa do ajuste de workflow na identidade da conversa — ainda não avaliado.
 - Revisar o fluxo de **enviar mensagem** pra seguir o mesmo padrão notify-then-fetch via Pusher (hoje `enviar_mensagem` manda de verdade pra Evolution API e grava no histórico, mas não dispara evento Pusher — o vendedor só vê a própria mensagem porque o front-end refaz o fetch manualmente; outros vendedores olhando a mesma conversa não são avisados ao vivo).
 - Onde/como o quadrinho de login aparece fisicamente na tela inicial do `midiabot.com.br` (seção fixa, modal, etc.).
