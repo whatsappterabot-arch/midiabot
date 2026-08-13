@@ -211,6 +211,8 @@ Coluna `remotejid` (sem underscore) escolhida pra bater com `midiabot_remotejid_
 
 **Estado atual**: nada é gravado quando chega `secretEncryptedMessage` (o Code node retorna `[]` pra qualquer tipo não reconhecido, incluindo esse). O consultor não vê que uma mensagem foi editada nem o conteúdo novo. **Decisão do usuário**: não implementar um aviso "mensagem editada, conteúdo indisponível" como paliativo (julgado insuficiente) — o problema fica em aberto, sem solução aceitável encontrada até agora, revisitar quando/se migrar de ferramenta.
 
+**Ideia nova pra próxima vez que mexer nisso (2026-08-13, ainda não construída)**: diferente do paliativo rejeitado acima (que era só um aviso interno pro consultor) — dessa vez, quando o sistema detectar `secretEncryptedMessage` (edição), mandar automaticamente uma resposta pro **cliente final**, avisando que a edição provavelmente não foi recebida e pedindo pra reenviar a mensagem como nova. Ainda precisa ser desenhado (onde entra no fluxo, se conta como resposta de IA ou é uma mensagem fixa, se teria alguma condição de disparo).
+
 **Infra explorada e descartada nesta sessão** (pra não repetir a mesma investigação):
 - **Cloudfy** (`cloudfy.space`, onde já roda n8n/Evolution/Postgres) só aceita deploy de app Node.js a partir de código-fonte (build automático esperando pasta `dist`) — não aceita rodar uma imagem Docker pronta nem um servidor Node persistente arbitrário. Testado tentando publicar tanto o WAHA (Docker) quanto um teste isolado de Puppeteer (servidor Node simples) — os dois falharam por esse motivo, não por erro de configuração.
 - **Koyeb** (free tier) não "dorme" (diferente do Render gratuito) e aceita Docker direto, mas só 512MB RAM — apertado até pro motor leve do WAHA.
