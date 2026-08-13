@@ -465,10 +465,206 @@ Decisão: dar ao Claude acesso **só leitura** ao Postgres (nunca escrita), via 
 
 **Status: pausado por decisão do usuário**, sem resolver se existe um caminho pra alcançar o banco `postgres` (onde os dados reais estão) de fora da rede da Cloudfy. Enquanto isso, consultas de verificação continuam sendo feitas do jeito de sempre: o usuário roda a query manualmente (via DBeaver, conectado no banco certo) e cola o resultado aqui.
 
+## Resposta automática da IA — construído e testado de ponta a ponta (2026-08-12)
+
+Fecha a peça que faltava desde o início da reconstrução do fluxo: a partir daqui, o workflow **"Midiabot Chat"** (esse é o nome real do workflow no n8n — "Publi ScentyStore v1"/"Publi ScentyB2B v1" são nomes de negócio guardados em `workflow_name`, não o nome do workflow do n8n; **mesmo workflow atende tanto as ações do `chat.html` quanto o recebimento de mensagem do WhatsApp**, não são dois workflows separados) não só recebe e loga mensagem — quando aplicável, chama a IA, manda a resposta de verdade pro cliente e grava tudo formatado no chat interno.
+
+### Mensagens de grupo (bloqueio permanente de IA)
+
+IF **"é grupo?"** logo depois de "define sala e vendedor", checando `{{ $('Webhook2').item.json.body.data.key.remoteJid }}` **ends with** `@g.us` (confirmado com payload real: `5511981880079-1591013909@g.us` — esse formato é `{numero_do_criador_do_grupo}-{timestamp_criacao}@g.us`, **fixo pro grupo a vida inteira**, não muda por quem manda a mensagem — importante, porque descarta a ideia de que bloquear por esse remotejid geraria "uma linha por participante do grupo": todo mundo que manda mensagem nesse grupo gera o mesmo remotejid).
+
+Saída **true**: `HTTP Request "buscar info do grupo"` → `GET {server_url}/group/findGroupInfos/{instance}?groupJid={remoteJid}` — **precisa da apikey global** (a mesma usada pra entrar no painel Manager da Evolution, não a apikey por instância que vem no payload do webhook — testado e confirmado, apikey de instância dá 401 nesse endpoint específico). Resposta vem como **array**, campo `subject` tem o nome do grupo (confirmado contra payload real). Node com **On Error: Continue** (mesmo tipo de instabilidade documentada em issues do GitHub da Evolution API pra esse endpoint).
+
+Depois, node Postgres **"gravar bloqueio e nome do grupo"**:
+```sql
+WITH bloqueio AS (
+    INSERT INTO midiabot_remotejid_proibidos (id_cliente, remotejid)
+    VALUES ($1, $2)
+    ON CONFLICT (id_cliente, remotejid) DO NOTHING
+)
+INSERT INTO midiabot_midiachat_contato (id_cliente, remotejid, apelido)
+VALUES ($1, $2, $3)
+ON CONFLICT (id_cliente, remotejid) DO NOTHING;
+```
+`$3` = `(Array.isArray($('buscar info do grupo').item.json) ? $('buscar info do grupo').item.json[0]?.subject : $('buscar info do grupo').item.json?.subject) || '(Grupo)'`. `ON CONFLICT DO NOTHING` nos dois garante: só grava na primeira mensagem, nunca sobrescreve nome que um consultor já tenha editado manualmente depois.
+
+**Generalizado pra qualquer contato novo** (não só grupo): na saída **false** do mesmo IF, node Postgres separado grava o `pushName` como apelido inicial de qualquer conversa nova (mesmo `ON CONFLICT DO NOTHING`, sem precisar de checagem "é a primeira vez" — o conflito já resolve isso sozinho):
+```sql
+INSERT INTO midiabot_midiachat_contato (id_cliente, remotejid, apelido)
+VALUES ($1, $2, $3)
+ON CONFLICT (id_cliente, remotejid) DO NOTHING;
+```
+`$3` = `$('Webhook2').item.json.body.data.pushName`.
+
+As duas saídas se juntam de novo com um **Merge** antes de seguir o fluxo normal.
+
+### Horário de expediente ("Verifica Expediente")
+
+Tabelas reais: `midiabot_z_horarios_trabalho` (`id_cliente`, `workflow_name`, `dia_semana` smallint, `hora_inicio`/`hora_fim` time) e `midiabot_z_excecoes_horarios` (mesmas + `data`, `descricao`, `id`). Convenção de `dia_semana` confirmada como **igual à do Postgres** (`EXTRACT(DOW FROM ...)`: `0`=domingo, `6`=sábado — testado rodando `EXTRACT(DOW FROM '2026-08-11'::date)` numa terça-feira real, deu `2`, confirmando). Semântica de exceção confirmada com o usuário: se `hora_inicio`/`hora_fim` vierem preenchidos, é um **intervalo bloqueado dentro do dia** (tipo almoço) — fora desse intervalo, vale o horário normal da semana; se vierem `NULL`, o dia inteiro está fechado, independente do horário normal.
+
+```sql
+WITH agora AS (
+    SELECT (now() AT TIME ZONE 'America/Sao_Paulo') AS agora_local
+),
+excecao_hoje AS (
+    SELECT e.hora_inicio, e.hora_fim
+    FROM midiabot_z_excecoes_horarios e, agora a
+    WHERE e.id_cliente = $1 AND e.workflow_name = $2
+      AND e.data = a.agora_local::date
+),
+bloqueado_por_excecao AS (
+    SELECT 1
+    FROM excecao_hoje ex, agora a
+    WHERE (ex.hora_inicio IS NULL AND ex.hora_fim IS NULL)
+       OR (ex.hora_inicio IS NOT NULL AND ex.hora_fim IS NOT NULL
+           AND a.agora_local::time BETWEEN ex.hora_inicio AND ex.hora_fim)
+    LIMIT 1
+),
+dentro_horario_normal AS (
+    SELECT 1
+    FROM midiabot_z_horarios_trabalho h, agora a
+    WHERE h.id_cliente = $1 AND h.workflow_name = $2
+      AND h.dia_semana = EXTRACT(DOW FROM a.agora_local)
+      AND a.agora_local::time BETWEEN h.hora_inicio AND h.hora_fim
+    LIMIT 1
+)
+SELECT
+    CASE
+        WHEN EXISTS (SELECT 1 FROM bloqueado_por_excecao) THEN 0
+        WHEN EXISTS (SELECT 1 FROM dentro_horario_normal) THEN 1
+        ELSE 0
+    END AS expediente;
+```
+Produz `expediente` = `1` (dentro do horário) ou `0` (fora), usado depois direto como filtro de `trabalho_on` na escolha de prompt.
+
+**Bug real corrigido nesta sessão**: `horarios.html` só mostrava linhas de dias que já existiam no banco — não tinha jeito de criar a primeira linha de um dia novo (diferente da seção de Exceções, que já tinha formulário próprio). Corrigido pra sempre renderizar as 7 linhas fixas (domingo a sábado), preenchidas ou em branco; `salvar_horario` já era `ON CONFLICT`, não precisou mudar no banco.
+
+### Bloqueios antes de chamar a IA
+
+Três checagens em paralelo (só buscam dado, não decidem nada sozinhas), seguidas de **um único IF** combinando tudo — decisão de design: preferível a uma cadeia de vários IFs sequenciais ou a um Code escondendo a lógica toda em JS.
+
+- **`Verifica proibicao de IA`**: `SELECT CASE WHEN EXISTS (SELECT 1 FROM midiabot_remotejid_proibidos WHERE id_cliente = $1 AND remotejid = $2) THEN 1 ELSE 0 END AS proibido_ia;`
+- **`verifica pausa da IA`** (Redis, Get): key `midiabot:pausa_ia:{id_cliente}:{workflow_name}:{remotejid}`, Property/Name `pausado`.
+- **`checar se remetente é bot proprio`**: `SELECT EXISTS (SELECT 1 FROM midiabot_a_instancias WHERE sender = $1) AS remetente_e_bot_midiabot;` — **decisão importante**: checa contra **todas** as instâncias do sistema, não só do `id_cliente` atual, pra proteger contra loop de IA mesmo entre clientes diferentes do MidiaBot (não só dentro do mesmo cliente) — o único caso que fica sem proteção é um bot de fora do MidiaBot, que não tem como identificar.
+
+**`pode responder com IA`** (IF, condição tipo **Boolean**, não o formato usual de campo+operador — precisa de só uma expressão que já resulta em verdadeiro/falso):
+```
+={{ 
+  !$('Verifica proibicao de IA').item.json.proibido_ia 
+  && !$('verifica pausa da IA').item.json.pausado 
+  && !$('checar se remetente é bot proprio').item.json.remetente_e_bot_midiabot
+  && ['conversation', 'extendedTextMessage', 'audioMessage'].includes($('verifica messagetype').item.json.messagetype)
+  && !!($('verifica messagetype').item.json.messagetype === 'audioMessage' 
+        ? $('Edit Fields').item.json.mensagem 
+        : $('verifica messagetype').item.json.mensagem)
+}}
+```
+Decisão: restringir a `conversation`/`extendedTextMessage`/`audioMessage` (não deixar `contactMessage`/`locationMessage` passarem, mesmo tendo `mensagem` preenchida) — só texto e voz transcrita contam como "mensagem de verdade" pra IA responder.
+
+### Botão "Suspender resposta da IA por 12 horas"
+
+Na barra branca do cabeçalho da conversa aberta (`chat.html`), ao lado do número — não no menu "⋮" como desenhado antes, decisão revisada porque a pausa precisa ser óbvia e por conversa específica. Ação nova `pausar_ia` (workflow "Midiabot Chat", mesmo Switch `Ação` das outras ações do chat).
+
+**Detalhe de payload importante**: esse workflow autentica por **token** (`{acao, token, dados}`), **sem** `id_cliente` solto no corpo — cada ação resolve `id_cliente` sozinha via `JOIN`/lookup contra `midiabot_midiachat_sessao`, não existe um node central de "validar sessão". Pra essa ação, precisou de um node novo **"resolver id_cliente da sessao"**:
+```sql
+SELECT id_cliente FROM midiabot_midiachat_sessao
+WHERE token = $1 AND expira_em > now();
+```
+
+`workflow_name` também não vem pronto no payload — o `chat.html` já tem essa informação carregada (do `listar_salas`), então foi ajustado pra mandar `workflow_name` direto no `dados`, em vez de buscar de novo no backend (`pausarIA()` agora faz `salas.find(...)` pra achar o workflow da sala selecionada).
+
+Node Redis (**Set**): key `={{ 'midiabot:pausa_ia:' + $('Webhook').item.json.body.id_cliente + ':' + $('Webhook').item.json.body.dados.workflow_name + ':' + $('Webhook').item.json.body.dados.remotejid }}`, TTL 43200 (12h).
+
+### Escolha de prompt e nome do consultor
+
+**`Busca Prompt`** (tabela real: `midiabot_z_prompts_ia`, colunas `trabalho_on` smallint 0/1, `prompt` text):
+```sql
+SELECT prompt FROM midiabot_z_prompts_ia
+WHERE id_cliente = $1 AND chat_id = $2 AND trabalho_on = $3;
+```
+`$3` = `expediente` direto (já é `1`/`0`, bate exatamente com `trabalho_on` — não precisa de conversão).
+
+**`Select dados vendedor`** — cobre os dois modelos de posse já construídos (sala dedicada e sala compartilhada) numa query só:
+```sql
+SELECT COALESCE(lc_compartilhada.nome_vendedor, lc_dedicada.nome_vendedor) AS nome_vendedor
+FROM (SELECT 1) AS base
+LEFT JOIN midiabot_remotejid_consultor_salacompartilhada rcs
+    ON rcs.id_cliente = $1 AND rcs.remotejid = $2 AND rcs.chat_id = $3
+LEFT JOIN midiabot_login_chat lc_compartilhada
+    ON lc_compartilhada.id_cliente = rcs.id_cliente AND lc_compartilhada.id_vendedor = rcs.id_vendedor
+LEFT JOIN midiabot_vendedores v
+    ON v.id_cliente = $1 AND v.sender = $4
+LEFT JOIN midiabot_login_chat lc_dedicada
+    ON lc_dedicada.id_cliente = v.id_cliente AND lc_dedicada.id_vendedor = v.id_vendedor;
+```
+`$4` = sender da própria instância (`$('Webhook2').item.json.body.sender`). **Testado e confirmado funcionando** — resposta real da IA incluiu "A consultora que atenderá é Suellen" corretamente.
+
+### AI Agent, memória e envio
+
+Node **"AI Agent"** (`@n8n/n8n-nodes-langchain.agent`, modelo `gpt-5-mini` via OpenAI) — já existia como "embrião" de uma sessão anterior, precisou de reconexão completa: texto de entrada usando `$('Webhook2')` (não `$('Webhook')`) e a mensagem resolvida (considerando transcrição de áudio); `systemMessage` lendo `$('Busca Prompt').item.json.prompt` e `$('Select dados vendedor').item.json.nome_vendedor`. Campo de saída confirmado: **`output`** (minúsculo).
+
+**Memória migrada do Supabase pro Postgres da Cloudfy**: o node de memória (`memoryPostgresChat`) não é exclusivo do Supabase — é só um node de memória Postgres genérico, apontado antes pra lá por conveniência do protótipo inicial. Tabela do Supabase (`n8n_chat_histories`: `id`, `session_id`, `message` jsonb, **sem** `id_cliente` — isolamento dependia 100% do formato do texto em `session_id`, sem rede de segurança do schema) tinha 2.082 registros acumulados, **apagados** (autorizado pelo usuário, workflow ainda em construção, não produção). Tabela nova, no banco de sempre:
+```sql
+CREATE TABLE midiabot_midiachat_memoriaIA (
+    id SERIAL PRIMARY KEY,
+    session_id VARCHAR NOT NULL,
+    message JSONB NOT NULL
+);
+CREATE INDEX idx_midiabot_midiachat_memoriaia_session_id
+    ON midiabot_midiachat_memoriaIA (session_id);
+```
+Credencial trocada pra `Postgres Terabot`. `contextWindowLength` (quantas mensagens a IA usa de contexto) e a "janela de retenção" da tabela alinhadas em **12** (era 8 no embrião). Chave de sessão (`sessionKey`) — **decisão importante**: `{id_cliente}-{remoteJid}-{instance}`, **sem** `chat_id` de propósito (memória é sobre a conversa com o cliente, não sobre a sala interna — se um gestor reatribuir a sala depois, a IA não deve "esquecer" tudo).
+
+**`Limpeza`** (Postgres, roda depois do envio real, não bloqueia a resposta ao cliente): mantém só as 12 mensagens mais recentes por `session_id`, apaga o resto — decisão consciente de não deixar a tabela crescer pra sempre, já que o histórico completo já vive em `midiabot_historico_mensagens`.
+```sql
+DELETE FROM midiabot_midiachat_memoriaIA
+WHERE session_id = $1
+  AND id NOT IN (
+    SELECT id FROM midiabot_midiachat_memoriaIA
+    WHERE session_id = $1
+    ORDER BY id DESC
+    LIMIT 12
+  );
+```
+
+**Ordem real do ramo de resposta**: `AI Agent` → `Whats IA` (envio real pro WhatsApp, só com a resposta pura da IA, sem formatação) → `Limpeza` → `Edita msg com resposta` (monta o texto formatado pro chat interno) → `Insere msg e resposta IA`.
+
+**`Edita msg com resposta`** monta, num único bloco, o que vai aparecer no chat interno (decisão do usuário: registro combinado de pergunta+resposta, não duas linhas separadas):
+```
+📤 Mensagem enviada por {pushName}
+{mensagem original (considerando transcrição, se áudio)}
+
+🤖 Resposta do Agente de IA
+{resposta da IA}
+```
+Se a mensagem original foi áudio, esse mesmo registro carrega `messagetype='audioMessage'`, `mime_type` e `base64` originais — o `chat.html` já reaproveita o mecanismo existente (ícone de áudio + texto embaixo) sem precisar de nada novo na tela, só corrigido um bug (ver abaixo).
+
+**`Insere msg e resposta IA`**:
+```sql
+INSERT INTO midiabot_historico_mensagens
+    (from_me, instance, remote_jid, sender, pushname, mensagem, caption, messagetype, mime_type, midia, base64, workflow_name, id_cliente, chat_id, wa_message_id, resposta_a)
+VALUES
+    (false, $1, $2, $3, $4, $5, NULL, $6, $7, NULL, $8, $9, $10, $11, $12, NULL)
+RETURNING id, chat_id, remote_jid, id_cliente;
+```
+**Decisão do usuário**: `from_me = false` (não `true`) — a mensagem é tratada como parte do lado do cliente final, a IA só "interveio", não é um envio nosso do ponto de vista do registro. `wa_message_id` vem de `$('Whats IA').item.json.data.key.id` (o `id` real devolvido pela Evolution API no envio).
+
+Notificação em tempo real: um **Merge** junta a saída desse Insert novo com a do Insert antigo (mensagem recebida do cliente), alimentando o mesmo Code/HTTP Request de assinatura do Pusher que já existia — sem duplicar a lógica de notificação.
+
+### Bugs encontrados e corrigidos nesta rodada (vale a pena guardar)
+
+- **`==` duplicado em vez de `=`** — apareceu **duas vezes** em campos de expressão diferentes (Key do Redis Set, e depois no campo `messagetype` do "Edita msg com resposta", gravando literalmente `"=audioMessage"` em vez de `"audioMessage"`). Sintoma: o app "roda" sem erro, só o valor sai errado (com um `=` sobrando no início). Sempre conferir que só tem **um** `=` antes do `{{`.
+- **`chat_id` vindo como texto (com aspas) em vez de número**: `midiabot_sender_chatid.chat_id` era `bigint`, `midiabot_remotejid_chatid.chat_id` era `integer` — o `COALESCE` dos dois promovia o resultado pra `bigint`, que a biblioteca de conexão do n8n devolve como string (proteção contra perda de precisão). Corrigido alinhando o tipo (`ALTER TABLE midiabot_sender_chatid ALTER COLUMN chat_id TYPE integer`).
+- **Campo de node esquecido**: perda de tempo relevante caçando por que `base64` vinha vazio no "Edita msg com resposta" — a causa real era mais simples, o campo **nem existia** no node ainda. Sempre confirmar que o campo foi criado antes de investigar a expressão.
+- **`verMidia()` apagava o texto ao abrir mídia**: função só recuperava `caption` do `dataset`, nunca `mensagem` — ao trocar o conteúdo da bolha pelo player de áudio de verdade, o texto/transcrição sumia. Corrigido guardando `data-mensagem` na bolha e reaproveitando no `verMidia()`.
+- **Endpoint de grupo da Evolution exige apikey global, não a de instância** — diferente do `getBase64FromMediaMessage`, que aceita a de instância.
+- **`$workflow.name` do n8n não é `workflow_name` do negócio** — são dois conceitos com o mesmo nome; o primeiro é fixo (nome do workflow no n8n), o segundo varia por sala/cliente. Confundir os dois gera um valor sempre igual, nunca o esperado.
+
 ## Pendências / decisões em aberto
 
-- **Terminar a reconstrução do fluxo de recebimento**: roteamento da transcrição de áudio pra IA (checar pausa via Redis, mandar resposta de verdade se não pausado, logar como linha `from_me=true` separada — áudio já chega certo no chat, falta só essa parte), ligar "On Error: Continue" em "b64 para bin"/"transcricao de audio", aplicar o item 3 da correção de `instancias.html`.
-- **Reconectar a instância "Marcelo-1"** com o número certo (não o de teste "TesteChat-1").
+- **Resposta automática da IA — construída e testada, falta testar dentro do horário de expediente** (só foi testado o caso "fora do horário" até agora; o caso "dentro" usa o mesmo mecanismo, só precisa de confirmação).
+- Ligar "On Error: Continue" em "b64 para bin"/"transcricao de audio", aplicar o item 3 da correção de `instancias.html`.
+- **Reconectar a instância "Marcelo-1"** com o número certo (não o de teste "TesteChat-1") — a esta altura, pode já estar resolvido, já que "Marcelo-1" foi usada em vários testes recentes sem problema aparente; vale só confirmar.
 - **Testar de ponta a ponta a rotação de vendedor em sala compartilhada** (roteamento + emoji) — falta estrutura de vários números de telefone pra simular de verdade.
 - Aplicar a correção `{{ $json.body.dados.sender || null }}` no parâmetro `$3` do node "Execute a SQL query8" (ação `salvar`, "Telefones dos Consultores") — corrige erro `there is no parameter $3` ao desatribuir um número.
 - **Envio de mídia e outros tipos de mensagem do lado do vendedor** (upload de arquivo, resposta citando mensagem) — ainda não iniciado; só começa depois dos itens acima.
