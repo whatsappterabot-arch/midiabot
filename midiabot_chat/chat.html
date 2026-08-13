@@ -678,7 +678,8 @@
                 await chamarApi('enviar_mensagem', {
                     remotejid: conversaSelecionada,
                     chat_id: salaSelecionada,
-                    mensagem: texto
+                    mensagem: texto,
+                    messagetype: 'conversation'
                 });
                 input.value = '';
                 await carregarMensagens(false);
