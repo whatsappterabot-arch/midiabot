@@ -595,6 +595,8 @@
             const nomeArquivo = bolha.dataset.nomeArquivo || 'arquivo';
             const caption = bolha.dataset.caption || '';
             const legenda = caption ? `<div class="mt-1 text-xs whitespace-pre-line">${formatarWhatsApp(escapeHtml(caption))}</div>` : '';
+            const mensagemAudio = bolha.dataset.mensagem || '';
+            const transcricao = (tipo === 'audio' && mensagemAudio) ? `<div class="mt-1 text-xs italic text-gray-500 whitespace-pre-line">${formatarWhatsApp(escapeHtml(mensagemAudio))}</div>` : '';
 
             try {
                 const data = await chamarApi('buscar_midia', { id });
@@ -608,7 +610,7 @@
                 if (tipo === 'imagem') {
                     conteudo.innerHTML = `<img src="${src}" class="max-w-full rounded-lg">${legenda}`;
                 } else if (tipo === 'audio') {
-                    conteudo.innerHTML = `<audio controls src="${src}" class="max-w-full"></audio>${legenda}`;
+                    conteudo.innerHTML = `<audio controls src="${src}" class="max-w-full"></audio>${legenda}${transcricao}`;
                 } else if (tipo === 'video') {
                     conteudo.innerHTML = `<video controls src="${src}" class="max-w-full rounded-lg"></video>${legenda}`;
                 } else if (tipo === 'documento') {
@@ -648,7 +650,7 @@
                     ` : '';
                     return `
                     <div class="flex ${m.from_me ? 'justify-end' : 'justify-start'}">
-                        <div data-msg-id="${m.id}" data-messagetype="${escapeHtml(m.messagetype || '')}" data-mime-type="${escapeHtml(m.mime_type || '')}" data-nome-arquivo="${escapeHtml(m.midia || '')}" data-caption="${escapeHtml(m.caption || '')}" class="max-w-[90%] rounded-2xl px-4 py-2 text-sm text-black ${m.from_me ? 'bg-[#dcf8c6]' : 'bg-white'}">
+                        <div data-msg-id="${m.id}" data-messagetype="${escapeHtml(m.messagetype || '')}" data-mime-type="${escapeHtml(m.mime_type || '')}" data-nome-arquivo="${escapeHtml(m.midia || '')}" data-caption="${escapeHtml(m.caption || '')}" data-mensagem="${escapeHtml(m.mensagem || '')}" class="max-w-[90%] rounded-2xl px-4 py-2 text-sm text-black ${m.from_me ? 'bg-[#dcf8c6]' : 'bg-white'}">
                             ${citacaoHtml}
                             <div class="conteudo-mensagem">${renderizarConteudoMensagem(m)}</div>
                             <div class="text-[10px] text-gray-400 text-right mt-1">${formatarDataHora(m.datetime)}</div>
