@@ -651,6 +651,8 @@ RETURNING id, chat_id, remote_jid, id_cliente;
 
 Notificação em tempo real: um **Merge** junta a saída desse Insert novo com a do Insert antigo (mensagem recebida do cliente), alimentando o mesmo Code/HTTP Request de assinatura do Pusher que já existia — sem duplicar a lógica de notificação.
 
+**Status: testado de ponta a ponta nos dois cenários de horário** (dentro e fora do expediente, confirmando que os dois prompts de `midiabot_z_prompts_ia` são escolhidos e usados corretamente).
+
 ### Bugs encontrados e corrigidos nesta rodada (vale a pena guardar)
 
 - **`==` duplicado em vez de `=`** — apareceu **duas vezes** em campos de expressão diferentes (Key do Redis Set, e depois no campo `messagetype` do "Edita msg com resposta", gravando literalmente `"=audioMessage"` em vez de `"audioMessage"`). Sintoma: o app "roda" sem erro, só o valor sai errado (com um `=` sobrando no início). Sempre conferir que só tem **um** `=` antes do `{{`.
@@ -662,7 +664,6 @@ Notificação em tempo real: um **Merge** junta a saída desse Insert novo com a
 
 ## Pendências / decisões em aberto
 
-- **Resposta automática da IA — construída e testada, falta testar dentro do horário de expediente** (só foi testado o caso "fora do horário" até agora; o caso "dentro" usa o mesmo mecanismo, só precisa de confirmação).
 - Ligar "On Error: Continue" em "b64 para bin"/"transcricao de audio", aplicar o item 3 da correção de `instancias.html`.
 - **Reconectar a instância "Marcelo-1"** com o número certo (não o de teste "TesteChat-1") — a esta altura, pode já estar resolvido, já que "Marcelo-1" foi usada em vários testes recentes sem problema aparente; vale só confirmar.
 - **Testar de ponta a ponta a rotação de vendedor em sala compartilhada** (roteamento + emoji) — falta estrutura de vários números de telefone pra simular de verdade.
