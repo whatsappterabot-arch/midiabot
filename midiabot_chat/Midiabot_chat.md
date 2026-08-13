@@ -664,11 +664,10 @@ Notificação em tempo real: um **Merge** junta a saída desse Insert novo com a
 
 ## Pendências / decisões em aberto
 
-- Ligar "On Error: Continue" em "b64 para bin"/"transcricao de audio", aplicar o item 3 da correção de `instancias.html`.
+- Aplicar o item 3 da correção de `instancias.html` (fallback de `Montar item final` — os outros dois itens já foram aplicados).
 - **Reconectar a instância "Marcelo-1"** com o número certo (não o de teste "TesteChat-1") — a esta altura, pode já estar resolvido, já que "Marcelo-1" foi usada em vários testes recentes sem problema aparente; vale só confirmar.
 - **Testar de ponta a ponta a rotação de vendedor em sala compartilhada** (roteamento + emoji) — falta estrutura de vários números de telefone pra simular de verdade.
-- Aplicar a correção `{{ $json.body.dados.sender || null }}` no parâmetro `$3` do node "Execute a SQL query8" (ação `salvar`, "Telefones dos Consultores") — corrige erro `there is no parameter $3` ao desatribuir um número.
-- **Envio de mídia e outros tipos de mensagem do lado do vendedor** (upload de arquivo, resposta citando mensagem) — ainda não iniciado; só começa depois dos itens acima.
+- **Envio de mídia e outros tipos de mensagem do lado do vendedor** (upload de arquivo, resposta citando mensagem) — ainda não iniciado; próximo item grande do projeto.
 - Revisar se **Atribuição de Chat** (`listar_remotejids`/`salvar_atribuicao`, no painel admin) também precisa do ajuste de workflow na identidade da conversa — ainda não avaliado.
 - Revisar o fluxo de **enviar mensagem** pra seguir o mesmo padrão notify-then-fetch via Pusher (hoje `enviar_mensagem` manda de verdade pra Evolution API e grava no histórico, mas não dispara evento Pusher — o vendedor só vê a própria mensagem porque o front-end refaz o fetch manualmente; outros vendedores olhando a mesma conversa não são avisados ao vivo).
 - Onde/como o quadrinho de login aparece fisicamente na tela inicial do `midiabot.com.br` (seção fixa, modal, etc.).
