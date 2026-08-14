@@ -70,15 +70,33 @@
                             <svg class="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
                         </div>
                         <h2 class="text-xl font-bold text-gray-800 mb-2">Bem-vindo ao Painel</h2>
-                        <p class="text-gray-500 text-sm">Selecione uma opção no menu lateral para começar.</p>
+                        <p class="text-gray-500 text-sm" id="status-texto">Selecione uma opção no menu lateral para começar.</p>
+                        <button onclick="abrirModalReset()" id="btn-resetar" class="hidden mt-6 px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white text-sm font-bold rounded-xl transition-colors">
+                            Resetar configuração
+                        </button>
                     </div>
                 </div>
             </section>
         </main>
     </div>
 
-    <script>
+    <!-- MODAL DE CONFIRMAÇÃO DE RESET -->
+    <div id="modal-reset" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <h3 class="text-lg font-bold text-gray-800 mb-3">Resetar configuração?</h3>
+            <p class="text-sm text-gray-600 mb-6">Isso vai apagar toda a configuração deste cliente — salas, vendedores e regras de distribuição de atendimento. As conversas com clientes não são apagadas. Essa ação não pode ser desfeita.</p>
+            <div class="flex justify-end gap-3">
+                <button onclick="fecharModalReset()" class="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-100 rounded-xl transition-colors">Cancelar</button>
+                <button onclick="confirmarReset()" id="btn-confirmar-reset" class="px-4 py-2 text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors">Sim, resetar tudo</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { CONFIG, showToast } from "./config.js";
+
         let plataforma = 'whatsapp';
+        let user = null;
 
         // Gera as iniciais do avatar a partir do nome (ou e-mail) do usuário — não usado no header atual, mantido caso volte a ser exibido
         function gerarIniciais(texto) {
@@ -99,18 +117,87 @@
             }
 
             try {
-                const user = JSON.parse(userData);
-                const dados = Array.isArray(user) ? user[0] : user;
+                const rawUser = JSON.parse(userData);
+                user = Array.isArray(rawUser) ? rawUser[0] : rawUser;
 
-                document.getElementById('user-name').innerText = dados.nome || dados.email || 'Usuário';
-                document.getElementById('user-id').innerText = `ID: ${dados.id_cliente ?? dados.id}`;
+                document.getElementById('user-name').innerText = user.nome || user.email || 'Usuário';
+                document.getElementById('user-id').innerText = `ID: ${user.id_cliente ?? user.id}`;
             } catch (e) {
                 console.error("Erro ao processar JSON do usuário:", e);
                 window.location.href = 'index.html';
             }
 
+            window.setPlataforma = setPlataforma;
+            window.logout = logout;
+            window.abrirModalReset = abrirModalReset;
+            window.fecharModalReset = fecharModalReset;
+            window.confirmarReset = confirmarReset;
+
             renderMenu();
+            verificarStatus();
         });
+
+        // Função Central de Comunicação com n8n
+        async function chamarApi(acao, dadosExtra) {
+            const payload = {
+                origem: 'dashboard',
+                plataforma: plataforma,
+                acao: acao,
+                id_cliente: user.id_cliente ?? user.id,
+                dados: dadosExtra
+            };
+
+            const res = await fetch(CONFIG.API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            return res.json();
+        }
+
+        // Verifica se o cliente tem sala ativa, pra decidir se mostra o botão de reset
+        async function verificarStatus() {
+            try {
+                const resultado = await chamarApi('verificar_status_cliente', {});
+                const dados = Array.isArray(resultado) ? resultado[0] : resultado;
+                const temSalaAtiva = Number(dados?.salas_ativas) > 0;
+
+                document.getElementById('btn-resetar').classList.toggle('hidden', !temSalaAtiva);
+                document.getElementById('status-texto').innerText = temSalaAtiva
+                    ? 'Selecione uma opção no menu lateral para começar.'
+                    : 'Nenhuma configuração ativa ainda — use o menu lateral pra configurar manualmente.';
+            } catch (e) {
+                console.error('Erro ao verificar status do cliente:', e);
+            }
+        }
+
+        function abrirModalReset() {
+            document.getElementById('modal-reset').classList.remove('hidden');
+        }
+
+        function fecharModalReset() {
+            document.getElementById('modal-reset').classList.add('hidden');
+        }
+
+        async function confirmarReset() {
+            const botao = document.getElementById('btn-confirmar-reset');
+            botao.disabled = true;
+            botao.innerText = 'Resetando...';
+
+            try {
+                await chamarApi('resetar_cliente', {});
+                showToast('Configuração resetada com sucesso.', 'success');
+                fecharModalReset();
+                verificarStatus();
+            } catch (e) {
+                console.error('Erro ao resetar cliente:', e);
+                showToast('Não foi possível resetar. Tenta de novo.', 'error');
+            } finally {
+                botao.disabled = false;
+                botao.innerText = 'Sim, resetar tudo';
+            }
+        }
 
         // Lógica de Menu Lateral Dinâmico
         function renderMenu() {
