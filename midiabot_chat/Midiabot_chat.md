@@ -722,9 +722,20 @@ RETURNING remote_jid, chat_id
 - Gravação de áudio usa `MediaRecorder` do navegador (`getUserMedia({audio:true})`), ícone de microfone vira "parar" durante a gravação. **Formato gravado pelo navegador (`webm`/`ogg`, depende do Chrome) ainda não foi confirmado como 100% compatível com o que a Evolution API/WhatsApp espera** — testar com atenção, pode precisar de conversão se o áudio gravado não tocar certo do lado do cliente.
 - Exibição de imagem/vídeo recebido reduzida pra tamanho fixo (`max-w-[220px]`, antes era `max-w-full`, ocupando a largura toda da coluna). Imagem ganhou **lightbox** (clique na miniatura já carregada abre em tela cheia, `modal-lightbox`) — vídeo não precisou de lightbox próprio, o player nativo já tem botão de tela cheia.
 
+### Resposta citando mensagem (lado do vendedor) — construído e testado de ponta a ponta (2026-08-14)
+
+Botão de responder (ícone de reply) em cada bolha de mensagem, chamando `window.__responderMensagem(id)`; abre uma barra de prévia (`#preview-resposta`) acima do campo de envio, com resumo da mensagem citada. `enviarMensagem()`/`enviarMidia()` mandam `resposta_a` (id interno) e `wa_message_id_citado` (id do WhatsApp) junto com o envio.
+
+No n8n (workflow "Midiabot Chat"), cada node de envio (`Enviar texto`/`Enviar imagem`/`Enviar video`/`Enviar documento`) ganhou `options_message.quoted.messageQuoted.messageId` preenchido com `wa_message_id_citado`. `Enviar audio` **não tem** essa opção — versão do node comunitário não expõe citação pra esse tipo de envio (limitação já conhecida, ver seção de mídia). Cada Insert correspondente ganhou a coluna `resposta_a` no array de parâmetros.
+
+**Bug real encontrado e corrigido**: no node `Enviar documento`, o campo de legenda estava `"=caption: {{ $('Webhook').item.json.body.dados.caption || '' }}"` — mandava literalmente a palavra `"caption: "` colada na frente da legenda de verdade, visível pro cliente no WhatsApp. Corrigido removendo o prefixo.
+
+**Suspeita levantada e descartada**: o `Insert audio` usa `$('Enviar audio').item.json.data.key.id` (com `.data`). Diferente de imagem/vídeo/documento (que não vêm embrulhados em `data`), a resposta do `Enviar audio` **vem embrulhada** (`{ success, data: { key, ... } }`), igual o envio de texto — então `.data.key.id` está correto, não é bug.
+
+**Status: testado de ponta a ponta pelo usuário, confirmado funcionando** — mensagem respondida no `chat.html` aparece como citação de verdade no WhatsApp do cliente.
+
 ### Pendente
 
-- **Resposta citando mensagem** — desenho ainda não feito, sem referência do embrião pra essa parte.
 - **Confirmar compatibilidade do formato de áudio gravado** (webm/ogg) com o que chega do lado do cliente.
 - Miniatura de imagem **sempre visível sem precisar clicar** (trazer `base64` na própria `listar_mensagens`) — discutido, decisão consciente de deixar pra depois por causa do custo de carregar mais dado por padrão.
 
@@ -733,7 +744,6 @@ RETURNING remote_jid, chat_id
 - Aplicar o item 3 da correção de `instancias.html` (fallback de `Montar item final` — os outros dois itens já foram aplicados).
 - **Reconectar a instância "Marcelo-1"** com o número certo (não o de teste "TesteChat-1") — a esta altura, pode já estar resolvido, já que "Marcelo-1" foi usada em vários testes recentes sem problema aparente; vale só confirmar.
 - **Testar de ponta a ponta a rotação de vendedor em sala compartilhada** (roteamento + emoji) — falta estrutura de vários números de telefone pra simular de verdade.
-- **Resposta citando mensagem do lado do vendedor** — ver seção dedicada acima, único pedaço do envio de mídia que ainda falta desenhar.
 - Revisar se **Atribuição de Chat** (`listar_remotejids`/`salvar_atribuicao`, no painel admin) também precisa do ajuste de workflow na identidade da conversa — ainda não avaliado.
 - Revisar o fluxo de **enviar mensagem** pra seguir o mesmo padrão notify-then-fetch via Pusher (hoje `enviar_mensagem` manda de verdade pra Evolution API e grava no histórico, mas não dispara evento Pusher — o vendedor só vê a própria mensagem porque o front-end refaz o fetch manualmente; outros vendedores olhando a mesma conversa não são avisados ao vivo).
 - Onde/como o quadrinho de login aparece fisicamente na tela inicial do `midiabot.com.br` (seção fixa, modal, etc.).
