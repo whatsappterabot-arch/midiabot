@@ -711,7 +711,14 @@ WHERE s.token = $1 AND s.expira_em > now()
 RETURNING remote_jid, chat_id
 ```
 
-**Bug real e importante — formato de resposta do node nativo muda por operação**: pro `wa_message_id`, o "Enviar texto"/"Whats IA" (envio de texto) devolvem a resposta embrulhada em `{ success, data: { key: { id } } }` — mas o **"Enviar documento"** (e provavelmente os outros envios de mídia) devolve **sem** esse embrulho, direto `{ key: { id }, pushName, status, message }`. Usar `.data.key.id` num node de mídia gera erro (`.data` é `undefined`, quebra a expressão inteira — sintoma: **todos** os parâmetros do array aparecem em vermelho no editor, não só um). Certo pra mídia: `$('Enviar documento').item.json.key.id` (sem `.data`). **Sempre conferir o painel de Output do node real antes de assumir o formato**, não copiar cego de outro node só porque é do mesmo tipo.
+**Bug real e importante — formato de resposta do node nativo muda por operação, e não dá pra generalizar por "ser mídia"**: corrigido em 2026-08-14 depois de um ciclo de depuração longo. Formatos **confirmados contra Output real** até agora:
+- `Enviar texto`/`Whats IA` (texto): embrulhado — `{ success, data: { key: { id } } }`. Usar `$(...).item.json.data.key.id`.
+- `Enviar audio`: embrulhado, igual texto. Usar `.data.key.id`.
+- `Enviar imagem`: embrulhado, igual texto — **isso contraria uma suposição anterior deste documento** (que dizia que mídia vem sem embrulho); a suposição era baseada só no `Enviar documento`, nunca tinha sido conferida pra imagem de verdade. Usar `.data.key.id`.
+- `Enviar documento`: **sem** embrulho, direto `{ key: { id }, pushName, status, message }`. Usar `.key.id` (sem `.data`).
+- `Enviar video`: **não confirmado ainda** — o `Insert video` usa `.key.id` (sem `.data`) por analogia ao documento, mas depois do caso da imagem essa analogia não é mais confiável. **Conferir o Output real do `Enviar video` antes de confiar nisso**, na próxima vez que o envio de vídeo for testado.
+
+Sintoma de usar o caminho errado: a expressão inteira do array de `Query Parameters` avalia pra `undefined` (não só o campo errado) — porque acessar uma propriedade (`.key` ou `.data`) de `undefined` lança um erro dentro da expressão, e o n8n engole esse erro mostrando o resultado inteiro como `undefined`, sem apontar qual parte falhou. **Sempre conferir o painel de Output do node de envio real antes de assumir o formato**, nunca copiar cego de outro node só porque é do mesmo "tipo" (mídia/texto).
 
 **Outro cuidado**: colar o array de "Query Parameters" com quebra de linha deu problema visual (tudo vermelho) num teste — colar em **uma linha só** resolveu a exibição, mesmo com o conteúdo sendo idêntico.
 
@@ -730,9 +737,21 @@ No n8n (workflow "Midiabot Chat"), cada node de envio (`Enviar texto`/`Enviar im
 
 **Bug real encontrado e corrigido**: no node `Enviar documento`, o campo de legenda estava `"=caption: {{ $('Webhook').item.json.body.dados.caption || '' }}"` — mandava literalmente a palavra `"caption: "` colada na frente da legenda de verdade, visível pro cliente no WhatsApp. Corrigido removendo o prefixo.
 
-**Suspeita levantada e descartada**: o `Insert audio` usa `$('Enviar audio').item.json.data.key.id` (com `.data`). Diferente de imagem/vídeo/documento (que não vêm embrulhados em `data`), a resposta do `Enviar audio` **vem embrulhada** (`{ success, data: { key, ... } }`), igual o envio de texto — então `.data.key.id` está correto, não é bug.
+**Status: testado de ponta a ponta pelo usuário, confirmado funcionando** — mensagem respondida no `chat.html` aparece como citação de verdade no WhatsApp do cliente (texto, imagem, vídeo, documento e áudio).
 
-**Status: testado de ponta a ponta pelo usuário, confirmado funcionando** — mensagem respondida no `chat.html` aparece como citação de verdade no WhatsApp do cliente.
+### Notificação Pusher no envio do vendedor — construído e testado (2026-08-14)
+
+Fechava uma lacuna real: até aqui, quando um vendedor mandava mensagem (`enviar_mensagem`/envio de mídia), só quem mandou via certo o resultado (o próprio `chat.html` refazia o fetch depois do envio) — outro vendedor olhando a mesma conversa ao mesmo tempo não era avisado ao vivo, porque só o fluxo de **recebimento** disparava evento Pusher.
+
+**Correção**: duplicados os nodes `assinatura HMAC MD5` (Code, monta a assinatura HMAC/MD5 do Pusher) e `chama a API do Pusher` (HTTP Request) — mantendo os originais intactos no fluxo de recebimento — e encadeados depois de cada `Respond to Webhook` dos 5 tipos de envio do vendedor:
+```
+Insert {tipo} → Respond to Webhook (já existia) → assinatura HMAC MD5 (cópia) → chama a API do Pusher (cópia)
+```
+Decisão: encadear **depois** do `Respond to Webhook`, não antes — esse node não interrompe a execução (só dispara a resposta HTTP naquele momento e o workflow continua rodando em background), então o vendedor que mandou a mensagem recebe a resposta imediatamente, sem esperar a chamada extra ao Pusher.
+
+Pra isso funcionar, o `RETURNING` dos 5 Inserts precisou ganhar `id` e `id_cliente` (antes só traziam `remote_jid, chat_id` — o Code de assinatura precisa dos quatro campos: `id_cliente`, `chat_id`, `remote_jid`, `id` como `message_id`).
+
+**Status: construído nos 5 tipos, testado e confirmado funcionando** — outro vendedor olhando a mesma conversa vê a mensagem aparecer sozinha, sem precisar recarregar.
 
 ### Pendente
 
@@ -745,7 +764,6 @@ No n8n (workflow "Midiabot Chat"), cada node de envio (`Enviar texto`/`Enviar im
 - **Reconectar a instância "Marcelo-1"** com o número certo (não o de teste "TesteChat-1") — a esta altura, pode já estar resolvido, já que "Marcelo-1" foi usada em vários testes recentes sem problema aparente; vale só confirmar.
 - **Testar de ponta a ponta a rotação de vendedor em sala compartilhada** (roteamento + emoji) — falta estrutura de vários números de telefone pra simular de verdade.
 - Revisar se **Atribuição de Chat** (`listar_remotejids`/`salvar_atribuicao`, no painel admin) também precisa do ajuste de workflow na identidade da conversa — ainda não avaliado.
-- Revisar o fluxo de **enviar mensagem** pra seguir o mesmo padrão notify-then-fetch via Pusher (hoje `enviar_mensagem` manda de verdade pra Evolution API e grava no histórico, mas não dispara evento Pusher — o vendedor só vê a própria mensagem porque o front-end refaz o fetch manualmente; outros vendedores olhando a mesma conversa não são avisados ao vivo).
 - Onde/como o quadrinho de login aparece fisicamente na tela inicial do `midiabot.com.br` (seção fixa, modal, etc.).
 - Aviso de erro amigável quando `nome_fantasia` já estiver em uso (a constraint `UNIQUE` já existe no banco; falta a tela tratar o erro).
 - Formato exato da chave/TTL no Redis pra "pausar IA por N horas", e quais outros botões entram no menu "⋮" além desse — esse menu vai depender de um webhook diferente do que estamos usando agora (ainda não é hora de construir).
