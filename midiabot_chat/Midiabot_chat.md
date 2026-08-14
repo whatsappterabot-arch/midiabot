@@ -737,6 +737,8 @@ No n8n (workflow "Midiabot Chat"), cada node de envio (`Enviar texto`/`Enviar im
 
 **Bug real encontrado e corrigido**: no node `Enviar documento`, o campo de legenda estava `"=caption: {{ $('Webhook').item.json.body.dados.caption || '' }}"` — mandava literalmente a palavra `"caption: "` colada na frente da legenda de verdade, visível pro cliente no WhatsApp. Corrigido removendo o prefixo.
 
+**Segundo bug real, mesmo node (2026-08-14)**: o campo `fileName` do `Enviar documento` estava sem o `=` na frente do `{{ }}` (modo Expressão nunca tinha sido ativado nesse campo específico, diferente dos outros campos do mesmo node) — o nome do arquivo chegava pro cliente final como o texto literal `{{ $('Webhook').item.json.body.dados.midia }}`, em vez do nome de verdade. Corrigido ativando o "fx" nesse campo.
+
 **Status: testado de ponta a ponta pelo usuário, confirmado funcionando** — mensagem respondida no `chat.html` aparece como citação de verdade no WhatsApp do cliente (texto, imagem, vídeo, documento e áudio).
 
 ### Notificação Pusher no envio do vendedor — construído e testado (2026-08-14)
