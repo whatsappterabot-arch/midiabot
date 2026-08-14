@@ -716,7 +716,7 @@ RETURNING remote_jid, chat_id
 - `Enviar audio`: embrulhado, igual texto. Usar `.data.key.id`.
 - `Enviar imagem`: embrulhado, igual texto — **isso contraria uma suposição anterior deste documento** (que dizia que mídia vem sem embrulho); a suposição era baseada só no `Enviar documento`, nunca tinha sido conferida pra imagem de verdade. Usar `.data.key.id`.
 - `Enviar documento`: **sem** embrulho, direto `{ key: { id }, pushName, status, message }`. Usar `.key.id` (sem `.data`).
-- `Enviar video`: **não confirmado ainda** — o `Insert video` usa `.key.id` (sem `.data`) por analogia ao documento, mas depois do caso da imagem essa analogia não é mais confiável. **Conferir o Output real do `Enviar video` antes de confiar nisso**, na próxima vez que o envio de vídeo for testado.
+- `Enviar video`: **confirmado embrulhado, igual imagem/texto/áudio** (testado em 2026-08-14) — o `Insert video` tinha o mesmo bug do `Insert imagem` (`.key.id` sem `.data`, herdado por analogia errada ao documento). Corrigido pra `.data.key.id`.
 
 Sintoma de usar o caminho errado: a expressão inteira do array de `Query Parameters` avalia pra `undefined` (não só o campo errado) — porque acessar uma propriedade (`.key` ou `.data`) de `undefined` lança um erro dentro da expressão, e o n8n engole esse erro mostrando o resultado inteiro como `undefined`, sem apontar qual parte falhou. **Sempre conferir o painel de Output do node de envio real antes de assumir o formato**, nunca copiar cego de outro node só porque é do mesmo "tipo" (mídia/texto).
 
