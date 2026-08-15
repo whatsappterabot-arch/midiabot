@@ -421,6 +421,13 @@
             return `
                 <h2 class="text-lg font-bold text-gray-800 mb-2">Cadastre os vendedores</h2>
                 <p class="text-sm text-gray-500 mb-6">Nome e senha de acesso ao MidiaBot Chat. Até 10 vendedores.</p>
+
+                <div class="mb-6 pb-6 border-b border-gray-200">
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Nome do Bot</label>
+                    <input type="text" value="${dadosQ.nomeBot || ''}" data-nome-bot placeholder="Como a IA vai se apresentar pro cliente"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+
                 ${linhas}
                 ${dadosQ.vendedores.length < 10 ? `<button data-acao="add-vendedor" class="text-sm font-bold text-[#00b34d] hover:underline mb-6"><i class="fas fa-plus mr-1"></i>Adicionar vendedor</button>` : ''}
                 <div class="flex justify-between mt-4">
@@ -557,6 +564,7 @@
             el.querySelectorAll('[data-vendedor-nome]').forEach(i => i.oninput = () => { dadosQ.vendedores[+i.dataset.vendedorNome].nome_vendedor = i.value; });
             el.querySelectorAll('[data-vendedor-senha]').forEach(i => i.oninput = () => { dadosQ.vendedores[+i.dataset.vendedorSenha].senha = i.value; });
             el.querySelectorAll('[data-vendedor-emoji]').forEach(i => i.onchange = () => { dadosQ.vendedores[+i.dataset.vendedorEmoji].emoji = i.value; renderQuestionario(); });
+            el.querySelectorAll('[data-nome-bot]').forEach(i => i.oninput = () => { dadosQ.nomeBot = i.value; });
 
             el.querySelectorAll('[data-sorteio-tipo]').forEach(i => i.onchange = () => { dadosQ.salas[+i.dataset.sorteioTipo].sorteio = i.value; renderQuestionario(); });
             el.querySelectorAll('[data-sorteio-vendedor]').forEach(i => i.onchange = () => { dadosQ.salas[+i.dataset.sorteioVendedor].vendedor_escolhido = i.value; });
@@ -573,6 +581,7 @@
             botao.innerText = 'Enviando...';
 
             const payload = {
+                nome_bot: dadosQ.nomeBot || null,
                 salas: dadosQ.salas.map((s) => ({
                     nome: s.nome,
                     compartilhada: s.compartilhada,
