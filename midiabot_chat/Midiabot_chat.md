@@ -586,9 +586,10 @@ WHERE id_cliente = $1 AND chat_id = $2 AND trabalho_on = $3;
 ```
 `$3` = `expediente` direto (já é `1`/`0`, bate exatamente com `trabalho_on` — não precisa de conversão).
 
-**`Select dados vendedor`** — cobre os dois modelos de posse já construídos (sala dedicada e sala compartilhada) numa query só:
+**`Select dados vendedor`** — cobre os dois modelos de posse já construídos (sala dedicada e sala compartilhada) numa query só, e também traz o `nome_bot` do cliente (usado no cabeçalho da resposta da IA, ver abaixo):
 ```sql
-SELECT COALESCE(lc_compartilhada.nome_vendedor, lc_dedicada.nome_vendedor) AS nome_vendedor
+SELECT COALESCE(lc_compartilhada.nome_vendedor, lc_dedicada.nome_vendedor) AS nome_vendedor,
+       cu.nome_bot
 FROM (SELECT 1) AS base
 LEFT JOIN midiabot_remotejid_consultor_salacompartilhada rcs
     ON rcs.id_cliente = $1 AND rcs.remotejid = $2 AND rcs.chat_id = $3
@@ -597,9 +598,23 @@ LEFT JOIN midiabot_login_chat lc_compartilhada
 LEFT JOIN midiabot_vendedores v
     ON v.id_cliente = $1 AND v.sender = $4
 LEFT JOIN midiabot_login_chat lc_dedicada
-    ON lc_dedicada.id_cliente = v.id_cliente AND lc_dedicada.id_vendedor = v.id_vendedor;
+    ON lc_dedicada.id_cliente = v.id_cliente AND lc_dedicada.id_vendedor = v.id_vendedor
+LEFT JOIN midiabot_cad_usuarios cu
+    ON cu.id = $1;
 ```
 `$4` = sender da própria instância (`$('Webhook2').item.json.body.sender`). **Testado e confirmado funcionando** — resposta real da IA incluiu "A consultora que atenderá é Suellen" corretamente.
+
+### Nome do Bot — cabeçalho na resposta da IA (construído e testado em 2026-08-15)
+
+Campo `nome_bot` em `midiabot_cad_usuarios` (texto livre, opcional — cliente define como a IA vai se apresentar pro cliente final). Preenchido em dois pontos:
+- **Questionário de instalação** (`dashboard.html`, tela de vendedores): campo "Nome do Bot" no topo da tela, vai no payload de `configurar_cliente` (`p_dados->>'nome_bot'`), que faz `UPDATE midiabot_cad_usuarios SET nome_bot = ... WHERE id = p_id_cliente` quando presente.
+- **Cliente já configurado** (sem passar pelo questionário de novo): edição direta no banco, `UPDATE midiabot_cad_usuarios SET nome_bot = 'Nome' WHERE id = <id_cliente>;` — **ainda não existe tela de edição pra isso**, ver próximos passos.
+
+**Node `Whats IA`** (envio real da resposta da IA pro WhatsApp do cliente) — campo de texto:
+```
+={{ ($('Select dados vendedor').item.json.nome_bot ? '🤖 ' + $('Select dados vendedor').item.json.nome_bot + ':\n' : '') + $('AI Agent').item.json.output }}
+```
+Se `nome_bot` for `NULL` (cliente não preencheu), a mensagem sai sem cabeçalho nenhum — comportamento antigo, sem quebra. **Testado e confirmado funcionando** (cliente 1, `nome_bot = 'Sofia'`, mensagem real saiu como `🤖 Sofia:` seguido da resposta).
 
 ### AI Agent, memória e envio
 
@@ -644,12 +659,32 @@ Se a mensagem original foi áudio, esse mesmo registro carrega `messagetype='aud
 **`Insere msg e resposta IA`**:
 ```sql
 INSERT INTO midiabot_historico_mensagens
-    (from_me, instance, remote_jid, sender, pushname, mensagem, caption, messagetype, mime_type, midia, base64, workflow_name, id_cliente, chat_id, wa_message_id, resposta_a)
+    (from_me, instance, remote_jid, sender, pushname, mensagem, caption, messagetype, mime_type, midia, base64, workflow_name, id_cliente, chat_id, wa_message_id, resposta_a, nome_remetente)
 VALUES
-    (false, $1, $2, $3, $4, $5, NULL, $6, $7, NULL, $8, $9, $10, $11, $12, NULL)
+    (false, $1, $2, $3, $4, $5, NULL, $6, $7, NULL, $8, $9, $10, $11, $12, NULL, $13)
 RETURNING id, chat_id, remote_jid, id_cliente;
 ```
-**Decisão do usuário**: `from_me = false` (não `true`) — a mensagem é tratada como parte do lado do cliente final, a IA só "interveio", não é um envio nosso do ponto de vista do registro. `wa_message_id` vem de `$('Whats IA').item.json.data.key.id` (o `id` real devolvido pela Evolution API no envio).
+Parâmetros (array posicional, mesmo padrão de sempre):
+```
+{{ [
+  $('Webhook2').item.json.body.instance,
+  $('Webhook2').item.json.body.data.key.remoteJid,
+  $('Webhook2').item.json.body.sender,
+  'IA',
+  $('Edita msg com resposta').item.json.mensagem,
+  $('Edita msg com resposta').item.json.messagetype,
+  $('Edita msg com resposta').item.json.mime_type,
+  $('Edita msg com resposta').item.json.base64,
+  $('define sala e vendedor').item.json.workflow_name,
+  $('define sala e vendedor').item.json.id_cliente,
+  $('define sala e vendedor').item.json.chat_id,
+  $('Whats IA').item.json.data.key.id,
+  $('Select dados vendedor').item.json.nome_bot || 'Bot'
+] }}
+```
+**Decisão do usuário**: `from_me = false` (não `true`) — a mensagem é tratada como parte do lado do cliente final, a IA só "interveio", não é um envio nosso do ponto de vista do registro. `wa_message_id` vem de `$('Whats IA').item.json.data.key.id` (o `id` real devolvido pela Evolution API no envio). `nome_remetente` guarda `nome_bot` quando o cliente preencheu, senão cai no literal `'Bot'` — **coluna `nome_remetente` e essa lógica de preenchimento já existiam antes desta sessão** (confirmado pelo texto real do node, colado pelo usuário); a mudança de hoje foi só trocar o `'Bot'` fixo pelo `$13` com fallback pro nome real do bot. **Testado e confirmado funcionando em 2026-08-15.**
+
+**Pendente, não confirmado nesta sessão**: se as 5 queries de Insert do lado do vendedor (`Enviar texto`/`imagem`/`video`/`documento`/`audio`) já têm `nome_remetente` preenchido via JOIN com `midiabot_login_chat`, e se o cabeçalho `📤 Mensagem enviada por {nome_vendedor}:` já foi de fato aplicado nos 4 nodes de envio (texto/imagem/video/documento, áudio fora de escopo por enquanto) — essas mudanças foram desenhadas em sessão anterior mas não foram reconfirmadas nesta.
 
 Notificação em tempo real: um **Merge** junta a saída desse Insert novo com a do Insert antigo (mensagem recebida do cliente), alimentando o mesmo Code/HTTP Request de assinatura do Pusher que já existia — sem duplicar a lógica de notificação.
 
