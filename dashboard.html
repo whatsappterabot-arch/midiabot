@@ -270,6 +270,10 @@
         let instanciasDisponiveis = [];
         let dadosQ = { salas: [], vendedores: [] };
 
+        // Paleta fixa: posição no array = id_vendedor (1 a 10). O emoji escolhido decide o id_vendedor, não a ordem de cadastro.
+        const PALETA_EMOJI = ['🟢', '🔵', '🔴', '🟡', '🟠', '🟣', '⚫', '🟤', '⚪', '🟥'];
+        const idVendedorDoEmoji = (emoji) => PALETA_EMOJI.indexOf(emoji) + 1;
+
         const NOMES_PASSO_Q = {
             1: 'Passo 1 de 6 — Telefones',
             2: 'Passo 2 de 6 — Salas',
@@ -396,19 +400,27 @@
 
         // ----- Passo 3 — Vendedores -----
         function telaVendedores() {
-            const linhas = dadosQ.vendedores.map((v, idx) => `
+            const linhas = dadosQ.vendedores.map((v, idx) => {
+                const opcoesEmoji = PALETA_EMOJI.map((emoji, i) => {
+                    const usadoPorOutro = dadosQ.vendedores.some((outro, oi) => oi !== idx && outro.emoji === emoji);
+                    return `<option value="${emoji}" ${v.emoji === emoji ? 'selected' : ''} ${usadoPorOutro ? 'disabled' : ''}>${emoji}${usadoPorOutro ? ' (em uso)' : ''}</option>`;
+                }).join('');
+
+                return `
                 <div class="flex items-center gap-3 mb-3">
+                    <select data-vendedor-emoji="${idx}" class="border border-gray-300 rounded-lg px-2 py-2 text-lg">${opcoesEmoji}</select>
                     <input type="text" value="${v.nome_vendedor}" data-vendedor-nome="${idx}" placeholder="Nome do vendedor"
                         class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm">
                     <input type="password" value="${v.senha}" data-vendedor-senha="${idx}" placeholder="Senha"
                         class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm">
                     <button data-remover-vendedor="${idx}" class="text-gray-400 hover:text-red-500"><i class="fas fa-trash"></i></button>
                 </div>
-            `).join('');
+            `;
+            }).join('');
 
             return `
                 <h2 class="text-lg font-bold text-gray-800 mb-2">Cadastre os vendedores</h2>
-                <p class="text-sm text-gray-500 mb-6">Nome e senha de acesso ao MidiaChat. Até 10 vendedores.</p>
+                <p class="text-sm text-gray-500 mb-6">Nome e senha de acesso ao MidiaBot Chat. Até 10 vendedores.</p>
                 ${linhas}
                 ${dadosQ.vendedores.length < 10 ? `<button data-acao="add-vendedor" class="text-sm font-bold text-[#00b34d] hover:underline mb-6"><i class="fas fa-plus mr-1"></i>Adicionar vendedor</button>` : ''}
                 <div class="flex justify-between mt-4">
@@ -443,7 +455,7 @@
                     ${s.sorteio === 'manual' ? `
                         <select data-sorteio-vendedor="${idx}" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
                             <option value="">Escolha o vendedor</option>
-                            ${dadosQ.vendedores.map((v, vi) => `<option value="${vi + 1}" ${s.vendedor_escolhido == vi + 1 ? 'selected' : ''}>${v.nome_vendedor}</option>`).join('')}
+                            ${dadosQ.vendedores.map((v) => `<option value="${idVendedorDoEmoji(v.emoji)}" ${s.vendedor_escolhido == idVendedorDoEmoji(v.emoji) ? 'selected' : ''}>${v.emoji} ${v.nome_vendedor}</option>`).join('')}
                         </select>
                     ` : ''}
                 </div>`;
@@ -474,7 +486,7 @@
                     <p class="font-bold text-gray-700 text-sm">${s.nome || '(sem nome)'}</p>
                     <select data-dono="${idx}" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
                         <option value="">Escolha o vendedor</option>
-                        ${dadosQ.vendedores.map((v, vi) => `<option value="${vi + 1}" ${s.vendedor_dono == vi + 1 ? 'selected' : ''}>${v.nome_vendedor}</option>`).join('')}
+                        ${dadosQ.vendedores.map((v) => `<option value="${idVendedorDoEmoji(v.emoji)}" ${s.vendedor_dono == idVendedorDoEmoji(v.emoji) ? 'selected' : ''}>${v.emoji} ${v.nome_vendedor}</option>`).join('')}
                     </select>
                 </div>`;
             }).join('');
@@ -536,10 +548,15 @@
                 else s.instancias = s.instancias.filter(v => v !== i.value);
             });
 
-            el.querySelectorAll('[data-acao="add-vendedor"]').forEach(b => b.onclick = () => { dadosQ.vendedores.push({ nome_vendedor: '', senha: '' }); renderQuestionario(); });
+            el.querySelectorAll('[data-acao="add-vendedor"]').forEach(b => b.onclick = () => {
+                const emojiLivre = PALETA_EMOJI.find(e => !dadosQ.vendedores.some(v => v.emoji === e));
+                dadosQ.vendedores.push({ nome_vendedor: '', senha: '', emoji: emojiLivre });
+                renderQuestionario();
+            });
             el.querySelectorAll('[data-remover-vendedor]').forEach(b => b.onclick = () => { dadosQ.vendedores.splice(+b.dataset.removerVendedor, 1); renderQuestionario(); });
             el.querySelectorAll('[data-vendedor-nome]').forEach(i => i.oninput = () => { dadosQ.vendedores[+i.dataset.vendedorNome].nome_vendedor = i.value; });
             el.querySelectorAll('[data-vendedor-senha]').forEach(i => i.oninput = () => { dadosQ.vendedores[+i.dataset.vendedorSenha].senha = i.value; });
+            el.querySelectorAll('[data-vendedor-emoji]').forEach(i => i.onchange = () => { dadosQ.vendedores[+i.dataset.vendedorEmoji].emoji = i.value; renderQuestionario(); });
 
             el.querySelectorAll('[data-sorteio-tipo]').forEach(i => i.onchange = () => { dadosQ.salas[+i.dataset.sorteioTipo].sorteio = i.value; renderQuestionario(); });
             el.querySelectorAll('[data-sorteio-vendedor]').forEach(i => i.onchange = () => { dadosQ.salas[+i.dataset.sorteioVendedor].vendedor_escolhido = i.value; });
@@ -564,8 +581,8 @@
                     vendedor_escolhido: s.vendedor_escolhido || null,
                     vendedor_dono: s.vendedor_dono || null
                 })),
-                vendedores: dadosQ.vendedores.map((v, idx) => ({
-                    id_vendedor: idx + 1,
+                vendedores: dadosQ.vendedores.map((v) => ({
+                    id_vendedor: idVendedorDoEmoji(v.emoji),
                     nome_vendedor: v.nome_vendedor,
                     senha: v.senha
                 }))

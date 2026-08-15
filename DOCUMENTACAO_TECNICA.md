@@ -58,7 +58,7 @@ Ordem esperada até o sistema funcionar de ponta a ponta, pra um cliente com tod
 2. **Conectores de Chat** — cria a(s) sala(s) de cada workflow usado, atrelando (na hora ou depois) os senders órfãos das instâncias do passo 1.
 3. **Prompts** — escreve os prompts de IA (horário de trabalho / fora do horário) pra cada sala do passo 2.
 4. **Horários** — define o expediente de cada workflow, que decide qual dos dois prompts do passo 3 vale em cada momento.
-5. **Senhas do MidiaChat** — cria login pros consultores acessarem as salas do passo 2 e lerem as mensagens.
+5. **Senhas do MidiaBot Chat** — cria login pros consultores acessarem as salas do passo 2 e lerem as mensagens.
 
 Opcionais, só se o fluxo do cliente precisar:
 
@@ -165,7 +165,7 @@ PRIMARY KEY (id_cliente, id_vendedor)
 ```
 Linhas são pré-cadastradas manualmente pelo admin (sem tela de inclusão/exclusão — decisão consciente, pendente de repensar se quiserem self-service).
 
-### `midiabot_login_chat` (Senhas do MidiaChat + identidade do vendedor)
+### `midiabot_login_chat` (Senhas do MidiaBot Chat + identidade do vendedor)
 Guarda a identidade completa do vendedor e a credencial de acesso ao Midiabot_chat — separado de `midiabot_vendedores` (que só guarda o vínculo de `sender`).
 ```sql
 id_cliente INTEGER NOT NULL REFERENCES midiabot_cad_usuarios(id),
