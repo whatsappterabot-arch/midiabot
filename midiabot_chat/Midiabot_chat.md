@@ -821,6 +821,16 @@ Decisão: só existe **um** `workflow_name` de negócio a partir de agora, chama
 
 **Cascade de rename**: as FKs de `workflow_name` pra `midiabot_a_workflows(nome)` (`midiabot_a_instancias`, `midiabot_chatid_workflowname`, `midiabot_remotejid_chatid`) são `NO ACTION` em ambas as regras (update/delete) — confirmado via `information_schema`, não têm `ON UPDATE CASCADE`. Renomear precisa do padrão "insere o novo nome primeiro → migra as tabelas filhas → apaga o nome antigo" (nunca `UPDATE` direto no nome que já está referenciado). `midiabot_z_horarios_trabalho`/`midiabot_z_excecoes_horarios` guardam o mesmo texto **sem FK nenhuma** — silenciosamente ficam desatualizadas se não forem migradas junto.
 
+## Layout mobile do chat — corrigido e testado (2026-08-15)
+
+Depois do primeiro deploy do `chat.html`, o celular em retrato ficou inutilizável: sem scroll na lista de mensagens e campo de escrever inacessível. Vários sintomas, uma causa raiz real (as outras tentativas no meio do caminho ficam registradas aqui só pra não repetir o mesmo caminho errado de novo):
+
+- **Zoom desativado**: viewport meta ganhou `maximum-scale=1.0, user-scalable=no` (pinch-zoom não faz sentido num app tipo WhatsApp).
+- **Tentativas que NÃO foram a causa raiz** (não fizeram diferença sozinhas, mas ficaram no código por serem boas práticas de qualquer forma): `body` trocado de `h-screen`(100vh) pra `position:fixed;inset:0` primeiro, depois pra um `#app-shell` interno com altura explícita `100dvh` (fallback `100vh`), `min-h-0` nos containers flex aninhados (`main`, `#painel-conversa`, `#mensagens`, lista de conversas), `-webkit-overflow-scrolling:touch` + `overscroll-behavior:contain` nas áreas roláveis.
+- **Causa raiz real**: `abrirConversa()` só fazia `classList.remove('hidden')` no `#painel-conversa`. Quem transformava isso em `display:flex` era a classe `sm:flex` — válida **só a partir de 640px de largura**. Em retrato (largura tipicamente bem menor que 640px), ao remover `hidden` o painel virava `display:block` (padrão do navegador, já que nenhuma outra regra de `display` se aplicava abaixo do breakpoint), o `flex-1` do `#mensagens` deixava de fazer efeito, e a lista de mensagens crescia sem limite e sem scroll algum. Só funcionava na horizontal porque aí a largura passa de 640px e `sm:flex` entra em ação.
+- **Fix**: `abrirConversa()`/`fecharConversa()` agora setam `painelConversa.style.display = 'flex'`/`'none'` diretamente via JS, que vale em qualquer largura de tela — não depende mais do breakpoint `sm:`.
+- **Status**: testado pelo usuário no celular em retrato e horizontal, confirmado funcionando.
+
 ## Pendências / decisões em aberto
 
 - Aplicar o item 3 da correção de `instancias.html` (fallback de `Montar item final` — os outros dois itens já foram aplicados).
