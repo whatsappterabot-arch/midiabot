@@ -479,7 +479,9 @@
         function abrirConversa(remotejid) {
             conversaSelecionada = remotejid;
             document.getElementById('painel-lista').classList.add('hidden');
-            document.getElementById('painel-conversa').classList.remove('hidden');
+            const painelConversa = document.getElementById('painel-conversa');
+            painelConversa.classList.remove('hidden');
+            painelConversa.style.display = 'flex';
             document.getElementById('titulo-conversa').innerText = numeroSemSufixo(remotejid);
             destacarConversaAtiva();
             carregarMensagens();
@@ -547,7 +549,9 @@
         function fecharConversa() {
             conversaSelecionada = null;
             document.getElementById('painel-lista').classList.remove('hidden');
-            document.getElementById('painel-conversa').classList.add('hidden');
+            const painelConversa = document.getElementById('painel-conversa');
+            painelConversa.classList.add('hidden');
+            painelConversa.style.display = 'none';
             document.getElementById('titulo-conversa').innerText = '';
             document.getElementById('mensagens').innerHTML =
                 '<div class="p-8 text-center text-gray-400 text-xs">Selecione uma conversa</div>';
