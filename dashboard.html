@@ -70,10 +70,19 @@
                             <svg class="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
                         </div>
                         <h2 class="text-xl font-bold text-gray-800 mb-2">Bem-vindo ao Painel</h2>
-                        <p class="text-gray-500 text-sm" id="status-texto">Selecione uma opção no menu lateral para começar.</p>
-                        <button onclick="abrirModalReset()" id="btn-resetar" class="hidden mt-6 px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white text-sm font-bold rounded-xl transition-colors">
-                            Resetar configuração
+                        <p class="text-gray-500 text-sm">Selecione uma opção no menu lateral para começar.</p>
+                    </div>
+
+                    <div class="text-center mt-6">
+                        <button onclick="toggleOpcoesAvancadas()" class="text-xs text-gray-400 hover:text-gray-500 transition-colors">
+                            Opções avançadas
                         </button>
+                        <div id="painel-opcoes-avancadas" class="hidden mt-3">
+                            <button onclick="abrirModalReset()" id="btn-resetar" class="hidden px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white text-sm font-bold rounded-xl transition-colors">
+                                Resetar configuração
+                            </button>
+                            <p id="sem-reset-texto" class="hidden text-xs text-gray-400">Nenhuma configuração ativa pra resetar.</p>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -84,10 +93,17 @@
     <div id="modal-reset" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
         <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
             <h3 class="text-lg font-bold text-gray-800 mb-3">Resetar configuração?</h3>
-            <p class="text-sm text-gray-600 mb-6">Isso vai apagar toda a configuração deste cliente — salas, vendedores e regras de distribuição de atendimento. As conversas com clientes não são apagadas. Essa ação não pode ser desfeita.</p>
+            <p class="text-sm text-gray-600 mb-4">Isso vai apagar toda a configuração deste cliente — salas, vendedores e regras de distribuição de atendimento. As conversas com clientes não são apagadas. Essa ação não pode ser desfeita.</p>
+            <p class="text-xs text-gray-500 mb-2">Pra confirmar, digite o código abaixo (não dá pra copiar e colar):</p>
+            <div id="codigo-confirmacao"
+                class="select-none text-center text-2xl font-mono font-bold tracking-widest text-gray-800 bg-gray-100 rounded-xl py-3 mb-3"
+                oncopy="return false" oncontextmenu="return false" onmousedown="return false" ondragstart="return false"></div>
+            <input type="text" id="input-confirmacao" oninput="verificarCodigoDigitado()" onpaste="return false" autocomplete="off"
+                class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm mb-6 text-center tracking-widest uppercase focus:outline-none focus:ring-2 focus:ring-red-400"
+                placeholder="Digite o código">
             <div class="flex justify-end gap-3">
                 <button onclick="fecharModalReset()" class="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-100 rounded-xl transition-colors">Cancelar</button>
-                <button onclick="confirmarReset()" id="btn-confirmar-reset" class="px-4 py-2 text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors">Sim, resetar tudo</button>
+                <button onclick="confirmarReset()" id="btn-confirmar-reset" disabled class="px-4 py-2 text-sm font-bold text-white bg-red-300 rounded-xl cursor-not-allowed transition-colors">Sim, resetar tudo</button>
             </div>
         </div>
     </div>
@@ -129,8 +145,10 @@
 
             window.setPlataforma = setPlataforma;
             window.logout = logout;
+            window.toggleOpcoesAvancadas = toggleOpcoesAvancadas;
             window.abrirModalReset = abrirModalReset;
             window.fecharModalReset = fecharModalReset;
+            window.verificarCodigoDigitado = verificarCodigoDigitado;
             window.confirmarReset = confirmarReset;
 
             renderMenu();
@@ -164,15 +182,43 @@
                 const temSalaAtiva = Number(dados?.salas_ativas) > 0;
 
                 document.getElementById('btn-resetar').classList.toggle('hidden', !temSalaAtiva);
-                document.getElementById('status-texto').innerText = temSalaAtiva
-                    ? 'Selecione uma opção no menu lateral para começar.'
-                    : 'Nenhuma configuração ativa ainda — use o menu lateral pra configurar manualmente.';
+                document.getElementById('sem-reset-texto').classList.toggle('hidden', temSalaAtiva);
             } catch (e) {
                 console.error('Erro ao verificar status do cliente:', e);
             }
         }
 
+        function toggleOpcoesAvancadas() {
+            document.getElementById('painel-opcoes-avancadas').classList.toggle('hidden');
+        }
+
+        // Gera um código de 6 caracteres pra confirmação manual — evita letras/números fáceis de confundir (0/O, 1/I/L)
+        let codigoConfirmacaoAtual = '';
+        function gerarCodigoConfirmacao() {
+            const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+            let codigo = '';
+            for (let i = 0; i < 6; i++) {
+                codigo += chars[Math.floor(Math.random() * chars.length)];
+            }
+            return codigo;
+        }
+
+        function verificarCodigoDigitado() {
+            const digitado = document.getElementById('input-confirmacao').value.trim().toUpperCase();
+            const botao = document.getElementById('btn-confirmar-reset');
+            const bate = digitado === codigoConfirmacaoAtual;
+
+            botao.disabled = !bate;
+            botao.className = bate
+                ? "px-4 py-2 text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors"
+                : "px-4 py-2 text-sm font-bold text-white bg-red-300 rounded-xl cursor-not-allowed transition-colors";
+        }
+
         function abrirModalReset() {
+            codigoConfirmacaoAtual = gerarCodigoConfirmacao();
+            document.getElementById('codigo-confirmacao').innerText = codigoConfirmacaoAtual;
+            document.getElementById('input-confirmacao').value = '';
+            verificarCodigoDigitado();
             document.getElementById('modal-reset').classList.remove('hidden');
         }
 
@@ -181,6 +227,9 @@
         }
 
         async function confirmarReset() {
+            const digitado = document.getElementById('input-confirmacao').value.trim().toUpperCase();
+            if (digitado !== codigoConfirmacaoAtual) return;
+
             const botao = document.getElementById('btn-confirmar-reset');
             botao.disabled = true;
             botao.innerText = 'Resetando...';
