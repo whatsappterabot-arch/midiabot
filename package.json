@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "build": "mkdir -p dist dist/midiabot_chat && cp index.html dashboard.html proibicoes.html telegram_sender.html consultores.html vendedores.html horarios.html prompts.html instancias.html senhas_chat.html atribuicao_chat.html config.js logo.png dist/ && cp midiabot_chat/index.html midiabot_chat/chat.html midiabot_chat/config.js dist/midiabot_chat/"
+    "build": "mkdir -p dist dist/midiabot_chat && cp index.html dashboard.html proibicoes.html telegram_sender.html consultores.html vendedores.html horarios.html prompts.html instancias.html senhas_chat.html atribuicao_chat.html instalacao.html config.js logo.png dist/ && cp midiabot_chat/index.html midiabot_chat/chat.html midiabot_chat/config.js dist/midiabot_chat/"
   }
 }
