@@ -512,7 +512,7 @@
         // ----- Passo 3 — Configurações -----
         function passo3Config() {
             const opcoesInstancia = instanciasDisponiveis.map(i =>
-                `<option value="${escapeHtml(i.sender)}" ${dadosCampanha.instancia === i.sender ? 'selected' : ''}>${escapeHtml(i.nome_instancia)}</option>`
+                `<option value="${escapeHtml(i.nome_instancia)}" ${dadosCampanha.instancia === i.nome_instancia ? 'selected' : ''}>${escapeHtml(i.nome_instancia)}</option>`
             ).join('');
 
             const linhasHorario = DIAS_LABEL.map((label, d) => `
@@ -588,7 +588,7 @@
                 .map(d => `${DIAS_LABEL[d]}: ${dadosCampanha.horarios[d].inicio}–${dadosCampanha.horarios[d].fim}`)
                 .join(', ');
 
-            const instanciaLabel = (instanciasDisponiveis.find(i => i.sender === dadosCampanha.instancia) || {}).nome_instancia || dadosCampanha.instancia;
+            const instanciaLabel = dadosCampanha.instancia;
             const exemplo = dadosCampanha.contatos_validos[0] || {};
             const mensagemFinal = substituirPlaceholders(dadosCampanha.texto, exemplo) + '\n\n' + DISCLAIMER_PADRAO;
 
