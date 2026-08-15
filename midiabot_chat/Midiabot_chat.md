@@ -758,6 +758,34 @@ Pra isso funcionar, o `RETURNING` dos 5 Inserts precisou ganhar `id` e `id_clien
 - **Confirmar compatibilidade do formato de áudio gravado** (webm/ogg) com o que chega do lado do cliente.
 - Miniatura de imagem **sempre visível sem precisar clicar** (trazer `base64` na própria `listar_mensagens`) — discutido, decisão consciente de deixar pra depois por causa do custo de carregar mais dado por padrão.
 
+## Disjuntor de loop de IA — construído e testado (2026-08-14)
+
+Proteção contra loop entre a IA do MidiaBot e um sistema automático do lado do cliente final (ex: outro chatbot). Não tenta detectar se o outro lado é um bot — usa velocidade como proxy: se a IA respondeu automaticamente **15 vezes em menos de 10 minutos** pra um mesmo `remote_jid` (contando via `mensagem LIKE '%🤖 Resposta do Agente de IA%'` na janela de tempo), ativa sozinha a mesma chave Redis de pausa manual (`midiabot:pausa_ia:...`, TTL 43200) e insere um aviso no histórico (`from_me = false`, visível no `chat.html` como mais uma mensagem da conversa). A checagem roda **depois** da resposta já ter sido enviada (não antes) — custo aceito de simplicidade, a 15ª/16ª mensagem do loop ainda passa antes da pausa valer.
+
+## Reset de configuração — construído e testado (2026-08-14)
+
+Cliente (qualquer `id_cliente`, não só o de teste) pode resetar sua própria configuração pra reconfigurar do zero — via questionário de instalação (ainda não construído) ou manualmente. **Não apaga histórico de mensagens nem instâncias WhatsApp** — só volta a configuração (salas, vendedores, distribuição) pro estado inicial.
+
+**Procedure única** (`resetar_cliente(p_id_cliente INTEGER)`), serve tanto pra reset quanto pra primeira instalação (mesmo SQL funciona nos dois casos — DELETE sem linha não dá erro, e o UPSERT de `login_chat` cria ou reseta):
+- `DELETE` (filtrado por `id_cliente`): `midiabot_midiachat_contato`, `midiabot_remotejid_consultor_salacompartilhada`, `midiabot_sorteio_vendedor`, `midiabot_remotejid_chatid`, `midiabot_vendedores`, `midiabot_sender_chatid`.
+- `midiabot_chatid_workflowname` — **não apaga, desativa** (`ativa SMALLINT NOT NULL DEFAULT 1`, coluna nova, resetada pra `0`) — assim `midiabot_historico_mensagens`/`midiabot_z_prompts_ia`/`midiabot_z_horarios_trabalho` continuam válidos por FK. Sala desativada some do seletor de salas do `chat.html` (`listar_salas` filtra `ativa = 1`); ver histórico dela fica pra uma tela futura ainda não construída — decisão consciente, não expor isso pro cliente ainda.
+- `midiabot_login_chat` — `UPSERT` (`INSERT ... ON CONFLICT (id_cliente, id_vendedor) DO UPDATE`) garantindo os 10 slots (`id_vendedor` 1-10) sempre no estado padrão: `nome_vendedor = 'Vendedor N'`, `login = 'Vendedor_N'`, `senha = NULL`, `ativo = 0`, `cor_emoji` fixo por slot (paleta confirmada contra dado real: 🟢🔵🔴🟡🟠🟣⚫🟤⚪🟥 pros slots 1-10). Nunca apaga essas linhas — efeito colateral bom: a FK de `midiabot_midiachat_sessao` pra `login_chat` nunca quebra (a linha sempre existe, só muda de conteúdo).
+- `midiabot_a_instancias`/`midiabot_historico_mensagens`/`midiabot_z_prompts_ia`/`midiabot_z_horarios_trabalho` — não mexe.
+
+**Frontend (`dashboard.html`)**: card de boas-vindas consulta `verificar_status_cliente` (`SELECT COUNT(*) FROM midiabot_chatid_workflowname WHERE id_cliente = $1 AND ativa = 1`) ao carregar. Reset fica **escondido** atrás de um link discreto "Opções avançadas" (decisão explícita: é uma ação perigosa e rara, não pode ter destaque visual). Modal de confirmação com mensagem humanizada (sem jargão técnico) + um código aleatório de 6 caracteres gerado na hora (`select-none`, cópia/colagem bloqueadas via `oncopy`/`onpaste`/`oncontextmenu`) que precisa ser digitado certinho pra destravar o botão de confirmar — fricção deliberada contra clique acidental, já que "o gestor não vai fazer isso todo dia, talvez nunca faça".
+
+Ações novas no n8n (workflow do painel administrativo, `origem: 'dashboard'`): `verificar_status_cliente` e `resetar_cliente` (`CALL resetar_cliente($1);`).
+
+**Pendente**: telas de segurança adicionais (usuário mencionou "3 telas consecutivas"), exigência de sessão de admin recente (<5 min) antes de liberar o reset, botão do questionário de instalação (aparece habilitado quando `salas_ativas = 0`) — o questionário em si ainda não existe.
+
+## Consolidação de workflow — "MidiaBot Chat" único (2026-08-14)
+
+Decisão: só existe **um** `workflow_name` de negócio a partir de agora, chamado **"MidiaBot Chat"** — igual ao nome do próprio workflow n8n (`$workflow.name`). Antes eram dois ("Publi ScentyStore v1" e "Publi ScentyB2B v1"); o segundo foi apagado por completo (instância, salas, horários, exceções, prompts), o primeiro renomeado.
+
+**Decisão consciente de unificar os dois nomes**, revertendo uma separação proposital de sessão anterior: o motivo original pra manter os nomes diferentes era servir de sinal de alerta caso algum node usasse `$workflow.name` por engano no lugar do campo de negócio — com nomes iguais, esse tipo de erro fica silencioso. Aceito porque, na prática, o projeto nunca teve infraestrutura de múltiplos workflows/webhooks de verdade (`midiabot_a_workflows.webhook_url` nunca existiu, já registrado como pendência antiga) — diferenciação futura entre "fluxos" será por configuração dentro do mesmo n8n, não por workflow separado.
+
+**Cascade de rename**: as FKs de `workflow_name` pra `midiabot_a_workflows(nome)` (`midiabot_a_instancias`, `midiabot_chatid_workflowname`, `midiabot_remotejid_chatid`) são `NO ACTION` em ambas as regras (update/delete) — confirmado via `information_schema`, não têm `ON UPDATE CASCADE`. Renomear precisa do padrão "insere o novo nome primeiro → migra as tabelas filhas → apaga o nome antigo" (nunca `UPDATE` direto no nome que já está referenciado). `midiabot_z_horarios_trabalho`/`midiabot_z_excecoes_horarios` guardam o mesmo texto **sem FK nenhuma** — silenciosamente ficam desatualizadas se não forem migradas junto.
+
 ## Pendências / decisões em aberto
 
 - Aplicar o item 3 da correção de `instancias.html` (fallback de `Montar item final` — os outros dois itens já foram aplicados).
