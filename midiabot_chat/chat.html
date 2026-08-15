@@ -329,7 +329,7 @@
                 <button onclick="window.__selecionarSala('${sala.chat_id}')"
                     data-chat-id="${sala.chat_id}"
                     class="aba-sala flex-shrink-0 px-4 py-2 my-2 rounded-full text-xs font-bold uppercase tracking-widest whitespace-nowrap text-blue-200 hover:text-white transition-all">
-                    ${escapeHtml(sala.chat_id_nome || sala.chat_id)} - ${escapeHtml(sala.workflow_name)}${badge}
+                    ${escapeHtml(sala.chat_id_nome || sala.chat_id)}${badge}
                 </button>
             `;
             }).join('');
@@ -338,7 +338,7 @@
                 salas.map(sala => {
                     const pendentes = Number(sala.pendentes) || 0;
                     const sufixo = pendentes > 0 ? ` (${pendentes})` : '';
-                    return `<option value="${sala.chat_id}">${escapeHtml(sala.chat_id_nome || sala.chat_id)} - ${escapeHtml(sala.workflow_name)}${sufixo}</option>`;
+                    return `<option value="${sala.chat_id}">${escapeHtml(sala.chat_id_nome || sala.chat_id)}${sufixo}</option>`;
                 }).join('');
         }
 
