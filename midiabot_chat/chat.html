@@ -842,10 +842,8 @@
 
         let arquivoSelecionado = null;
 
-        document.getElementById('input-anexo').addEventListener('change', (e) => {
-            const arquivo = e.target.files[0];
+        function processarArquivoSelecionado(arquivo) {
             if (!arquivo || !conversaSelecionada) return;
-            e.target.value = '';
 
             arquivoSelecionado = arquivo;
             const preview = document.getElementById('preview-midia');
@@ -856,6 +854,38 @@
             }
             document.getElementById('input-midia-caption').value = '';
             document.getElementById('modal-midia').classList.remove('hidden');
+        }
+
+        document.getElementById('input-anexo').addEventListener('change', (e) => {
+            const arquivo = e.target.files[0];
+            e.target.value = '';
+            processarArquivoSelecionado(arquivo);
+        });
+
+        // Arrastar e soltar arquivo direto na conversa aberta
+        const painelConversaEl = document.getElementById('painel-conversa');
+        let contadorDragConversa = 0;
+
+        painelConversaEl.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            if (!conversaSelecionada) return;
+            contadorDragConversa++;
+            painelConversaEl.classList.add('ring-4', 'ring-[#00b34d]', 'ring-inset');
+        });
+        painelConversaEl.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+        painelConversaEl.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            contadorDragConversa = Math.max(0, contadorDragConversa - 1);
+            if (contadorDragConversa === 0) painelConversaEl.classList.remove('ring-4', 'ring-[#00b34d]', 'ring-inset');
+        });
+        painelConversaEl.addEventListener('drop', (e) => {
+            e.preventDefault();
+            contadorDragConversa = 0;
+            painelConversaEl.classList.remove('ring-4', 'ring-[#00b34d]', 'ring-inset');
+            const arquivo = e.dataTransfer.files[0];
+            processarArquivoSelecionado(arquivo);
         });
 
         window.fecharModalMidia = fecharModalMidia;
