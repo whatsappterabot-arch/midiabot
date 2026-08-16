@@ -286,3 +286,7 @@ Adicionada em `package.json` na lista de build (hardcoded, não é glob — todo
 
 - Opt-out só é checado na criação da campanha, não recheckado no momento do envio real (ver "Regras de negócio" acima).
 - Sem paginação na lista de contatos da tela de acompanhamento (aceitável pro volume de teste atual, pode precisar rever pra campanhas de milhares de contatos).
+
+## Testes futuros pendentes
+
+- **Campanha atravessando a borda do horário configurado** (pausar sozinha ao sair da janela, retomar sozinha no próximo horário válido, inclusive de um dia pro outro) — todos os testes reais feitos em 2026-08-15/16 foram curtos e imediatos (poucos contatos, mesma sessão), então esse comportamento foi desenhado e implementado, mas **nunca observado de verdade rodando**. Adiado de propósito: o usuário está no período de "aquecimento" dos números junto à Meta/WhatsApp e não quer arriscar volume/robô num teste maior nesse momento. Retomar esse teste quando o aquecimento permitir mais tranquilidade.
