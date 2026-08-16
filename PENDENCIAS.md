@@ -4,7 +4,11 @@ Lista organizada de próximos passos, em 2026-08-16. Itens específicos do Envio
 
 ## Prioridade alta — próximo a atacar
 
-1. **Tela de edição de configuração pra cliente já ativo** (adicionar/remover vendedor, renomear sala, trocar Nome do Bot, etc., sem precisar de reset). Hoje qualquer ajuste pequeno num cliente já configurado depende de SQL manual. Provavelmente precisa ser dividido em seções: Vendedores (nome/senha/emoji/ativo — o mais usado no dia a dia), Salas (renomear/ativar/desativar/telefones vinculados), Distribuição (sorteio automático/manual, dono de sala dedicada), Nome do Bot (campo único, pode entrar dentro de Vendedores).
+1. **Tela de edição de configuração pra cliente já ativo** (adicionar/remover vendedor, renomear sala, trocar Nome do Bot, etc., sem precisar de reset). Hoje qualquer ajuste pequeno num cliente já configurado depende de SQL manual. Provavelmente precisa ser dividido em seções: Vendedores (nome/senha/emoji/ativo — o mais usado no dia a dia), Salas (renomear/ativar/desativar/telefones vinculados), Distribuição (sorteio automático/manual, dono de sala dedicada), Nome do Bot (campo único, pode entrar dentro de Vendedores). **Provavelmente também é onde a permissão de sala do item 6 abaixo vai ser configurada** — ligar os dois ao desenhar.
+
+## Iniciativa grande em desenho — permissão de sala + chat interno
+
+6. **Substitui a pergunta antiga sobre vendedor atrelado à sala duas vezes** — o usuário pensou mais e chegou numa arquitetura bem maior: permissão de sala (nem todo colaborador vê toda sala), chat interno entre colaboradores reaproveitando a infraestrutura de `remotejid`/histórico já existente, e um mecanismo de encaminhamento/handoff entre salas com log próprio e "trazer de volta". **Desenho completo, nada construído ainda** — ver `[[project_salas_permissao_chat_interno]]` na memória (não há doc no repositório ainda, só memória, porque é 100% desenho, sem nada implementado). Inclui uma mudança de comportamento em algo que já está em produção: `listar_mensagens` hoje mostra o histórico inteiro de um cliente não importa a sala (efeito colateral da consolidação de workflow), e isso precisa mudar pra respeitar a permissão de sala nova.
 
 ## Pendências técnicas conhecidas, prontas pra atacar
 
@@ -15,7 +19,6 @@ Lista organizada de próximos passos, em 2026-08-16. Itens específicos do Envio
 
 ## Decisões que dependem do usuário pensar mais (não são só "codar")
 
-6. Por que o vendedor fica atrelado à sala em dois lugares (`midiabot_sender_chatid` e `midiabot_vendedores.sender`) — usuário disse que ia pensar mais, nunca foi retomado.
 7. Onde/como o quadrinho de login do Midiabot Chat vai aparecer fisicamente na tela inicial do `midiabot.com.br` (seção fixa, modal, etc.).
 
 ## Baixo risco, sem solução ainda ou nunca testado — não urgentes
