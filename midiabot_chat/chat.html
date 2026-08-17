@@ -49,6 +49,9 @@
                 <button id="btn-toggle-arquivadas" onclick="window.__alternarModoArquivadas()" class="w-full text-xs font-bold text-gray-400 uppercase tracking-widest py-1 hover:underline hover:text-gray-600">
                     Arquivadas
                 </button>
+                <button id="btn-trazer-de-volta" onclick="abrirTrazerDeVolta()" class="hidden w-full text-xs font-bold text-blue-600 uppercase tracking-widest py-1 hover:underline">
+                    Trazer de volta <span id="badge-trazer-de-volta"></span>
+                </button>
             </div>
             <div class="flex-1 overflow-y-auto min-h-0 scroll-touch">
                 <div id="lista-conversas" class="divide-y divide-gray-200">
@@ -66,6 +69,11 @@
                     <i class="fas fa-arrow-left"></i>
                 </button>
                 <p id="titulo-conversa" class="text-sm font-bold text-gray-800 font-mono flex-1"></p>
+                <button onclick="abrirEncaminhar()" title="Encaminhar conversa para outra sala"
+                    class="flex-shrink-0 text-[10px] font-bold uppercase tracking-widest text-blue-600 hover:text-blue-800 border border-blue-200 hover:bg-blue-50 rounded-full px-3 py-1.5 transition-all whitespace-nowrap">
+                    <i class="fas fa-share"></i>
+                    <span class="hidden sm:inline">Encaminhar</span>
+                </button>
                 <button onclick="pausarIA()" title="Suspender resposta da IA por 12 horas"
                     class="flex-shrink-0 text-[10px] font-bold uppercase tracking-widest text-amber-600 hover:text-amber-800 border border-amber-200 hover:bg-amber-50 rounded-full px-3 py-1.5 transition-all whitespace-nowrap">
                     <span class="sm:hidden">Suspender IA</span>
@@ -188,6 +196,48 @@
         </div>
     </div>
 
+    <!-- MODAL: ENCAMINHAR CONVERSA -->
+    <div id="modal-encaminhar" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <h3 class="text-sm font-bold text-gray-700 uppercase tracking-widest mb-4">Encaminhar conversa</h3>
+            <p class="text-xs text-gray-500 mb-4">A conversa some da sua sala e vai para a sala escolhida. Você pode trazer de volta quando quiser.</p>
+
+            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Enviar para a sala</label>
+            <select id="select-encaminhar-sala"
+                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm mb-4 outline-none focus:ring-2 focus:ring-[#00b34d] focus:bg-white transition-all">
+                <option value="">Selecione uma sala...</option>
+            </select>
+
+            <div class="flex gap-2">
+                <button onclick="fecharEncaminhar()"
+                    class="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-gray-200 transition-all">
+                    Cancelar
+                </button>
+                <button onclick="confirmarEncaminhar()"
+                    class="flex-1 bg-[#001f3f] text-white py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-black transition-all active:scale-95">
+                    Encaminhar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: TRAZER DE VOLTA -->
+    <div id="modal-trazer-de-volta" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl max-h-[80vh] flex flex-col">
+            <h3 class="text-sm font-bold text-gray-700 uppercase tracking-widest mb-4">Trazer de volta</h3>
+            <p class="text-xs text-gray-500 mb-4">Conversas que você encaminhou e ainda não trouxe de volta.</p>
+
+            <div id="lista-trazer-de-volta" class="flex-1 overflow-y-auto space-y-2 mb-4">
+                <div class="text-center text-gray-400 text-xs py-8">Carregando...</div>
+            </div>
+
+            <button onclick="fecharTrazerDeVolta()"
+                class="w-full bg-gray-100 text-gray-600 py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-gray-200 transition-all">
+                Fechar
+            </button>
+        </div>
+    </div>
+
     <!-- MODAL: LIGHTBOX (imagem em tela cheia) -->
     <div id="modal-lightbox" onclick="fecharLightbox()" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4 cursor-zoom-out">
         <img id="lightbox-img" src="" class="max-w-full max-h-full rounded-lg">
@@ -232,6 +282,7 @@
 
             conectarPusher();
             carregarSalas();
+            atualizarBadgeTrazerDeVolta();
         });
 
         function conectarPusher() {
@@ -544,6 +595,128 @@
             }
         }
 
+        window.abrirEncaminhar = abrirEncaminhar;
+        window.fecharEncaminhar = fecharEncaminhar;
+        window.confirmarEncaminhar = confirmarEncaminhar;
+
+        async function abrirEncaminhar() {
+            if (!conversaSelecionada) return;
+            const select = document.getElementById('select-encaminhar-sala');
+            select.innerHTML = '<option value="">Carregando...</option>';
+            document.getElementById('modal-encaminhar').classList.remove('hidden');
+
+            try {
+                const data = await chamarApi('listar_todas_salas', {});
+                const todasSalas = (Array.isArray(data) ? data : []).filter(item => item && item.chat_id != null && String(item.chat_id) !== String(salaSelecionada));
+                select.innerHTML = '<option value="">Selecione uma sala...</option>' +
+                    todasSalas.map(s => `<option value="${s.chat_id}">${escapeHtml(s.chat_id_nome || s.chat_id)}</option>`).join('');
+            } catch (e) {
+                console.error("Falha ao carregar salas para encaminhar:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
+        function fecharEncaminhar() {
+            document.getElementById('modal-encaminhar').classList.add('hidden');
+        }
+
+        async function confirmarEncaminhar() {
+            const chatIdDestino = document.getElementById('select-encaminhar-sala').value;
+            if (!chatIdDestino) {
+                showToast("Escolha uma sala.", "warning");
+                return;
+            }
+
+            try {
+                await chamarApi('encaminhar_conversa', {
+                    remotejid: conversaSelecionada,
+                    chat_id_origem: salaSelecionada,
+                    chat_id_destino: chatIdDestino
+                });
+                fecharEncaminhar();
+                showToast("Conversa encaminhada.", "success");
+                fecharConversa();
+                await carregarConversas();
+                atualizarContadoresSalas();
+                atualizarBadgeTrazerDeVolta();
+            } catch (e) {
+                console.error("Falha ao encaminhar conversa:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
+        window.abrirTrazerDeVolta = abrirTrazerDeVolta;
+        window.fecharTrazerDeVolta = fecharTrazerDeVolta;
+        window.__trazerDeVolta = trazerDeVolta;
+
+        async function abrirTrazerDeVolta() {
+            document.getElementById('modal-trazer-de-volta').classList.remove('hidden');
+            await renderizarListaTrazerDeVolta();
+        }
+
+        function fecharTrazerDeVolta() {
+            document.getElementById('modal-trazer-de-volta').classList.add('hidden');
+        }
+
+        async function renderizarListaTrazerDeVolta() {
+            const container = document.getElementById('lista-trazer-de-volta');
+            try {
+                const data = await chamarApi('listar_encaminhamentos_pendentes', {});
+                const pendentes = (Array.isArray(data) ? data : []).filter(item => item && item.id != null);
+
+                if (pendentes.length === 0) {
+                    container.innerHTML = '<div class="text-center text-gray-400 text-xs py-8">Nenhuma conversa encaminhada pendente</div>';
+                    return;
+                }
+
+                container.innerHTML = pendentes.map(p => `
+                    <div class="border border-gray-200 rounded-xl p-3">
+                        <p class="text-sm font-bold text-gray-800">${escapeHtml(numeroSemSufixo(p.remotejid))}</p>
+                        <p class="text-xs text-gray-400 mb-2">${escapeHtml(p.nome_sala_origem || p.chat_id_origem)} → ${escapeHtml(p.nome_sala_destino || p.chat_id_destino)}</p>
+                        <button onclick="window.__trazerDeVolta(${p.id})"
+                            class="w-full bg-[#001f3f] text-white py-2 rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-black transition-all active:scale-95">
+                            Trazer de volta
+                        </button>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error("Falha ao carregar encaminhamentos pendentes:", e);
+                container.innerHTML = '<div class="text-center text-red-400 text-xs py-8">Erro ao carregar</div>';
+            }
+        }
+
+        async function trazerDeVolta(idEncaminhamento) {
+            try {
+                await chamarApi('trazer_de_volta', { id_encaminhamento: idEncaminhamento });
+                showToast("Conversa trazida de volta.", "success");
+                await renderizarListaTrazerDeVolta();
+                await carregarConversas();
+                atualizarContadoresSalas();
+                atualizarBadgeTrazerDeVolta();
+            } catch (e) {
+                console.error("Falha ao trazer conversa de volta:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
+        async function atualizarBadgeTrazerDeVolta() {
+            const btn = document.getElementById('btn-trazer-de-volta');
+            const badge = document.getElementById('badge-trazer-de-volta');
+            try {
+                const data = await chamarApi('listar_encaminhamentos_pendentes', {});
+                const pendentes = (Array.isArray(data) ? data : []).filter(item => item && item.id != null);
+                if (pendentes.length > 0) {
+                    btn.classList.remove('hidden');
+                    badge.innerText = `(${pendentes.length})`;
+                } else {
+                    btn.classList.add('hidden');
+                    badge.innerText = '';
+                }
+            } catch (e) {
+                console.error("Falha ao checar encaminhamentos pendentes:", e);
+            }
+        }
+
         window.fecharConversa = fecharConversa;
 
         function fecharConversa() {
@@ -737,6 +910,15 @@
                 const porId = new Map(mensagens.map(m => [m.id, m]));
 
                 container.innerHTML = mensagens.map(m => {
+                    if (m.mensagem && m.mensagem.startsWith('📋')) {
+                        return `
+                        <div class="flex justify-center">
+                            <div class="max-w-[90%] bg-gray-200 text-gray-500 text-[11px] italic rounded-full px-4 py-1.5 text-center">
+                                ${escapeHtml(m.mensagem)}
+                            </div>
+                        </div>
+                    `;
+                    }
                     const citada = m.resposta_a ? porId.get(m.resposta_a) : null;
                     const citacaoHtml = m.resposta_a ? `
                         <div class="border-l-4 border-[#00b34d] bg-black/5 rounded px-2 py-1 mb-1 text-xs text-gray-600 truncate">

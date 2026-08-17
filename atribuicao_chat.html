@@ -319,7 +319,8 @@
             try {
                 await chamarApi('salvar_atribuicao', {
                     remotejid: remoteJid,
-                    chat_id: select.value
+                    chat_id: select.value,
+                    workflow_name: workflowSelecionado
                 });
                 showToast("Cliente movido com sucesso.", "success");
                 carregarRemoteJids();
