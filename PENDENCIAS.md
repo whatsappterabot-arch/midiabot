@@ -4,11 +4,10 @@ Lista organizada de próximos passos, em 2026-08-16. Itens específicos do Envio
 
 ## Testar em produção após publicar (2026-08-18) — remover daqui quando confirmado
 
-Tudo testado localmente/via curl, mas ainda não confirmado no site publicado (`midiabot.com.br`), porque o deploy é manual e ainda não tinha sido feito hoje.
+Tudo testado localmente/via curl, mas ainda não confirmado no site publicado (`midiabot.com.br`) desde a última rodada de mudanças (regra de sala compartilhada).
 
-- [ ] Permissão de sala: abas mostram só as salas com permissão; histórico não mistura salas diferentes.
-- [ ] Encaminhamento: botão "Encaminhar" move a conversa pra sala escolhida; aparece resumo com avisos "Início/Fim" na sala de destino; "Trazer de volta" (com contador) reverte; mover manualmente pelo painel do gestor uma conversa encaminhada é bloqueado com aviso.
-- [ ] Conversa interna: botão "+ Conversa interna" com "Destinatário"; contato aparece na lista com 🏢 + nome da sala (nunca texto tipo "interno-1--5--6"); nome de quem escreveu aparece na mensagem; vírgula na mensagem não corta; chega em tempo real do outro lado sem atualizar a página; "Encaminhar"/"Suspender IA"/"Responder" não aparecem numa conversa interna; áudio e arquivo avisam que não são suportados; duas pessoas diferentes na mesma sala aparecem cada uma com seu nome.
+- [x] Permissão de sala, Encaminhamento, e a primeira leva do chat interno — confirmados em produção em 2026-08-18.
+- [ ] **Regra nova**: sala compartilhada (Entrada) não pode participar de chat interno (nem como origem, nem como destino) — bloqueio testado só via `curl`, ainda não visualmente na tela publicada. Dropdown "Destinatário" não deve mostrar a Entrada; botão "+ Conversa interna" deve sumir quando a Entrada estiver selecionada.
 
 ## Prioridade alta — próximo a atacar
 

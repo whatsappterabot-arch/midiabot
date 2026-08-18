@@ -46,7 +46,7 @@
                 <button onclick="abrirNovaConversa()" class="w-full text-xs font-bold text-[#00b34d] uppercase tracking-widest py-2 hover:underline">
                     + Nova conversa
                 </button>
-                <button onclick="abrirNovaConversaInterna()" class="w-full text-xs font-bold text-blue-600 uppercase tracking-widest py-1 hover:underline">
+                <button id="btn-conversa-interna" onclick="abrirNovaConversaInterna()" class="w-full text-xs font-bold text-blue-600 uppercase tracking-widest py-1 hover:underline">
                     + Conversa interna
                 </button>
                 <button id="btn-toggle-arquivadas" onclick="window.__alternarModoArquivadas()" class="w-full text-xs font-bold text-gray-400 uppercase tracking-widest py-1 hover:underline hover:text-gray-600">
@@ -473,6 +473,10 @@
                 btn.classList.toggle('text-white', ativa);
                 btn.classList.toggle('text-blue-200', !ativa);
             });
+
+            const salaAtual = salas.find(s => String(s.chat_id) === String(chatId));
+            const compartilhada = !!salaAtual && Number(salaAtual.sala_compartilhada) === 1;
+            document.getElementById('btn-conversa-interna').classList.toggle('hidden', compartilhada);
 
             await carregarConversas();
         }
@@ -1296,10 +1300,15 @@
             select.innerHTML = '<option value="">Carregando...</option>';
             document.getElementById('modal-nova-conversa-interna').classList.remove('hidden');
 
-            await garantirTodasSalasCache();
-            const outrasSalas = todasSalasCache.filter(s => String(s.chat_id) !== String(salaSelecionada));
-            select.innerHTML = '<option value="">Com quem você quer conversar...</option>' +
-                outrasSalas.map(s => `<option value="${s.chat_id}">${escapeHtml(s.chat_id_nome || s.chat_id)}</option>`).join('');
+            try {
+                const data = await chamarApi('listar_salas_chat_interno', {});
+                const salasElegiveis = (Array.isArray(data) ? data : []).filter(item => item && item.chat_id != null && String(item.chat_id) !== String(salaSelecionada));
+                select.innerHTML = '<option value="">Com quem você quer conversar...</option>' +
+                    salasElegiveis.map(s => `<option value="${s.chat_id}">${escapeHtml(s.chat_id_nome || s.chat_id)}</option>`).join('');
+            } catch (e) {
+                console.error("Falha ao carregar salas para conversa interna:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
         }
 
         function fecharNovaConversaInterna() {
