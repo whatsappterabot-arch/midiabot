@@ -46,6 +46,9 @@
                 <button onclick="abrirNovaConversa()" class="w-full text-xs font-bold text-[#00b34d] uppercase tracking-widest py-2 hover:underline">
                     + Nova conversa
                 </button>
+                <button onclick="abrirNovaConversaInterna()" class="w-full text-xs font-bold text-blue-600 uppercase tracking-widest py-1 hover:underline">
+                    + Conversa interna
+                </button>
                 <button id="btn-toggle-arquivadas" onclick="window.__alternarModoArquivadas()" class="w-full text-xs font-bold text-gray-400 uppercase tracking-widest py-1 hover:underline hover:text-gray-600">
                     Arquivadas
                 </button>
@@ -196,6 +199,30 @@
         </div>
     </div>
 
+    <!-- MODAL: NOVA CONVERSA INTERNA -->
+    <div id="modal-nova-conversa-interna" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <h3 class="text-sm font-bold text-gray-700 uppercase tracking-widest mb-4">Conversa interna</h3>
+
+            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Destinatário</label>
+            <select id="select-nova-interna-sala"
+                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm mb-4 outline-none focus:ring-2 focus:ring-[#00b34d] focus:bg-white transition-all">
+                <option value="">Com quem você quer conversar...</option>
+            </select>
+
+            <div class="flex gap-2">
+                <button onclick="fecharNovaConversaInterna()"
+                    class="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-gray-200 transition-all">
+                    Cancelar
+                </button>
+                <button onclick="confirmarNovaConversaInterna()"
+                    class="flex-1 bg-[#001f3f] text-white py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-black transition-all active:scale-95">
+                    Iniciar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL: ENCAMINHAR CONVERSA -->
     <div id="modal-encaminhar" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
         <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
@@ -258,6 +285,31 @@
         let modoArquivadas = false;
         let mensagensCache = [];
         let respondendoA = null;
+        let todasSalasCache = [];
+
+        function ehContatoInterno(remotejid) {
+            return !!remotejid && remotejid.endsWith('@midiabot.interno');
+        }
+
+        function extrairChatIdOutraSala(remotejid) {
+            const m = remotejid.match(/^interno-(-?\d+)-(-?\d+)-(-?\d+)@midiabot\.interno$/);
+            return m ? m[3] : null;
+        }
+
+        function nomeSalaPorChatId(chatId) {
+            const sala = todasSalasCache.find(s => String(s.chat_id) === String(chatId));
+            return sala ? (sala.chat_id_nome || chatId) : chatId;
+        }
+
+        async function garantirTodasSalasCache() {
+            if (todasSalasCache.length > 0) return;
+            try {
+                const data = await chamarApi('listar_todas_salas', {});
+                todasSalasCache = (Array.isArray(data) ? data : []).filter(item => item && item.chat_id != null);
+            } catch (e) {
+                console.error("Falha ao carregar todas as salas:", e);
+            }
+        }
 
         window.sair = sair;
 
@@ -432,6 +484,10 @@
                 const data = await chamarApi(acao, { chat_id: salaSelecionada });
                 const conversas = (Array.isArray(data) ? data : []).filter(item => item && item.remotejid != null);
 
+                if (conversas.some(c => ehContatoInterno(c.remotejid))) {
+                    await garantirTodasSalasCache();
+                }
+
                 if (conversas.length === 0) {
                     const mensagemVazio = modoArquivadas ? 'Nenhuma conversa arquivada' : 'Nenhuma conversa nessa sala';
                     container.innerHTML = `<div class="p-12 text-center text-gray-400 text-xs font-bold uppercase tracking-widest">${mensagemVazio}</div>`;
@@ -439,16 +495,22 @@
                 }
 
                 container.innerHTML = conversas.map(c => {
-                    const numero = numeroSemSufixo(c.remotejid);
-                    contatosCache[c.remotejid] = {
-                        apelido: c.apelido || '',
-                        emoji: c.emoji || '',
-                        observacoes: c.observacoes || ''
-                    };
-                    const prefixoVendedor = c.vendedor_emoji ? `${c.vendedor_emoji} ` : '';
-                    const titulo = prefixoVendedor + (c.apelido
-                        ? `${c.emoji ? c.emoji + ' ' : ''}${c.apelido}`
-                        : (c.pushname ? `${c.pushname} - ${numero}` : numero));
+                    const interno = ehContatoInterno(c.remotejid);
+                    let titulo;
+                    if (interno) {
+                        titulo = `🏢 ${nomeSalaPorChatId(extrairChatIdOutraSala(c.remotejid))}`;
+                    } else {
+                        const numero = numeroSemSufixo(c.remotejid);
+                        contatosCache[c.remotejid] = {
+                            apelido: c.apelido || '',
+                            emoji: c.emoji || '',
+                            observacoes: c.observacoes || ''
+                        };
+                        const prefixoVendedor = c.vendedor_emoji ? `${c.vendedor_emoji} ` : '';
+                        titulo = prefixoVendedor + (c.apelido
+                            ? `${c.emoji ? c.emoji + ' ' : ''}${c.apelido}`
+                            : (c.pushname ? `${c.pushname} - ${numero}` : numero));
+                    }
                     const ativa = c.remotejid === conversaSelecionada;
                     const pontoNaoLida = c.nao_lida
                         ? '<span class="ponto-nao-lida flex-shrink-0 w-2.5 h-2.5 rounded-full bg-[#00b34d]"></span>'
@@ -473,11 +535,11 @@
                             <p class="text-sm font-bold text-gray-800">${escapeHtml(titulo)}</p>
                             <p class="text-xs text-gray-400 truncate">${escapeHtml(c.mensagem || c.caption) || '(sem prévia)'}</p>
                         </div>
-                        <button onclick="event.stopPropagation(); window.__abrirContato('${c.remotejid}')"
+                        ${interno ? '' : `<button onclick="event.stopPropagation(); window.__abrirContato('${c.remotejid}')"
                             title="Editar contato"
                             class="flex-shrink-0 text-gray-300 hover:text-gray-600 transition-all p-1">
                             <i class="fas fa-pen text-xs"></i>
-                        </button>
+                        </button>`}
                         ${botaoArquivo}
                     </div>
                 `;
@@ -527,13 +589,18 @@
 
         window.__abrirConversa = abrirConversa;
 
-        function abrirConversa(remotejid) {
+        async function abrirConversa(remotejid) {
             conversaSelecionada = remotejid;
             document.getElementById('painel-lista').classList.add('hidden');
             const painelConversa = document.getElementById('painel-conversa');
             painelConversa.classList.remove('hidden');
             painelConversa.style.display = 'flex';
-            document.getElementById('titulo-conversa').innerText = numeroSemSufixo(remotejid);
+            if (ehContatoInterno(remotejid)) {
+                await garantirTodasSalasCache();
+                document.getElementById('titulo-conversa').innerText = '🏢 ' + nomeSalaPorChatId(extrairChatIdOutraSala(remotejid));
+            } else {
+                document.getElementById('titulo-conversa').innerText = numeroSemSufixo(remotejid);
+            }
             destacarConversaAtiva();
             carregarMensagens();
             marcarLida(remotejid);
@@ -925,9 +992,13 @@
                             ${formatarWhatsApp(escapeHtml(resumoMensagemCitada(citada)))}
                         </div>
                     ` : '';
+                    const remetenteHtml = (ehContatoInterno(conversaSelecionada) && m.nome_remetente)
+                        ? `<div class="text-[10px] font-bold text-blue-600 mb-0.5">${escapeHtml(m.nome_remetente)}</div>`
+                        : '';
                     return `
                     <div class="flex ${m.from_me ? 'justify-end' : 'justify-start'}">
                         <div data-msg-id="${m.id}" data-messagetype="${escapeHtml(m.messagetype || '')}" data-mime-type="${escapeHtml(m.mime_type || '')}" data-nome-arquivo="${escapeHtml(m.midia || '')}" data-caption="${escapeHtml(m.caption || '')}" data-mensagem="${escapeHtml(m.mensagem || '')}" class="max-w-[90%] rounded-2xl px-4 py-2 text-sm text-black ${m.from_me ? 'bg-[#dcf8c6]' : 'bg-white'}">
+                            ${remetenteHtml}
                             ${citacaoHtml}
                             <div class="conteudo-mensagem">${renderizarConteudoMensagem(m)}</div>
                             <div class="flex items-center justify-end gap-2 mt-1">
@@ -957,14 +1028,23 @@
 
             input.disabled = true;
             try {
-                await chamarApi('enviar_mensagem', {
-                    remotejid: conversaSelecionada,
-                    chat_id: salaSelecionada,
-                    mensagem: texto,
-                    messagetype: 'conversation',
-                    resposta_a: respondendoA ? respondendoA.id : null,
-                    wa_message_id_citado: respondendoA ? respondendoA.wa_message_id : null
-                });
+                if (ehContatoInterno(conversaSelecionada)) {
+                    await chamarApi('enviar_mensagem_interna', {
+                        chat_id_origem: salaSelecionada,
+                        chat_id_destino: extrairChatIdOutraSala(conversaSelecionada),
+                        mensagem: texto,
+                        nome_remetente: sessao.nome_vendedor
+                    });
+                } else {
+                    await chamarApi('enviar_mensagem', {
+                        remotejid: conversaSelecionada,
+                        chat_id: salaSelecionada,
+                        mensagem: texto,
+                        messagetype: 'conversation',
+                        resposta_a: respondendoA ? respondendoA.id : null,
+                        wa_message_id_citado: respondendoA ? respondendoA.wa_message_id : null
+                    });
+                }
                 input.value = '';
                 cancelarResposta();
                 await carregarMensagens(false);
@@ -1026,6 +1106,10 @@
 
         function processarArquivoSelecionado(arquivo) {
             if (!arquivo || !conversaSelecionada) return;
+            if (ehContatoInterno(conversaSelecionada)) {
+                showToast("Envio de arquivo ainda não é suportado em conversa interna.", "warning");
+                return;
+            }
 
             arquivoSelecionado = arquivo;
             const preview = document.getElementById('preview-midia');
@@ -1106,6 +1190,10 @@
                 showToast("Selecione uma conversa primeiro.", "warning");
                 return;
             }
+            if (ehContatoInterno(conversaSelecionada)) {
+                showToast("Áudio ainda não é suportado em conversa interna.", "warning");
+                return;
+            }
             const btn = document.getElementById('btn-gravar-audio');
 
             if (!gravandoAudio) {
@@ -1180,6 +1268,39 @@
         window.abrirNovaConversa = abrirNovaConversa;
         window.fecharNovaConversa = fecharNovaConversa;
         window.confirmarNovaConversa = confirmarNovaConversa;
+        window.abrirNovaConversaInterna = abrirNovaConversaInterna;
+        window.fecharNovaConversaInterna = fecharNovaConversaInterna;
+        window.confirmarNovaConversaInterna = confirmarNovaConversaInterna;
+
+        async function abrirNovaConversaInterna() {
+            if (!salaSelecionada) {
+                showToast("Selecione uma sala primeiro.", "warning");
+                return;
+            }
+            const select = document.getElementById('select-nova-interna-sala');
+            select.innerHTML = '<option value="">Carregando...</option>';
+            document.getElementById('modal-nova-conversa-interna').classList.remove('hidden');
+
+            await garantirTodasSalasCache();
+            const outrasSalas = todasSalasCache.filter(s => String(s.chat_id) !== String(salaSelecionada));
+            select.innerHTML = '<option value="">Com quem você quer conversar...</option>' +
+                outrasSalas.map(s => `<option value="${s.chat_id}">${escapeHtml(s.chat_id_nome || s.chat_id)}</option>`).join('');
+        }
+
+        function fecharNovaConversaInterna() {
+            document.getElementById('modal-nova-conversa-interna').classList.add('hidden');
+        }
+
+        function confirmarNovaConversaInterna() {
+            const chatIdDestino = document.getElementById('select-nova-interna-sala').value;
+            if (!chatIdDestino) {
+                showToast("Escolha uma sala.", "warning");
+                return;
+            }
+            const remotejid = `interno-${sessao.id_cliente}-${salaSelecionada}-${chatIdDestino}@midiabot.interno`;
+            fecharNovaConversaInterna();
+            abrirConversa(remotejid);
+        }
 
         async function abrirNovaConversa() {
             if (!salaSelecionada) {
