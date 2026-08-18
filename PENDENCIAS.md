@@ -2,6 +2,14 @@
 
 Lista organizada de próximos passos, em 2026-08-16. Itens específicos do Envio Ativo têm mais detalhe em `ENVIO_ATIVO.md`.
 
+## Testar em produção após publicar (2026-08-18) — remover daqui quando confirmado
+
+Tudo testado localmente/via curl, mas ainda não confirmado no site publicado (`midiabot.com.br`), porque o deploy é manual e ainda não tinha sido feito hoje.
+
+- [ ] Permissão de sala: abas mostram só as salas com permissão; histórico não mistura salas diferentes.
+- [ ] Encaminhamento: botão "Encaminhar" move a conversa pra sala escolhida; aparece resumo com avisos "Início/Fim" na sala de destino; "Trazer de volta" (com contador) reverte; mover manualmente pelo painel do gestor uma conversa encaminhada é bloqueado com aviso.
+- [ ] Conversa interna: botão "+ Conversa interna" com "Destinatário"; contato aparece na lista com 🏢 + nome da sala (nunca texto tipo "interno-1--5--6"); nome de quem escreveu aparece na mensagem; vírgula na mensagem não corta; chega em tempo real do outro lado sem atualizar a página; "Encaminhar"/"Suspender IA"/"Responder" não aparecem numa conversa interna; áudio e arquivo avisam que não são suportados; duas pessoas diferentes na mesma sala aparecem cada uma com seu nome.
+
 ## Prioridade alta — próximo a atacar
 
 1. **Tela de edição de configuração pra cliente já ativo** (adicionar/remover vendedor, renomear sala, trocar Nome do Bot, etc., sem precisar de reset). Hoje qualquer ajuste pequeno num cliente já configurado depende de SQL manual. Provavelmente precisa ser dividido em seções: Vendedores (nome/senha/emoji/ativo — o mais usado no dia a dia), Salas (renomear/ativar/desativar/telefones vinculados), Distribuição (sorteio automático/manual, dono de sala dedicada), Nome do Bot (campo único, pode entrar dentro de Vendedores). **Provavelmente também é onde a permissão de sala do item 6 abaixo vai ser configurada** — ligar os dois ao desenhar.
