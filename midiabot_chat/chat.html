@@ -72,12 +72,12 @@
                     <i class="fas fa-arrow-left"></i>
                 </button>
                 <p id="titulo-conversa" class="text-sm font-bold text-gray-800 font-mono flex-1"></p>
-                <button onclick="abrirEncaminhar()" title="Encaminhar conversa para outra sala"
+                <button id="btn-encaminhar" onclick="abrirEncaminhar()" title="Encaminhar conversa para outra sala"
                     class="flex-shrink-0 text-[10px] font-bold uppercase tracking-widest text-blue-600 hover:text-blue-800 border border-blue-200 hover:bg-blue-50 rounded-full px-3 py-1.5 transition-all whitespace-nowrap">
                     <i class="fas fa-share"></i>
                     <span class="hidden sm:inline">Encaminhar</span>
                 </button>
-                <button onclick="pausarIA()" title="Suspender resposta da IA por 12 horas"
+                <button id="btn-suspender-ia" onclick="pausarIA()" title="Suspender resposta da IA por 12 horas"
                     class="flex-shrink-0 text-[10px] font-bold uppercase tracking-widest text-amber-600 hover:text-amber-800 border border-amber-200 hover:bg-amber-50 rounded-full px-3 py-1.5 transition-all whitespace-nowrap">
                     <span class="sm:hidden">Suspender IA</span>
                     <span class="hidden sm:inline">Suspender resposta da IA por 12 horas</span>
@@ -595,12 +595,15 @@
             const painelConversa = document.getElementById('painel-conversa');
             painelConversa.classList.remove('hidden');
             painelConversa.style.display = 'flex';
-            if (ehContatoInterno(remotejid)) {
+            const interno = ehContatoInterno(remotejid);
+            if (interno) {
                 await garantirTodasSalasCache();
                 document.getElementById('titulo-conversa').innerText = '🏢 ' + nomeSalaPorChatId(extrairChatIdOutraSala(remotejid));
             } else {
                 document.getElementById('titulo-conversa').innerText = numeroSemSufixo(remotejid);
             }
+            document.getElementById('btn-encaminhar').classList.toggle('hidden', interno);
+            document.getElementById('btn-suspender-ia').classList.toggle('hidden', interno);
             destacarConversaAtiva();
             carregarMensagens();
             marcarLida(remotejid);
@@ -736,16 +739,25 @@
                     return;
                 }
 
-                container.innerHTML = pendentes.map(p => `
+                if (pendentes.some(p => ehContatoInterno(p.remotejid))) {
+                    await garantirTodasSalasCache();
+                }
+
+                container.innerHTML = pendentes.map(p => {
+                    const rotulo = ehContatoInterno(p.remotejid)
+                        ? `🏢 ${nomeSalaPorChatId(extrairChatIdOutraSala(p.remotejid))}`
+                        : numeroSemSufixo(p.remotejid);
+                    return `
                     <div class="border border-gray-200 rounded-xl p-3">
-                        <p class="text-sm font-bold text-gray-800">${escapeHtml(numeroSemSufixo(p.remotejid))}</p>
+                        <p class="text-sm font-bold text-gray-800">${escapeHtml(rotulo)}</p>
                         <p class="text-xs text-gray-400 mb-2">${escapeHtml(p.nome_sala_origem || p.chat_id_origem)} → ${escapeHtml(p.nome_sala_destino || p.chat_id_destino)}</p>
                         <button onclick="window.__trazerDeVolta(${p.id})"
                             class="w-full bg-[#001f3f] text-white py-2 rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-black transition-all active:scale-95">
                             Trazer de volta
                         </button>
                     </div>
-                `).join('');
+                `;
+                }).join('');
             } catch (e) {
                 console.error("Falha ao carregar encaminhamentos pendentes:", e);
                 container.innerHTML = '<div class="text-center text-red-400 text-xs py-8">Erro ao carregar</div>';
@@ -992,9 +1004,14 @@
                             ${formatarWhatsApp(escapeHtml(resumoMensagemCitada(citada)))}
                         </div>
                     ` : '';
-                    const remetenteHtml = (ehContatoInterno(conversaSelecionada) && m.nome_remetente)
+                    const interno = ehContatoInterno(conversaSelecionada);
+                    const remetenteHtml = (interno && m.nome_remetente)
                         ? `<div class="text-[10px] font-bold text-blue-600 mb-0.5">${escapeHtml(m.nome_remetente)}</div>`
                         : '';
+                    const botaoResponder = interno ? '' : `
+                                <button onclick="window.__responderMensagem(${m.id})" title="Responder" class="text-gray-400 hover:text-gray-700 transition-colors">
+                                    <i class="fas fa-reply text-[10px]"></i>
+                                </button>`;
                     return `
                     <div class="flex ${m.from_me ? 'justify-end' : 'justify-start'}">
                         <div data-msg-id="${m.id}" data-messagetype="${escapeHtml(m.messagetype || '')}" data-mime-type="${escapeHtml(m.mime_type || '')}" data-nome-arquivo="${escapeHtml(m.midia || '')}" data-caption="${escapeHtml(m.caption || '')}" data-mensagem="${escapeHtml(m.mensagem || '')}" class="max-w-[90%] rounded-2xl px-4 py-2 text-sm text-black ${m.from_me ? 'bg-[#dcf8c6]' : 'bg-white'}">
@@ -1002,9 +1019,7 @@
                             ${citacaoHtml}
                             <div class="conteudo-mensagem">${renderizarConteudoMensagem(m)}</div>
                             <div class="flex items-center justify-end gap-2 mt-1">
-                                <button onclick="window.__responderMensagem(${m.id})" title="Responder" class="text-gray-400 hover:text-gray-700 transition-colors">
-                                    <i class="fas fa-reply text-[10px]"></i>
-                                </button>
+                                ${botaoResponder}
                                 <div class="text-[10px] text-gray-400">${formatarDataHora(m.datetime)}</div>
                             </div>
                         </div>
