@@ -1009,7 +1009,7 @@
                         </div>
                     ` : '';
                     const interno = ehContatoInterno(conversaSelecionada);
-                    const remetenteHtml = (interno && m.nome_remetente)
+                    const remetenteHtml = (m.from_me && m.nome_remetente)
                         ? `<div class="text-[10px] font-bold text-blue-600 mb-0.5">${escapeHtml(m.nome_remetente)}</div>`
                         : '';
                     const botaoResponder = interno ? '' : `
