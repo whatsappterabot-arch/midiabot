@@ -2,9 +2,13 @@
 
 Lista organizada de próximos passos, em 2026-08-16. Itens específicos do Envio Ativo têm mais detalhe em `ENVIO_ATIVO.md`.
 
-## Prioridade alta — próximo a atacar
+## Adiado — sem urgência
 
-1. **Tela de edição de configuração pra cliente já ativo** (adicionar/remover vendedor, renomear sala, trocar Nome do Bot, etc., sem precisar de reset). Hoje qualquer ajuste pequeno num cliente já configurado depende de SQL manual. Provavelmente precisa ser dividido em seções: Vendedores (nome/senha/emoji/ativo — o mais usado no dia a dia), Salas (renomear/ativar/desativar/telefones vinculados), Distribuição (sorteio automático/manual, dono de sala dedicada), Nome do Bot (campo único, pode entrar dentro de Vendedores). **Provavelmente também é onde a permissão de sala do item 6 abaixo vai ser configurada** — ligar os dois ao desenhar.
+1. **Tela de "condições gerais do cliente"** — ainda não existe, nem foi começada; adiada de propósito enquanto o escopo completo não fica claro (evitar construir aos pedaços e ter que refazer). Reúne parâmetros do cliente como um todo, entre eles:
+   - Nome do Bot e distribuição automática/manual — hoje só definidos uma vez, no assistente de instalação inicial (`dashboard.html`), sem tela pra mudar depois.
+   - `nome_fantasia` (nome da empresa/cliente) — hoje não tem nenhuma tela de criação nem edição; quando for construída, precisa tratar o erro de nome duplicado de forma clara (a trava `UNIQUE` já existe no banco, só falta a tela usar isso pra dar um aviso compreensível em vez de erro genérico).
+   
+   **Escopo corrigido em 2026-08-19**: vendedor (nome/cor/ativo) já é editável em "Cadastro de Consultores", não faz parte disso; renomear sala **não faz parte do projeto**, decisão consciente.
 
 ## Iniciativa grande em desenho — permissão de sala + chat interno
 
@@ -12,7 +16,6 @@ Lista organizada de próximos passos, em 2026-08-16. Itens específicos do Envio
 
 ## Pendências técnicas conhecidas, prontas pra atacar
 
-2. Erro amigável quando `nome_fantasia` já está em uso no cadastro (a constraint `UNIQUE` já existe no banco, só falta a tela tratar o erro).
 3. ~~Revisar se a **Atribuição de Chat** precisa do ajuste de identidade de workflow~~ — **resolvido em 2026-08-16**: `salvar_atribuicao` estava com um bug real de produção (`ON CONFLICT` sem `workflow_name`, movimentação falhava silenciosamente), corrigido e testado; agora também bloqueia mover manualmente um cliente com encaminhamento pendente (ver item 6).
 4. `instancias.html` — falta o item 3 do fallback de correção ("Montar item final"), os outros dois já foram aplicados.
 5. ~~Confirmar cabeçalho `📤 Mensagem enviada por {nome_vendedor}`~~ — **fechado em 2026-08-19**: o mecanismo real de "quem mandou" é a coluna `nome_remetente` (o cabeçalho `📤 Mensagem enviada por` é outra coisa — vai só no texto que o **cliente** recebe no WhatsApp, não tem relação com exibição interna). Confirmado direto na query de todos os 5 nodes de envio (texto/imagem/vídeo/documento/áudio) que todos gravam `nome_remetente` via `JOIN midiabot_login_chat`; texto e áudio confirmados rodando de verdade, os outros 3 confirmados por inspeção direta da query (mesmo padrão idêntico).
