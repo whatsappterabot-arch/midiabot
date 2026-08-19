@@ -141,6 +141,8 @@
         let salas = [];
         let orfaosPorWorkflow = {};
         let compartilhadaNovaSala = false;
+        let colaboradores = [];
+        let permissoes = [];
 
         // Inicialização e Proteção de Rota
         document.addEventListener('DOMContentLoaded', () => {
@@ -164,6 +166,7 @@
             window.desatrelarSender = desatrelarSender;
             window.apagarSala = apagarSala;
             window.alternarCompartilhada = alternarCompartilhada;
+            window.alternarPermissaoSala = alternarPermissaoSala;
             window.abrirAjuda = abrirAjuda;
             window.fecharAjuda = fecharAjuda;
             window.logout = logout;
@@ -204,6 +207,15 @@
                     <span class="text-xs font-bold uppercase tracking-tighter">${item.label}</span>
                 </a>
             `).join('');
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
         }
 
         // Função Central de Comunicação com n8n
@@ -362,11 +374,54 @@
 
                 const workflowsUnicos = [...new Set(salas.map(s => s.workflow_name))];
                 await Promise.all(workflowsUnicos.map(w => carregarOrfaos(w)));
+                await Promise.all([carregarColaboradores(), carregarPermissoes()]);
 
                 renderizarSalas();
                 await sincronizarSenderNovaSala();
             } catch (e) {
                 console.error("Falha ao carregar salas:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
+        async function carregarColaboradores() {
+            try {
+                const payload = { origem: 'login_chat', plataforma, acao: 'listar', id_cliente: user.id_cliente, dados: {} };
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!res.ok) throw new Error("Erro na API");
+                const data = await res.json();
+                colaboradores = (Array.isArray(data) ? data : []).filter(item => item && item.id_vendedor != null && item.ativo === 1 && item.login);
+            } catch (e) {
+                console.error("Falha ao carregar colaboradores:", e);
+                colaboradores = [];
+            }
+        }
+
+        async function carregarPermissoes() {
+            try {
+                const data = await chamarApi('listar_permissoes_sala', {});
+                permissoes = (Array.isArray(data) ? data : []).filter(item => item && item.id_vendedor != null && item.chat_id != null);
+            } catch (e) {
+                console.error("Falha ao carregar permissões de sala:", e);
+                permissoes = [];
+            }
+        }
+
+        function temPermissao(idVendedor, chatId) {
+            return permissoes.some(p => Number(p.id_vendedor) === Number(idVendedor) && Number(p.chat_id) === Number(chatId));
+        }
+
+        async function alternarPermissaoSala(idVendedor, chatId, permitir) {
+            try {
+                await chamarApi(permitir ? 'conceder_permissao_sala' : 'revogar_permissao_sala', { id_vendedor: idVendedor, chat_id: chatId });
+                await carregarPermissoes();
+                renderizarSalas();
+            } catch (e) {
+                console.error("Falha ao alterar permissão de sala:", e);
                 showToast("Erro ao processar solicitação.", "error");
             }
         }
@@ -434,6 +489,21 @@
                             class="bg-[#001f3f] text-white px-4 py-2 rounded-lg font-bold text-xs hover:bg-black transition-all shadow active:scale-95">
                             ATRELAR
                         </button>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-gray-100">
+                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Quem pode ver esta sala</p>
+                        <div class="flex flex-wrap gap-3">
+                            ${colaboradores.length === 0
+                                ? '<span class="text-xs text-gray-300">Nenhum colaborador cadastrado</span>'
+                                : colaboradores.map(c => `
+                                    <label class="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+                                        <input type="checkbox" class="w-4 h-4 accent-[#00b34d] cursor-pointer"
+                                            ${temPermissao(c.id_vendedor, sala.chat_id) ? 'checked' : ''}
+                                            onchange="alternarPermissaoSala(${c.id_vendedor}, ${sala.chat_id}, this.checked)">
+                                        ${c.cor_emoji || ''} ${escapeHtml(c.nome_vendedor || c.login)}
+                                    </label>
+                                `).join('')}
+                        </div>
                     </div>
                 </div>
             `).join('');
