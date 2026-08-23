@@ -122,6 +122,7 @@
 
         let passoWizard = 1;
         let dadosCampanha = null;
+        let versaoAtiva = 0;
 
         const DISCLAIMER_PADRAO = 'Nós respeitamos sua privacidade. Caso não queira receber nossas mensagens, envie SAIR';
 
@@ -338,7 +339,7 @@
                 contatos_validos: [],
                 bloqueados_duplicado: [],
                 bloqueados_optout: [],
-                texto: '',
+                versoes: [{ parte1: '', parte2: '', parte3: '' }],
                 instancia: '',
                 intervalo_valor: 90,
                 intervalo_unidade: 'segundos',
@@ -363,6 +364,7 @@
             dadosCampanha = novoDadosCampanha();
             dadosCampanha.agendado_para = agoraDatetimeLocal();
             passoWizard = 1;
+            versaoAtiva = 0;
 
             if (!instanciasDisponiveis.length) {
                 try {
@@ -467,18 +469,53 @@
             `;
         }
 
-        // ----- Passo 2 — Texto -----
+        // ----- Passo 2 — Texto (até 4 versões, cada uma com até 3 partes) -----
         function passo2Texto() {
             const chips = dadosCampanha.colunas.map(c => `<span class="inline-block bg-gray-100 text-gray-600 text-xs font-mono px-2 py-1 rounded-lg mr-1 mb-1">{{${c}}}</span>`).join('');
+            const versoes = dadosCampanha.versoes;
+            const ativa = versoes[versaoAtiva] || versoes[0];
+
+            const abas = versoes.map((v, i) => {
+                const temConteudo = (v.parte1 || '').trim().length > 0;
+                const classeBase = 'px-4 py-2 rounded-full text-xs font-bold transition-all';
+                const classeCor = i === versaoAtiva
+                    ? (temConteudo ? 'bg-[#00b34d] text-white shadow-md' : 'bg-gray-400 text-white shadow-md')
+                    : (temConteudo ? 'bg-[#00b34d]/20 text-[#00733a]' : 'bg-gray-100 text-gray-500 hover:bg-gray-200');
+                return `<button type="button" data-versao-aba="${i}" class="${classeBase} ${classeCor}">Versão ${i + 1}</button>`;
+            }).join('');
+
             return `
                 <h2 class="text-lg font-bold text-gray-800 mb-2">Texto da mensagem</h2>
-                <p class="text-sm text-gray-500 mb-3">Variáveis disponíveis, tiradas da sua planilha:</p>
+                <p class="text-sm text-gray-500 mb-3">Até 4 versões diferentes — o sistema sorteia uma pra cada contato, pra a mensagem não ficar idêntica pra todo mundo.</p>
+                <p class="text-sm text-gray-500 mb-1">Variáveis disponíveis, tiradas da sua planilha:</p>
                 <div class="mb-4">${chips || '<span class="text-xs text-gray-400">Nenhuma coluna extra além do telefone.</span>'}</div>
-                <textarea id="input-texto" rows="5" placeholder="Escreva a mensagem..."
-                    class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm mb-2 focus:ring-2 focus:ring-[#00b34d] outline-none">${escapeHtml(dadosCampanha.texto)}</textarea>
-                <div id="aviso-placeholder" class="hidden text-xs text-red-600 mb-3"></div>
-                <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Prévia</p>
-                <div id="preview-texto" class="p-4 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 whitespace-pre-wrap mb-6"></div>
+
+                <div class="border border-gray-200 rounded-xl p-5 mb-6">
+                    <div class="flex flex-wrap items-center gap-2 mb-5">
+                        ${abas}
+                        ${versoes.length < 4 ? `<button type="button" data-acao="add-versao" class="px-4 py-2 rounded-full text-xs font-bold text-[#00b34d] border border-[#00b34d] hover:bg-[#00b34d]/10"><i class="fas fa-plus mr-1"></i>Adicionar versão</button>` : ''}
+                        ${versoes.length > 1 ? `<button type="button" data-acao="remover-versao" class="px-4 py-2 rounded-full text-xs font-bold text-red-500 hover:bg-red-50">Remover esta versão</button>` : ''}
+                    </div>
+
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Parte 1</label>
+                    <textarea id="input-parte1" rows="2" placeholder="Escreva a primeira parte da mensagem..."
+                        class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm mb-3 focus:ring-2 focus:ring-[#00b34d] outline-none">${escapeHtml(ativa.parte1)}</textarea>
+
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Parte 2 <span class="normal-case font-normal text-gray-400">(opcional)</span></label>
+                    <textarea id="input-parte2" rows="2" placeholder="Segunda parte, se quiser dividir a mensagem..."
+                        class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm mb-3 focus:ring-2 focus:ring-[#00b34d] outline-none">${escapeHtml(ativa.parte2)}</textarea>
+
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Parte 3 <span class="normal-case font-normal text-gray-400">(opcional)</span></label>
+                    <textarea id="input-parte3" rows="2" placeholder="Terceira parte, se precisar..."
+                        class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm mb-2 focus:ring-2 focus:ring-[#00b34d] outline-none">${escapeHtml(ativa.parte3)}</textarea>
+
+                    <p class="text-xs text-gray-400 mb-3">A última parte é sempre fixa, adicionada automaticamente pelo sistema (o aviso de descadastro) — não precisa escrever ela.</p>
+
+                    <div id="aviso-placeholder" class="hidden text-xs text-red-600 mb-3"></div>
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Prévia (como vai chegar, em mensagens separadas)</p>
+                    <div id="preview-texto" class="space-y-2"></div>
+                </div>
+
                 <div class="flex justify-between mt-4">
                     <button data-acao="voltar" class="px-5 py-3 text-gray-500 font-bold">Voltar</button>
                     <button data-acao="proximo" id="btn-avancar-2" class="px-5 py-3 bg-[#00b34d] text-white font-bold rounded-xl hover:bg-green-600">Avançar</button>
@@ -486,13 +523,28 @@
             `;
         }
 
-        function atualizarPreviewTexto() {
-            const textarea = document.getElementById('input-texto');
-            dadosCampanha.texto = textarea.value;
+        function todasAsPartesPreenchidas() {
+            const partes = [];
+            dadosCampanha.versoes.forEach(v => {
+                ['parte1', 'parte2', 'parte3'].forEach(chave => {
+                    if ((v[chave] || '').trim()) partes.push(v[chave]);
+                });
+            });
+            return partes;
+        }
 
-            const usados = extrairPlaceholders(dadosCampanha.texto);
+        function atualizarPreviewTexto() {
+            const ativa = dadosCampanha.versoes[versaoAtiva];
+            ativa.parte1 = document.getElementById('input-parte1')?.value ?? ativa.parte1;
+            ativa.parte2 = document.getElementById('input-parte2')?.value ?? ativa.parte2;
+            ativa.parte3 = document.getElementById('input-parte3')?.value ?? ativa.parte3;
+
+            const todosOsTextos = todasAsPartesPreenchidas();
+            const usados = [...new Set(todosOsTextos.flatMap(t => extrairPlaceholders(t)))];
             const invalidos = usados.filter(v => !dadosCampanha.colunas.includes(v));
             const avisoEl = document.getElementById('aviso-placeholder');
+
+            const primeiraVersaoPreenchida = (dadosCampanha.versoes[0].parte1 || '').trim().length > 0;
 
             if (invalidos.length) {
                 avisoEl.classList.remove('hidden');
@@ -500,13 +552,18 @@
                 atualizarEstadoBotao('btn-avancar-2', false);
             } else {
                 avisoEl.classList.add('hidden');
-                atualizarEstadoBotao('btn-avancar-2', dadosCampanha.texto.trim().length > 0);
+                atualizarEstadoBotao('btn-avancar-2', primeiraVersaoPreenchida);
             }
 
             const exemplo = dadosCampanha.contatos_validos[0] || {};
-            const corpo = substituirPlaceholders(dadosCampanha.texto || '(escreva a mensagem acima)', exemplo);
-            document.getElementById('preview-texto').innerHTML =
-                `${escapeHtml(corpo)}<br><br><span class="text-gray-400 italic">${escapeHtml(DISCLAIMER_PADRAO)}</span>`;
+            const partesPreview = [ativa.parte1, ativa.parte2, ativa.parte3]
+                .filter(p => (p || '').trim())
+                .map(p => substituirPlaceholders(p, exemplo));
+            partesPreview.push(DISCLAIMER_PADRAO);
+
+            document.getElementById('preview-texto').innerHTML = partesPreview.map((p, i) => `
+                <div class="p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm whitespace-pre-wrap ${i === partesPreview.length - 1 ? 'text-gray-400 italic' : 'text-gray-700'}">${escapeHtml(p)}</div>
+            `).join('');
         }
 
         // ----- Passo 3 — Configurações -----
@@ -590,7 +647,20 @@
 
             const instanciaLabel = dadosCampanha.instancia;
             const exemplo = dadosCampanha.contatos_validos[0] || {};
-            const mensagemFinal = substituirPlaceholders(dadosCampanha.texto, exemplo) + '\n\n' + DISCLAIMER_PADRAO;
+            const versoesPreenchidas = dadosCampanha.versoes.filter(v => (v.parte1 || '').trim());
+
+            const blocoVersoes = versoesPreenchidas.map((v, i) => {
+                const partes = [v.parte1, v.parte2, v.parte3]
+                    .filter(p => (p || '').trim())
+                    .map(p => substituirPlaceholders(p, exemplo));
+                partes.push(DISCLAIMER_PADRAO);
+                return `
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 mt-4">Versão ${i + 1}</p>
+                    <div class="space-y-2">
+                        ${partes.map((p, j) => `<div class="p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm whitespace-pre-wrap ${j === partes.length - 1 ? 'text-gray-400 italic' : 'text-gray-700'}">${escapeHtml(p)}</div>`).join('')}
+                    </div>
+                `;
+            }).join('');
 
             return `
                 <h2 class="text-lg font-bold text-gray-800 mb-6">Revisão final</h2>
@@ -600,9 +670,10 @@
                     <p>Intervalo: <strong>${dadosCampanha.intervalo_valor} ${dadosCampanha.intervalo_unidade}</strong></p>
                     <p>Horários: <strong>${escapeHtml(horariosTexto) || 'nenhum dia configurado'}</strong></p>
                     <p>Começa em: <strong>${dadosCampanha.agendado_para ? new Date(dadosCampanha.agendado_para).toLocaleString('pt-BR') : '-'}</strong></p>
+                    <p>${versoesPreenchidas.length} ${versoesPreenchidas.length === 1 ? 'versão' : 'versões'} de mensagem — o sistema sorteia uma por contato.</p>
                 </div>
-                <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Mensagem (exemplo com o primeiro contato)</p>
-                <div class="p-4 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 whitespace-pre-wrap mb-6">${escapeHtml(mensagemFinal)}</div>
+                <p class="text-xs text-gray-500 mb-2">Exemplo com o primeiro contato da planilha:</p>
+                <div class="mb-6">${blocoVersoes}</div>
                 <div class="flex justify-between mt-4">
                     <button data-acao="voltar" class="px-5 py-3 text-gray-500 font-bold">Voltar</button>
                     <button data-acao="finalizar" id="btn-finalizar-campanha" class="px-5 py-3 bg-[#00b34d] text-white font-bold rounded-xl hover:bg-green-600">Iniciar campanha</button>
@@ -619,9 +690,18 @@
                 .filter(d => dadosCampanha.horarios[d].inicio && dadosCampanha.horarios[d].fim)
                 .map(d => ({ dia_semana: Number(d), hora_inicio: dadosCampanha.horarios[d].inicio, hora_fim: dadosCampanha.horarios[d].fim }));
 
+            const versoes = dadosCampanha.versoes
+                .filter(v => (v.parte1 || '').trim())
+                .map((v, i) => ({
+                    numero_versao: i + 1,
+                    parte1: v.parte1,
+                    parte2: (v.parte2 || '').trim() || null,
+                    parte3: (v.parte3 || '').trim() || null
+                }));
+
             const payload = {
                 instancia: dadosCampanha.instancia,
-                texto: dadosCampanha.texto,
+                versoes,
                 intervalo_segundos: intervaloEmSegundos(),
                 agendado_para: new Date(dadosCampanha.agendado_para).toISOString(),
                 horarios,
@@ -651,8 +731,35 @@
             const inputArquivo = document.getElementById('input-arquivo');
             if (inputArquivo) inputArquivo.onchange = () => { if (inputArquivo.files[0]) lidarComUpload(inputArquivo.files[0]); };
 
-            const inputTexto = document.getElementById('input-texto');
-            if (inputTexto) { inputTexto.oninput = atualizarPreviewTexto; atualizarPreviewTexto(); }
+            const inputParte1 = document.getElementById('input-parte1');
+            if (inputParte1) {
+                ['input-parte1', 'input-parte2', 'input-parte3'].forEach(id => {
+                    const campo = document.getElementById(id);
+                    if (campo) campo.oninput = atualizarPreviewTexto;
+                });
+                atualizarPreviewTexto();
+
+                el.querySelectorAll('[data-versao-aba]').forEach(botao => {
+                    botao.onclick = () => {
+                        versaoAtiva = Number(botao.dataset.versaoAba);
+                        renderWizard();
+                    };
+                });
+
+                const btnAddVersao = el.querySelector('[data-acao="add-versao"]');
+                if (btnAddVersao) btnAddVersao.onclick = () => {
+                    dadosCampanha.versoes.push({ parte1: '', parte2: '', parte3: '' });
+                    versaoAtiva = dadosCampanha.versoes.length - 1;
+                    renderWizard();
+                };
+
+                const btnRemoverVersao = el.querySelector('[data-acao="remover-versao"]');
+                if (btnRemoverVersao) btnRemoverVersao.onclick = () => {
+                    dadosCampanha.versoes.splice(versaoAtiva, 1);
+                    versaoAtiva = Math.max(0, versaoAtiva - 1);
+                    renderWizard();
+                };
+            }
 
             const inputIntervaloValor = document.getElementById('input-intervalo-valor');
             const selectIntervaloUnidade = document.getElementById('select-intervalo-unidade');

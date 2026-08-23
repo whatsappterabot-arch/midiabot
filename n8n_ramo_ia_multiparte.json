@@ -1,0 +1,2627 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO midiabot_historico_mensagens\n    (from_me, instance, remote_jid, sender, pushname, mensagem, caption, messagetype, mime_type, midia, base64, workflow_name, id_cliente, chat_id, wa_message_id, resposta_a)\nVALUES\n    (false, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $15, $13,\n        (SELECT id FROM midiabot_historico_mensagens\n         WHERE wa_message_id = $14 AND remote_jid = $2 AND workflow_name = $11\n         LIMIT 1))\nRETURNING id, chat_id, remote_jid, id_cliente",
+        "options": {
+          "queryReplacement": "={{ [\n  $('Webhook2').item.json.body.instance,\n  $('Webhook2').item.json.body.data.key.remoteJid,\n  $('Webhook2').item.json.body.sender,\n  $('Webhook2').item.json.body.data.pushName,\n  $('verifica messagetype').item.json.messagetype === 'audioMessage'\n    ? $('Edit Fields').item.json.mensagem\n    : $('verifica messagetype').item.json.mensagem,\n  $('verifica messagetype').item.json.caption,\n  $('verifica messagetype').item.json.messagetype,\n  $('verifica messagetype').item.json.mime_type,\n  $('verifica messagetype').item.json.midia,\n  $('verifica messagetype').item.json.messagetype === 'audioMessage'\n    ? $('Edit Fields').item.json.base64\n    : $('verifica messagetype').item.json.base64,\n  $('define sala e vendedor').item.json.workflow_name,\n  $('define sala e vendedor').item.json.id_cliente,\n  $('verifica messagetype').item.json.wa_message_id,\n  $('verifica messagetype').item.json.stanza_id,\n  $('define sala e vendedor').item.json.chat_id\n] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        9072,
+        1312
+      ],
+      "id": "2893a4c8-ee35-4232-966b-8c1c796f97e4",
+      "name": "Insert",
+      "credentials": {
+        "postgres": {
+          "id": "Zywl4lJ7FqghLn7A",
+          "name": "Postgres Terabot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## recebimento de mensagem de fora e pusher \n**Double click** to edit me. [Guide](https://docs.n8n.io/workflows/components/sticky-notes/)",
+        "height": 352,
+        "width": 708,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1744,
+        1504
+      ],
+      "typeVersion": 1,
+      "id": "fb8a64c6-a6c3-44e4-a6f3-f4d428b7307b",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "scenty-store-v1-ae48-e0d4599b95e0",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        1840,
+        1616
+      ],
+      "id": "2bc2f58a-9526-4b24-af4a-295719918361",
+      "name": "Webhook2",
+      "webhookId": "5556d8a2-a784-4858-ae48-e0d4599b95e0"
+    },
+    {
+      "parameters": {
+        "jsCode": "const dados = $('Webhook2').item.json.body.data;\nconst tipo = dados.messageType;\n\nlet resultado = {\n    messagetype: tipo,\n    mensagem: null,\n    caption: null,\n    mime_type: null,\n    midia: null,\n    base64: null,\n    wa_message_id: dados.key.id,\n    stanza_id: dados.contextInfo?.stanzaId || null\n};\n\nif (tipo === 'conversation') {\n    resultado.mensagem = dados.message.conversation;\n} else if (tipo === 'extendedTextMessage') {\n    resultado.mensagem = dados.message.extendedTextMessage?.text;\n} else if (tipo === 'imageMessage') {\n    resultado.mime_type = dados.message.imageMessage.mimetype;\n    resultado.caption = dados.message.imageMessage.caption || null;\n    resultado.base64 = dados.message.base64;\n} else if (tipo === 'audioMessage') {\n    resultado.mime_type = dados.message.audioMessage.mimetype;\n    resultado.caption = dados.message.audioMessage.caption || null;\n    resultado.base64 = dados.message.base64;\n} else if (tipo === 'videoMessage') {\n    resultado.mime_type = dados.message.videoMessage.mimetype;\n    resultado.caption = dados.message.videoMessage.caption || null;\n    resultado.base64 = dados.message.base64;\n} else if (tipo === 'documentMessage') {\n    resultado.mime_type = dados.message.documentMessage.mimetype;\n    resultado.caption = dados.message.documentMessage.caption || null;\n    resultado.midia = dados.message.documentMessage.fileName || null;\n    resultado.base64 = dados.message.base64;\n} else if (tipo === 'contactMessage') {\n    const nome = dados.message.contactMessage.displayName || 'Contato';\n    const vcard = dados.message.contactMessage.vcard || '';\n    const telMatch = vcard.match(/TEL[^:]*:(.+)/);\n    resultado.mensagem = `👤 ${nome}${telMatch ? '\\n' + telMatch[1].trim() : ''}`;\n    resultado.caption = vcard || null;\n} else if (tipo === 'locationMessage') {\n    const lat = dados.message.locationMessage.degreesLatitude;\n    const lng = dados.message.locationMessage.degreesLongitude;\n    resultado.mensagem = `📍 Localização: https://www.google.com/maps?q=${lat},${lng}`;\n} else if (tipo === 'stickerMessage') {\n    resultado.mime_type = dados.message.stickerMessage.mimetype;\n    resultado.base64 = dados.message.base64;\n} else {\n    return [];\n}\n\nreturn [{ json: resultado }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3840,
+        1264
+      ],
+      "id": "b64a3f14-95c6-45c3-8b7d-2dece52c938e",
+      "name": "verifica messagetype"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "=messages.upsert",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "430efb5f-5e19-4b47-990e-5316ff0db3be"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "messages.upsert"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "21343a57-5013-4600-beaf-6a9d5e84b48e",
+                    "leftValue": "={{ $json.body.data.messageType }}",
+                    "rightValue": "secretEncryptedMessage",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "messages.delete"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        2048,
+        1616
+      ],
+      "id": "88aab86b-e054-4da8-aa09-b72d3ae8bfe4",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Webhook2').item.json.body.server_url }}/chat/findMessages/{{ $('Webhook2').item.json.body.instance }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "apikey",
+              "value": "={{ $('Webhook2').item.json.body.apikey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"where\": { \"key\": { \"id\": $('Webhook2').item.json.body.data.message.secretEncryptedMessage.targetMessageKey.id } } } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2688,
+        1728
+      ],
+      "id": "ff4ddeb7-961f-4743-b284-0ab45571f70c",
+      "name": "Buscar mensagem editada"
+    },
+    {
+      "parameters": {
+        "jsCode": "const resposta = $input.item.json;\nconst registros = resposta.messages && resposta.messages.records ? resposta.messages.records : [];\nconst msg = registros[0];\n\nif (!msg) {\n    return [];\n}\n\nlet textoNovo = null;\nif (msg.message && msg.message.conversation) {\n    textoNovo = msg.message.conversation;\n} else if (msg.message && msg.message.extendedTextMessage && msg.message.extendedTextMessage.text) {\n    textoNovo = msg.message.extendedTextMessage.text;\n}\n\nif (!textoNovo) {\n    return [];\n}\n\nreturn [{\n    json: {\n        wa_message_id: msg.key.id,\n        mensagem: textoNovo\n    }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2896,
+        1728
+      ],
+      "id": "c893b9d5-761d-49bb-bbd1-2ca723dc12ba",
+      "name": "Extrair texto editado"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE midiabot_historico_mensagens\nSET mensagem = '✏️ Mensagem editada' || chr(10) || 'Antes: ' || mensagem || chr(10) || 'Agora: ' || $1\nWHERE wa_message_id = $2",
+        "options": {
+          "queryReplacement": "={{ [ $json.mensagem, $json.wa_message_id ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3104,
+        1728
+      ],
+      "id": "c7f25b65-f6e9-4e86-abf4-0bd4021a43df",
+      "name": "Execute a SQL query11",
+      "credentials": {
+        "postgres": {
+          "id": "Zywl4lJ7FqghLn7A",
+          "name": "Postgres Terabot"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2320,
+        1712
+      ],
+      "id": "7f4cd1ea-7a4f-444b-b4db-a17040496abb",
+      "name": "Wait",
+      "webhookId": "19275c38-b545-445f-aca4-c63f870d38a0"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "86f42b9a-bc5d-4ad5-841a-141a3f6de0cc",
+              "leftValue": "={{ $('Webhook2').item.json.body.data.messageType }}",
+              "rightValue": "audioMessage",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        4416,
+        1248
+      ],
+      "id": "adf7e043-6fb4-44e7-8e4b-3c20380f3e85",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "jsCode": "let base64Data = $('Webhook2').first().json.body?.data?.message?.base64;\n\nif (!base64Data) {\n    const response = await this.helpers.httpRequest({\n        method: 'POST',\n        url: `${$('Webhook2').first().json.body.server_url}/chat/getBase64FromMediaMessage/${$('Webhook2').first().json.body.instance}`,\n        headers: {\n            'apikey': $('Webhook2').first().json.body.apikey,\n            'Content-Type': 'application/json'\n        },\n        body: {\n            message: { key: { id: $('Webhook2').first().json.body.data.key.id } }\n        },\n        json: true\n    });\n    base64Data = response.base64;\n}\n\nif (!base64Data) {\n    throw new Error(\"O path do Base64 retornou vazio, e o download de fallback também falhou.\");\n}\n\nconst binaryBuffer = Buffer.from(base64Data, 'base64');\n\nreturn [{\n  json: { ...$input.item.json, base64_recuperado: base64Data },\n  binary: { audio: await this.helpers.prepareBinaryData(binaryBuffer, 'audio.ogg', 'audio/ogg') }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4672,
+        848
+      ],
+      "id": "d52c005d-d07d-4ffa-9f8f-42b46e5bbb85",
+      "name": "b64 para bin",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "11df7626-1893-4268-a570-ca29c2a02863",
+              "leftValue": "={{ $('Webhook2').item.json.body.data.key.fromMe }}",
+              "rightValue": "false",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        4048,
+        1264
+      ],
+      "id": "3fe622a3-35cc-495f-b9aa-559a1ec093bf",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id FROM midiabot_historico_mensagens WHERE wa_message_id = $1 LIMIT 1",
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook2').item.json.body.data.key.id ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4208,
+        944
+      ],
+      "id": "191ce8f3-955d-48f6-89f8-2d5b2325ff16",
+      "name": "Insere msg env do celular",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "Zywl4lJ7FqghLn7A",
+          "name": "Postgres Terabot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "dfa82d44-54e5-4397-af58-ae1357b14154",
+              "leftValue": "",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        4016,
+        960
+      ],
+      "id": "655a1eda-e2d2-4c07-b3bd-97484700b5b1",
+      "name": "If3"
+    },
+    {
+      "parameters": {
+        "content": "### From me\n**Double click** to edit me. [Guide](https://docs.n8n.io/workflows/components/sticky-notes/)",
+        "height": 672,
+        "width": 400
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        3968,
+        848
+      ],
+      "typeVersion": 1,
+      "id": "8d8b2e94-f300-4101-ab34-f41207f760d0",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## direto para o chat\n**Double click** to edit me. [Guide](https://docs.n8n.io/workflows/components/sticky-notes/)",
+        "height": 288,
+        "width": 1040,
+        "color": "#110DF8"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        8944,
+        1216
+      ],
+      "typeVersion": 1,
+      "id": "f2ab55b5-786f-425b-ad3f-faeddde09117",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        5152,
+        1264
+      ],
+      "id": "f9b1fc12-474c-4f8a-94ff-603985ab9095",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepgram.com/v1/listen?model=nova-2&language=pt&punctuate=true",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "=audio",
+              "inputDataFieldName": "=audio"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        4816,
+        848
+      ],
+      "id": "a25ac468-0fdf-4a15-a941-a6e54ad3d282",
+      "name": "transcricao de audio",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "NkfzAxL73VU9AYfc",
+          "name": "deepgram transcrição de audios"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "667764df-2cb3-461d-a43b-c93f40b25e8d",
+              "name": "base64",
+              "value": "={{ $('b64 para bin').item.json.base64_recuperado }}",
+              "type": "string"
+            },
+            {
+              "id": "191b5b7c-581c-4d10-9c61-7ad97cac6d78",
+              "name": "mensagem",
+              "value": "={{ ($json.caption ? $json.caption + ' ' : '') + $json.results.channels[0].alternatives[0].transcript }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4976,
+        848
+      ],
+      "id": "f48888d4-fc1a-436b-a345-c8e593ae94a0",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH resolvido AS (\n    SELECT\n        i.id_cliente,\n        i.workflow_name,\n        COALESCE(rc.chat_id, sc.chat_id) AS chat_id,\n        rc.chat_id IS NULL AS precisa_gravar\n    FROM midiabot_a_instancias i\n    LEFT JOIN midiabot_remotejid_chatid rc\n        ON rc.id_cliente = i.id_cliente AND rc.remotejid = $2 AND rc.workflow_name = i.workflow_name\n    LEFT JOIN midiabot_sender_chatid sc\n        ON sc.id_cliente = i.id_cliente AND sc.sender = i.sender\n    WHERE i.nome_instancia = $1\n),\ngravado AS (\n    INSERT INTO midiabot_remotejid_chatid (id_cliente, remotejid, workflow_name, chat_id, arquivada)\n    SELECT id_cliente, $2, workflow_name, chat_id, 0\n    FROM resolvido\n    WHERE precisa_gravar AND chat_id IS NOT NULL\n    ON CONFLICT (id_cliente, remotejid, workflow_name) DO NOTHING\n),\nsala_info AS (\n    SELECT r.id_cliente, r.chat_id, sv.sorteio, sv.vendedor_escolhido\n    FROM resolvido r\n    JOIN midiabot_chatid_workflowname w\n        ON w.id_cliente = r.id_cliente AND w.chat_id = r.chat_id\n    LEFT JOIN midiabot_sorteio_vendedor sv\n        ON sv.id_cliente = r.id_cliente AND sv.chat_id = r.chat_id\n    WHERE r.precisa_gravar AND r.chat_id IS NOT NULL AND w.sala_compartilhada = 1\n),\ncandidatos AS (\n    SELECT si.id_cliente, si.chat_id, lc.id_vendedor,\n           ROW_NUMBER() OVER (ORDER BY lc.id_vendedor) AS posicao,\n           COUNT(*) OVER () AS total\n    FROM sala_info si\n    JOIN midiabot_login_chat lc\n        ON lc.id_cliente = si.id_cliente AND lc.ativo = 1\n    WHERE si.sorteio = 1\n),\nultimo_vendedor AS (\n    SELECT rcs.id_vendedor\n    FROM sala_info si\n    JOIN midiabot_remotejid_consultor_salacompartilhada rcs\n        ON rcs.id_cliente = si.id_cliente AND rcs.chat_id = si.chat_id\n    WHERE si.sorteio = 1\n    ORDER BY rcs.criado_em DESC\n    LIMIT 1\n),\nproxima_posicao AS (\n    SELECT COALESCE(\n        (SELECT (c.posicao % c.total) + 1 FROM candidatos c WHERE c.id_vendedor = (SELECT id_vendedor FROM ultimo_vendedor)),\n        1\n    ) AS posicao\n),\nvendedor_escolhido AS (\n    SELECT id_cliente, chat_id, vendedor_escolhido AS id_vendedor\n    FROM sala_info\n    WHERE sorteio = 0\n\n    UNION ALL\n\n    SELECT c.id_cliente, c.chat_id, c.id_vendedor\n    FROM candidatos c, proxima_posicao p\n    WHERE c.posicao = p.posicao\n),\ngravado_vendedor AS (\n    INSERT INTO midiabot_remotejid_consultor_salacompartilhada (id_cliente, remotejid, chat_id, id_vendedor)\n    SELECT id_cliente, $2, chat_id, id_vendedor\n    FROM vendedor_escolhido\n    ON CONFLICT (id_cliente, remotejid, chat_id) DO NOTHING\n)\nSELECT id_cliente, workflow_name, chat_id FROM resolvido;",
+        "options": {
+          "queryReplacement": "={{ $('Webhook2').item.json.body.instance }}, {{ $('Webhook2').item.json.body.data.key.remoteJid }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2624,
+        1248
+      ],
+      "id": "9289ae04-a36f-4e4e-bfcf-cf8003a4ed0d",
+      "name": "define sala e vendedor",
+      "credentials": {
+        "postgres": {
+          "id": "Zywl4lJ7FqghLn7A",
+          "name": "Postgres Terabot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Mensagens de audio\n**Double click** to edit me. [Guide](https://docs.n8n.io/workflows/components/sticky-notes/)",
+        "height": 608,
+        "width": 864,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        4400,
+        816
+      ],
+      "typeVersion": 1,
+      "id": "97d8880b-d3da-4c7d-8e4f-d9e1565f10da",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "13e22dd1-3577-4154-8b23-5ba97450ea58",
+              "leftValue": "={{ $('Webhook2').item.json.body.data.key.remoteJid }}",
+              "rightValue": "@g.us",
+              "operator": {
+                "type": "string",
+                "operation": "endsWith"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        5360,
+        1264
+      ],
+      "id": "800234a5-0370-4c3e-a25f-30d888c91a82",
+      "name": "If4"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH bloqueio AS (\n    INSERT INTO midiabot_remotejid_proibidos (id_cliente, remotejid)\n    VALUES ($1, $2)\n    ON CONFLICT (id_cliente, remotejid) DO NOTHING\n)\nINSERT INTO midiabot_midiachat_contato (id_cliente, remotejid, apelido)\nVALUES ($1, $2, $3)\nON CONFLICT (id_cliente, remotejid) DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [\n  $('define sala e vendedor').item.json.id_cliente,\n  $('Webhook2').item.json.body.data.key.remoteJid,\n  (Array.isArray($('buscar info do grupo').item.json) ? $('buscar info do grupo').item.json[0]?.subject : $('buscar info do grupo').item.json?.subject) || '(Grupo)'\n] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5760,
+        960
+      ],
+      "id": "1e07bd8c-2444-4562-88df-52b24898a9f9",
+      "name": "gera bloqueio e nome do grupo",
+      "credentials": {
+        "postgres": {
+          "id": "Zywl4lJ7FqghLn7A",
+          "name": "Postgres Terabot"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        5968,
+        1280
+      ],
+      "id": "dba50082-ea46-4540-b51d-3d13169d3989",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "url": "=https://awkwardgiantpanda-evolution.cloudfy.live/group/findGroupInfos/Marcelo-1?groupJid=5511981880079-1591013909@g.us",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "J8dBgmKYLONL5yIGtIUMl1duX0yeiaMh"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        5552,
+        960
+      ],
+      "id": "40ca56d9-16a1-4d78-b136-fbc009a56e15",
+      "name": "buscar info do grupo"
+    },
+    {
+      "parameters": {
+        "content": "##Resolve Grupos\n**Double click** to edit me. [Guide](https://docs.n8n.io/workflows/components/sticky-notes/)",
+        "height": 624,
+        "width": 832,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        5264,
+        832
+      ],
+      "typeVersion": 1,
+      "id": "ba4607c6-04e5-4387-ac5c-bcdd39702de1",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH agora AS (\n    SELECT (now() AT TIME ZONE 'America/Sao_Paulo') AS agora_local\n),\nexcecao_hoje AS (\n    SELECT e.hora_inicio, e.hora_fim\n    FROM midiabot_z_excecoes_horarios e, agora a\n    WHERE e.id_cliente = $1 AND e.workflow_name = $2\n      AND e.data = a.agora_local::date\n),\nbloqueado_por_excecao AS (\n    SELECT 1\n    FROM excecao_hoje ex, agora a\n    WHERE (ex.hora_inicio IS NULL AND ex.hora_fim IS NULL)\n       OR (ex.hora_inicio IS NOT NULL AND ex.hora_fim IS NOT NULL\n           AND a.agora_local::time BETWEEN ex.hora_inicio AND ex.hora_fim)\n    LIMIT 1\n),\ndentro_horario_normal AS (\n    SELECT 1\n    FROM midiabot_z_horarios_trabalho h, agora a\n    WHERE h.id_cliente = $1 AND h.workflow_name = $2\n      AND h.dia_semana = EXTRACT(DOW FROM a.agora_local)\n      AND a.agora_local::time BETWEEN h.hora_inicio AND h.hora_fim\n    LIMIT 1\n)\nSELECT\n    CASE\n        WHEN EXISTS (SELECT 1 FROM bloqueado_por_excecao) THEN 0\n        WHEN EXISTS (SELECT 1 FROM dentro_horario_normal) THEN 1\n        ELSE 0\n    END AS expediente;",
+        "options": {
+          "queryReplacement": "={{ [   $('define sala e vendedor').item.json.id_cliente,   $('define sala e vendedor').item.json.workflow_name ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        6176,
+        1280
+      ],
+      "id": "a159c463-3c7c-4253-b389-5b83b0f797c5",
+      "name": "Verifica Expediente",
+      "credentials": {
+        "postgres": {
+          "id": "Zywl4lJ7FqghLn7A",
+          "name": "Postgres Terabot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO midiabot_midiachat_contato (id_cliente, remotejid, apelido)\nVALUES ($1, $2, $3)\nON CONFLICT (id_cliente, remotejid) DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [   $('define sala e vendedor').item.json.id_cliente,   $('Webhook2').item.json.body.data.key.remoteJid,   $('Webhook2').item.json.body.data.pushName ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5568,
+        1264
+      ],
+      "id": "85197a6b-8759-42d1-8da5-75c5b347d414",
+      "name": "gravar apelido inicial - contato normal",
+      "credentials": {
+        "postgres": {
+          "id": "Zywl4lJ7FqghLn7A",
+          "name": "Postgres Terabot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT CASE WHEN EXISTS (\n    SELECT 1 FROM midiabot_remotejid_proibidos\n    WHERE id_cliente = $1 AND remotejid = $2\n) THEN 1 ELSE 0 END AS proibido_ia;",
+        "options": {
+          "queryReplacement": "={{ [   $('define sala e vendedor').item.json.id_cliente,   $('Webhook2').item.json.body.data.key.remoteJid ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        6384,
+        1280
+      ],
+      "id": "8035b817-ecb2-428c-bb0e-a0e47899b53b",
+      "name": "Verifica proibicao de IA",
+      "credentials": {
+        "postgres": {
+          "id": "Zywl4lJ7FqghLn7A",
+          "name": "Postgres Terabot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "propertyName": "pausado",
+        "key": "={{ 'midiabot:pausa_ia:' + $('define sala e vendedor').item.json.id_cliente + ':' + $('define sala e vendedor').item.json.workflow_name + ':' + $('Webhook2').item.json.body.data.key.remoteJid }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        6624,
+        1280
+      ],
+      "id": "94c71e33-622d-4c0d-ab83-3bc5d4612dec",
+      "name": "verifica pausa da IA",
+      "credentials": {
+        "redis": {
+          "id": "zHruni1McCb8eLJr",
+          "name": "redis_cloudfy"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT EXISTS (\n    SELECT 1 FROM midiabot_a_instancias\n    WHERE sender = $1\n) AS remetente_e_bot_midiabot;",
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook2').item.json.body.data.key.remoteJid ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        6832,
+        1280
+      ],
+      "id": "4aae6527-72fe-40f4-849b-f4b7300a625f",
+      "name": "checar se remetente é bot proprio",
+      "credentials": {
+        "postgres": {
+          "id": "Zywl4lJ7FqghLn7A",
+          "name": "Postgres Terabot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT ocupado_desde FROM midiabot_remotejid_chatid\nWHERE id_cliente = $1 AND remotejid = $2 AND workflow_name = $3;",
+        "options": {
+          "queryReplacement": "={{ [   $('define sala e vendedor').item.json.id_cliente,   $('Webhook2').item.json.body.data.key.remoteJid,   $('define sala e vendedor').item.json.workflow_name ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        6960,
+        1488
+      ],
+      "id": "323ff737-4af7-44a9-b80d-f5659ba73010",
+      "name": "verifica ocupado",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "Zywl4lJ7FqghLn7A",
+          "name": "Postgres Terabot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "49bf4682-68ea-467d-b3fe-1b3c1e718979",
+              "leftValue": "={{\n  !$('Verifica proibicao de IA').item.json.proibido_ia\n  && !$('verifica pausa da IA').item.json.pausado\n  && !$('checar se remetente é bot proprio').item.json.remetente_e_bot_midiabot\n  && ['conversation', 'extendedTextMessage', 'audioMessage'].includes($('verifica messagetype').item.json.messagetype)\n  && !!($('verifica messagetype').item.json.messagetype === 'audioMessage'\n        ? $('Edit Fields').item.json.mensagem\n        : $('verifica messagetype').item.json.mensagem)\n}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        7072,
+        1312
+      ],
+      "id": "4ee01899-6cd5-41e2-afa6-6e9f6ba4018a",
+      "name": "pode responder com IA"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b1e10002-0000-4000-8000-000000000002",
+              "leftValue": "={{ !!$('verifica ocupado').item.json.ocupado_desde && (Date.now() - new Date($('verifica ocupado').item.json.ocupado_desde).getTime()) < 30000 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        7264,
+        1104
+      ],
+      "id": "e74ebd4e-aa9b-4264-85b6-82e7fd35e75c",
+      "name": "está ocupado"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO midiabot_mensagem_pendente_ia (id_cliente, remote_jid, workflow_name, instance, sender, mensagem)\nVALUES ($1, $2, $3, $4, $5, $6);",
+        "options": {
+          "queryReplacement": "={{ [\n  $('define sala e vendedor').item.json.id_cliente,\n  $('Webhook2').item.json.body.data.key.remoteJid,\n  $('define sala e vendedor').item.json.workflow_name,\n  $('Webhook2').item.json.body.instance,\n  $('Webhook2').item.json.body.sender,\n  $('verifica messagetype').item.json.messagetype === 'audioMessage'\n    ? $('Edit Fields').item.json.mensagem\n    : $('verifica messagetype').item.json.mensagem\n] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        7472,
+        1024
+      ],
+      "id": "63052391-62af-4ebb-bafb-1af3a06573e9",
+      "name": "grava mensagem pendente",
+      "credentials": {
+        "postgres": {
+          "id": "Zywl4lJ7FqghLn7A",
+          "name": "Postgres Terabot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT prompt\nFROM midiabot_z_prompts_ia\nWHERE id_cliente = $1 AND chat_id = $2 AND trabalho_on = $3;",
+        "options": {
+          "queryReplacement": "={{ [   $('define sala e vendedor').item.json.id_cliente,   $('define sala e vendedor').item.json.chat_id,   $('Verifica Expediente').item.json.expediente ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        7056,
+        624
+      ],
+      "id": "a68b068d-d947-48a4-812a-b5763a43f1ed",
+      "name": "Busca Prompt",
+      "credentials": {
+        "postgres": {
+          "id": "Zywl4lJ7FqghLn7A",
+          "name": "Postgres Terabot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Mensagem enviada por: {{ $('Webhook2').item.json.body.data.pushName }}\nMensagem: {{ $('Merge').item.json.mensagem }}",
+        "hasOutputParser": true,
+        "needsFallback": true,
+        "options": {
+          "systemMessage": "=A resposta não deverá conter mais que 600 caracteres no total. {{ $('Select dados vendedor').item.json.nome_vendedor ? ('O consultor deste cliente é ' + $('Select dados vendedor').item.json.nome_vendedor + '. Você é a assistente virtual, não é essa pessoa — apresente-se como assistente e informe ao cliente que quem vai atendê-lo(a) é ' + $('Select dados vendedor').item.json.nome_vendedor + '.') : '' }}. Responda de acordo com as seguintes regras: {{ $('Busca Prompt').item.json.prompt }}\n\nDivida sua resposta em partes separadas, como se estivesse digitando mensagens de WhatsApp seguidas (no máximo 3 partes). Use mais de uma parte apenas quando a complexidade da resposta justificar; para respostas simples, use uma parte só. Devolva cada parte como um item da lista 'partes', na ordem em que devem ser enviadas.",
+          "passthroughBinaryImages": true
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        7808,
+        624
+      ],
+      "id": "0b1225c0-3de7-4fa5-bd4e-a7d7be27dc72",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"partes\": [\n    \"primeira parte da resposta\",\n    \"segunda parte, se precisar\",\n    \"terceira parte, se precisar\"\n  ]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        8032,
+        848
+      ],
+      "id": "9e0a1281-f384-4b17-bdd8-eb0fe365939e",
+      "name": "Parser Partes IA"
+    },
+    {
+      "parameters": {
+        "options": {
+          "temperature": 0.5,
+          "safetySettings": {
+            "values": [
+              {
+                "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        7840,
+        912
+      ],
+      "id": "d8b6b65f-b09c-482b-9cc3-357412bac1ce",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "u5dSAYZlFkQJrLPa",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        7760,
+        880
+      ],
+      "id": "c3f1b426-a571-4a80-bc2f-730876e7b98c",
+      "name": "OpenAI Chat Model",
+      "notesInFlow": false,
+      "credentials": {
+        "openAiApi": {
+          "id": "MzgXmdb9xSAca3bw",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COALESCE(lc_compartilhada.nome_vendedor, lc_dedicada.nome_vendedor) AS nome_vendedor,\n       cu.nome_bot\nFROM (SELECT 1) AS base\nLEFT JOIN midiabot_remotejid_consultor_salacompartilhada rcs\n    ON rcs.id_cliente = $1 AND rcs.remotejid = $2 AND rcs.chat_id = $3\nLEFT JOIN midiabot_login_chat lc_compartilhada\n    ON lc_compartilhada.id_cliente = rcs.id_cliente AND lc_compartilhada.id_vendedor = rcs.id_vendedor\nLEFT JOIN midiabot_vendedores v\n    ON v.id_cliente = $1 AND v.sender = $4\nLEFT JOIN midiabot_login_chat lc_dedicada\n    ON lc_dedicada.id_cliente = v.id_cliente AND lc_dedicada.id_vendedor = v.id_vendedor\nLEFT JOIN midiabot_cad_usuarios cu\n    ON cu.id = $1;",
+        "options": {
+          "queryReplacement": "={{ [   $('define sala e vendedor').item.json.id_cliente,   $('Webhook2').item.json.body.data.key.remoteJid,   $('define sala e vendedor').item.json.chat_id,   $('Webhook2').item.json.body.sender ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        7408,
+        624
+      ],
+      "id": "197e0f2a-b81f-43ef-83f2-d443a9ece698",
+      "name": "Select dados vendedor",
+      "credentials": {
+        "postgres": {
+          "id": "Zywl4lJ7FqghLn7A",
+          "name": "Postgres Terabot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "=={{ $('define sala e vendedor').item.json.id_cliente }}-{{ $('Webhook2').item.json.body.data.key.remoteJid }}-{{ $('Webhook2').item.json.body.instance }}",
+        "tableName": "midiabot_midiachat_memoriaIA",
+        "contextWindowLength": 12
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.4,
+      "position": [
+        7920,
+        944
+      ],
+      "id": "0d160527-43dc-4981-8eaa-eae7179d5111",
+      "name": "memoria IA",
+      "credentials": {
+        "postgres": {
+          "id": "Zywl4lJ7FqghLn7A",
+          "name": "Postgres Terabot"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE midiabot_remotejid_chatid\nSET ocupado_desde = now()\nWHERE id_cliente = $1 AND remotejid = $2 AND workflow_name = $3;",
+        "options": {
+          "queryReplacement": "={{ [   $('define sala e vendedor').item.json.id_cliente,   $('Webhook2').item.json.body.data.key.remoteJid,   $('define sala e vendedor').item.json.workflow_name ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        7328,
+        512
+      ],
+      "id": "a7c7eb66-746f-4e09-ae9f-11239c5e27ef",
+      "name": "liga ocupado",
+      "credentials": {
+        "postgres": {
+          "id": "Zywl4lJ7FqghLn7A",
+          "name": "Postgres Terabot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "={{ $('AI Agent').item.json.output.partes[0] }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        8656,
+        704
+      ],
+      "id": "8df8b245-945f-481a-ac9e-06739d227fb5",
+      "name": "Separar partes"
+    },
+    {
+      "parameters": {
+        "jsCode": "const itens = $input.all();\nreturn itens.map((item, i) => ({ json: { ...item.json, indice_parte: i, total_partes: itens.length } }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8864,
+        512
+      ],
+      "id": "8c00e218-5847-463c-bd17-96089d452887",
+      "name": "marcar indice da parte"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        9072,
+        512
+      ],
+      "id": "5310093e-9fd6-40ed-8544-791186c1613b",
+      "name": "Loop envio partes"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b1e1000a-0000-4000-8000-00000000000a",
+              "leftValue": "={{ $('marcar indice da parte').item.json.indice_parte }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        9280,
+        512
+      ],
+      "id": "7cf57580-ad98-43d1-9f7f-e1333ed5ec96",
+      "name": "é a primeira parte"
+    },
+    {
+      "parameters": {
+        "amount": "={{ Math.floor(Math.random() * 4) + 2 }}"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        9440,
+        192
+      ],
+      "id": "cafd9f95-9d0d-4dc5-87c5-f1beb130a197",
+      "name": "Espera entre partes",
+      "webhookId": "b1e1000c-wait-partes"
+    },
+    {
+      "parameters": {
+        "resource": "messages-api",
+        "instanceName": "={{ $('Webhook2').item.json.body.instance }}",
+        "remoteJid": "={{ $('Webhook2').item.json.body.data.key.remoteJid }}",
+        "messageText": "={{ ($('Select dados vendedor').item.json.nome_bot && $('marcar indice da parte').item.json.indice_parte === 0 ? '🤖 ' + $('Select dados vendedor').item.json.nome_bot + ':\\n\\n' : '') + $('marcar indice da parte').item.json.output }}",
+        "options_message": {}
+      },
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        9552,
+        384
+      ],
+      "id": "7308498b-f4e9-4ce1-9dc1-a3eec24170b2",
+      "name": "Whats IA",
+      "credentials": {
+        "evolutionApi": {
+          "id": "jaiuJNub0XIw5pIQ",
+          "name": "evolution_cloudfy"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const primeira = $('marcar indice da parte').item.json.indice_parte === 0;\nconst parteTexto = $('marcar indice da parte').item.json.output;\nlet mensagem, messagetype, mime_type, base64;\n\nif (primeira) {\n  mensagem = '📤 Mensagem enviada por ' + $('Webhook2').item.json.body.data.pushName + '\\n'\n    + ($('verifica messagetype').item.json.messagetype === 'audioMessage'\n        ? $('Edit Fields').item.json.mensagem\n        : $('verifica messagetype').item.json.mensagem)\n    + '\\n\\n🤖 Resposta do Agente de IA\\n' + parteTexto;\n  messagetype = $('verifica messagetype').item.json.messagetype === 'audioMessage' ? 'audioMessage' : 'conversation';\n  mime_type = $('verifica messagetype').item.json.messagetype === 'audioMessage' ? $('verifica messagetype').item.json.mime_type : null;\n  base64 = $('verifica messagetype').item.json.messagetype === 'audioMessage' ? $('b64 para bin').first().json.base64_recuperado : null;\n} else {\n  mensagem = parteTexto;\n  messagetype = 'conversation';\n  mime_type = null;\n  base64 = null;\n}\n\nreturn [{ json: { ...$('Whats IA').item.json, mensagem, messagetype, mime_type, base64 } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9744,
+        384
+      ],
+      "id": "59e579ae-7d57-4b44-8d2f-47d25c9b59bb",
+      "name": "Monta texto do historico"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO midiabot_historico_mensagens\n    (from_me, instance, remote_jid, sender, pushname, mensagem, caption, messagetype, mime_type, midia, base64, workflow_name, id_cliente, chat_id, wa_message_id, resposta_a, nome_remetente)\nVALUES\n    (false, $1, $2, $3, $4, $5, NULL, $6, $7, NULL, $8, $9, $10, $11, $12, NULL, $13)\nRETURNING id, chat_id, remote_jid, id_cliente;",
+        "options": {
+          "queryReplacement": "={{ [\n  $('Webhook2').item.json.body.instance,\n  $('Webhook2').item.json.body.data.key.remoteJid,\n  $('Webhook2').item.json.body.sender,\n  'IA',\n  $('Monta texto do historico').item.json.mensagem,\n  $('Monta texto do historico').item.json.messagetype,\n  $('Monta texto do historico').item.json.mime_type,\n  $('Monta texto do historico').item.json.base64,\n  $('define sala e vendedor').item.json.workflow_name,\n  $('define sala e vendedor').item.json.id_cliente,\n  $('define sala e vendedor').item.json.chat_id,\n  $('Whats IA').item.json.data.key.id,\n  $('Select dados vendedor').item.json.nome_bot || 'Bot'\n] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        9936,
+        480
+      ],
+      "id": "813c4b07-d8cd-4a8d-94d9-20bef17cbebd",
+      "name": "Insere msg e resposta IA",
+      "credentials": {
+        "postgres": {
+          "id": "Zywl4lJ7FqghLn7A",
+          "name": "Postgres Terabot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH libera AS (\n    UPDATE midiabot_remotejid_chatid\n    SET ocupado_desde = NULL\n    WHERE id_cliente = $1 AND remotejid = $2 AND workflow_name = $3\n),\npendentes AS (\n    DELETE FROM midiabot_mensagem_pendente_ia\n    WHERE id_cliente = $1 AND remote_jid = $2 AND workflow_name = $3\n    RETURNING mensagem, criado_em\n)\nSELECT string_agg(mensagem, chr(10) ORDER BY criado_em) AS mensagem_combinada,\n       COUNT(*) AS total_pendentes\nFROM pendentes;",
+        "options": {
+          "queryReplacement": "={{ [   $('define sala e vendedor').item.json.id_cliente,   $('Webhook2').item.json.body.data.key.remoteJid,   $('define sala e vendedor').item.json.workflow_name ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        9072,
+        768
+      ],
+      "id": "9a0aad91-535e-4fdd-a09a-d26cce239b36",
+      "name": "libera ocupado e junta pendentes",
+      "credentials": {
+        "postgres": {
+          "id": "Zywl4lJ7FqghLn7A",
+          "name": "Postgres Terabot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b1e1000e-0000-4000-8000-00000000000e",
+              "leftValue": "={{ $json.total_pendentes }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        9280,
+        768
+      ],
+      "id": "9660f267-bb99-4a3f-ab41-7ecf2915c855",
+      "name": "tem pendente"
+    },
+    {
+      "parameters": {
+        "jsCode": "const original = $('Webhook2').item.json.body;\nconst payload = {\n  ...original,\n  data: {\n    ...original.data,\n    key: {\n      ...original.data.key,\n      id: 'REENVIO-' + Date.now()\n    },\n    message: { conversation: $json.mensagem_combinada },\n    messageType: 'conversation',\n    messageTimestamp: Math.floor(Date.now() / 1000)\n  },\n  date_time: new Date().toISOString()\n};\nreturn [{ json: { url: $('Webhook2').item.json.webhookUrl, payload } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9488,
+        768
+      ],
+      "id": "abc0cfa9-65f7-4419-8345-8f70609b0579",
+      "name": "montar payload reenvio"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        9696,
+        768
+      ],
+      "id": "c541c78c-3c30-4430-9c0b-123e51929e5c",
+      "name": "reenviar pro webhook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM midiabot_midiachat_memoriaIA\nWHERE session_id = $1\n  AND id NOT IN (\n    SELECT id FROM midiabot_midiachat_memoriaIA\n    WHERE session_id = $1\n    ORDER BY id DESC\n    LIMIT 12\n  );",
+        "options": {
+          "queryReplacement": "=={{ $('define sala e vendedor').item.json.id_cliente }}-{{ $('Webhook2').item.json.body.data.key.remoteJid }}-{{ $('Webhook2').item.json.body.instance }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        8448,
+        512
+      ],
+      "id": "6ea24e51-4e00-4173-85c7-17c390390fe4",
+      "name": "Limpeza",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "Zywl4lJ7FqghLn7A",
+          "name": "Postgres Terabot"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        10112,
+        1312
+      ],
+      "id": "772aed94-d5a8-4c55-95f6-4589a8227300",
+      "name": "Merge2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\n\nconst appId = '2181791';\nconst key = '8112484fe599e854a7e4';\nconst secret = '99c9a5f557c1c5b5934f';\nconst cluster = 'sa1';\n\nconst idCliente = $json.id_cliente;\nconst chatId = $json.chat_id;\nconst remoteJid = $json.remote_jid;\nconst messageId = $json.id;\n\nconst channel = `private-cliente-${idCliente}`;\nconst eventName = 'nova-mensagem';\nconst payload = { chat_id: chatId, remote_jid: remoteJid, message_id: messageId };\n\nconst body = JSON.stringify({\n    name: eventName,\n    channels: [channel],\n    data: JSON.stringify(payload)\n});\n\nconst bodyMd5 = crypto.createHash('md5').update(body).digest('hex');\nconst timestamp = Math.floor(Date.now() / 1000);\n\nconst params = {\n    auth_key: key,\n    auth_timestamp: timestamp,\n    auth_version: '1.0',\n    body_md5: bodyMd5\n};\n\nconst queryString = Object.keys(params).sort().map(k => `${k}=${params[k]}`).join('&');\nconst stringToSign = `POST\\n/apps/${appId}/events\\n${queryString}`;\nconst signature = crypto.createHmac('sha256', secret).update(stringToSign).digest('hex');\n\nconst url = `https://api-${cluster}.pusher.com/apps/${appId}/events?${queryString}&auth_signature=${signature}`;\n\nreturn [{ json: { url, body } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        10320,
+        1312
+      ],
+      "id": "cd074f68-404d-4093-b5aa-91c8960fcb6b",
+      "name": "assinatura HMAC MD5"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url }}",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        10528,
+        1312
+      ],
+      "id": "56c8231b-bd82-4d62-b816-9ebb1d9f1040",
+      "name": "chama a API do Pusher"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*) AS total\nFROM midiabot_historico_mensagens\nWHERE id_cliente = $1\n  AND workflow_name = $2\n  AND remote_jid = $3\n  AND mensagem LIKE '%🤖 Resposta do Agente de IA%'\n  AND datetime > now() - interval '10 minutes'",
+        "options": {
+          "queryReplacement": "={{ $('define sala e vendedor').item.json.id_cliente }}, {{ $('define sala e vendedor').item.json.workflow_name }}, {{ $('Webhook2').item.json.body.data.key.remoteJid }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        10816,
+        1312
+      ],
+      "id": "2a7f9484-0817-440e-9b70-72fa0312b412",
+      "name": "Execute a SQL query10",
+      "credentials": {
+        "postgres": {
+          "id": "Zywl4lJ7FqghLn7A",
+          "name": "Postgres Terabot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "610b685c-5b8d-4df8-840b-3f17995d2dd7",
+              "leftValue": "={{ $json.total }}",
+              "rightValue": 14,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        11024,
+        1312
+      ],
+      "id": "b8911053-5b41-4e0d-a9a5-825e190f5fac",
+      "name": "If5"
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "= {{ 'midiabot:pausa_ia:' + $('define sala e vendedor').item.json.id_cliente + ':' + $('define sala e vendedor').item.json.workflow_name + ':' + $('Webhook2').item.json.body.data.key.remoteJid }}",
+        "value": "40000"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        11232,
+        1216
+      ],
+      "id": "3f05b867-9ec7-4f55-b327-2895ad5e87fe",
+      "name": "Redis1",
+      "credentials": {
+        "redis": {
+          "id": "zHruni1McCb8eLJr",
+          "name": "redis_cloudfy"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO midiabot_historico_mensagens\n    (from_me, instance, remote_jid, sender, mensagem, messagetype, workflow_name, id_cliente, chat_id, datetime)\nVALUES\n    (false, $1, $2, $3, '⚠️ IA pausada automaticamente — possível loop com outro sistema automático', 'conversation', $4, $5, $6, now())",
+        "options": {
+          "queryReplacement": "={{ $('Webhook2').item.json.body.instance }}, {{ $('Webhook2').item.json.body.data.key.remoteJid }}, {{ $('Webhook2').item.json.body.sender }}, {{ $('define sala e vendedor').item.json.workflow_name }}, {{ $('define sala e vendedor').item.json.id_cliente }}, {{ $('define sala e vendedor').item.json.chat_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        11424,
+        1216
+      ],
+      "id": "ba370c7a-22b2-49b0-a61b-1783ec44fef9",
+      "name": "Execute a SQL query13",
+      "credentials": {
+        "postgres": {
+          "id": "Zywl4lJ7FqghLn7A",
+          "name": "Postgres Terabot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\n\nconst appId = '2181791';\nconst key = '8112484fe599e854a7e4';\nconst secret = '99c9a5f557c1c5b5934f';\nconst cluster = 'sa1';\n\nconst idCliente = $json.id_cliente;\nconst chatId = $json.chat_id;\nconst remoteJid = $json.remote_jid;\nconst messageId = $json.id;\n\nconst channel = `private-cliente-${idCliente}`;\nconst eventName = 'nova-mensagem';\nconst payload = { chat_id: chatId, remote_jid: remoteJid, message_id: messageId };\n\nconst body = JSON.stringify({\n    name: eventName,\n    channels: [channel],\n    data: JSON.stringify(payload)\n});\n\nconst bodyMd5 = crypto.createHash('md5').update(body).digest('hex');\nconst timestamp = Math.floor(Date.now() / 1000);\n\nconst params = {\n    auth_key: key,\n    auth_timestamp: timestamp,\n    auth_version: '1.0',\n    body_md5: bodyMd5\n};\n\nconst queryString = Object.keys(params).sort().map(k => `${k}=${params[k]}`).join('&');\nconst stringToSign = `POST\\n/apps/${appId}/events\\n${queryString}`;\nconst signature = crypto.createHmac('sha256', secret).update(stringToSign).digest('hex');\n\nconst url = `https://api-${cluster}.pusher.com/apps/${appId}/events?${queryString}&auth_signature=${signature}`;\n\nreturn [{ json: { url, body } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        11616,
+        1216
+      ],
+      "id": "06b6d293-426c-4bb7-b866-2cc74348b19d",
+      "name": "assinatura HMAC MD6"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url }}",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        11824,
+        1216
+      ],
+      "id": "7d161fb0-cd27-40a1-a99b-ddd9fbe658f5",
+      "name": "chama a API do Pusher2"
+    },
+    {
+      "parameters": {
+        "content": "## Evita Looping de IAs\n**Double click** to edit me. [Guide](https://docs.n8n.io/workflows/components/sticky-notes/)",
+        "height": 352,
+        "width": 1312
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        10720,
+        1184
+      ],
+      "typeVersion": 1,
+      "id": "37dcb50e-c629-4af7-9508-ebf5a818b262",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "content": "## condutas de privacidade e de continudade (Envio Ativo) \n**Double click** to edit me. [Guide](https://docs.n8n.io/workflows/components/sticky-notes/)",
+        "height": 928,
+        "width": 944,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2752,
+        672
+      ],
+      "typeVersion": 1,
+      "id": "61f734a5-3329-4965-baa9-42c18a2a393e",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT f.id AS id_fila, f.dados, f.enviado_em, c.texto, c.instancia, d.disclaimer\nFROM midiabot_envioativo_fila f\nJOIN midiabot_envioativo_campanha c ON c.id = f.id_campanha\nLEFT JOIN midiabot_disclaimer_envio d ON d.id_cliente = c.id_cliente\nWHERE f.telefone = $1\n  AND c.id_cliente = $2\n  AND f.status = 'enviado'\n  AND f.contextualizado = false\nORDER BY f.enviado_em DESC\nLIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook2').item.json.body.data.key.remoteJid.split('@')[0], $('define sala e vendedor').item.json.id_cliente ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2832,
+        1248
+      ],
+      "id": "689090f2-6b8a-430c-9c00-b39a3ca197a8",
+      "name": "verifica_contexto_campanha",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "Zywl4lJ7FqghLn7A",
+          "name": "Postgres Terabot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "efb54f49-9913-4b02-b585-60e0bf645629",
+              "leftValue": "={{ $json.id_fila !== undefined }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3040,
+        1248
+      ],
+      "id": "07005bcb-67de-499b-83df-7c29b753b668",
+      "name": "tem_campanha_pra_contextualizar"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE midiabot_envioativo_fila SET contextualizado = true WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('monta_mensagem_contexto').item.json.id_fila ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3648,
+        1136
+      ],
+      "id": "4f35726a-468a-46ec-bad6-b2f22ce5478b",
+      "name": "marca_contextualizado",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "Zywl4lJ7FqghLn7A",
+          "name": "Postgres Terabot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst dados = item.dados || {};\nlet texto = item.texto;\ntexto = texto.replace(/\\{\\{\\s*([a-zA-Z0-9_]+)\\s*\\}\\}/g, (m, k) => (dados[k] !== undefined ? dados[k] : m));\nconst mensagemFinal = texto + '\\n\\n' + (item.disclaimer || '');\nreturn [{ json: { ...item, mensagem_final: mensagemFinal } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3248,
+        1136
+      ],
+      "id": "79fc1d6d-fb54-444f-bd6c-56e4acb79096",
+      "name": "monta_mensagem_contexto"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO midiabot_historico_mensagens\n    (datetime, from_me, instance, remote_jid, sender, pushname, mensagem, messagetype, workflow_name, id_cliente, chat_id, nome_remetente)\nVALUES\n    ($1, true, $2, $3, $4, NULL, $5, 'conversation', $6, $7, $8, 'Campanha');",
+        "options": {
+          "queryReplacement": "={{ [   $('monta_mensagem_contexto').item.json.enviado_em,   $('monta_mensagem_contexto').item.json.instancia,   $('Webhook2').item.json.body.data.key.remoteJid,   $('Webhook2').item.json.body.sender,   $('monta_mensagem_contexto').item.json.mensagem_final,   $('define sala e vendedor').item.json.workflow_name,   $('define sala e vendedor').item.json.id_cliente,   $('define sala e vendedor').item.json.chat_id ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3456,
+        1136
+      ],
+      "id": "e23b5f52-8523-45dd-b7a0-1d2909c10708",
+      "name": "insere_contexto_campanha",
+      "credentials": {
+        "postgres": {
+          "id": "Zywl4lJ7FqghLn7A",
+          "name": "Postgres Terabot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b55fea91-81e7-4c16-b036-cd83b579e15f",
+              "leftValue": "={{ ($('Webhook2').item.json.body.data.message.conversation || '').trim().toLowerCase() }}",
+              "rightValue": "sair",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "ignoreCase": false
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2784,
+        944
+      ],
+      "id": "d549c5eb-96bd-4311-ae04-25d512709562",
+      "name": "verifica_sair"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO midiabot_proibicao_envioativo (id_cliente, telefone)\nVALUES ($1, $2)\nON CONFLICT (id_cliente, telefone) DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [ $('define sala e vendedor').item.json.id_cliente, $('Webhook2').item.json.body.data.key.remoteJid.split('@')[0] ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2992,
+        928
+      ],
+      "id": "d7b94df4-fb7f-4179-b282-f8fcc201f4ca",
+      "name": "insere_proibicao",
+      "credentials": {
+        "postgres": {
+          "id": "Zywl4lJ7FqghLn7A",
+          "name": "Postgres Terabot"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "content": "## Observa se digitou SAIR na campanha\n**Double click** to edit me. [Guide](https://docs.n8n.io/workflows/components/sticky-notes/)",
+        "height": 352,
+        "width": 544
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2688,
+        832
+      ],
+      "typeVersion": 1,
+      "id": "5a7d6ce2-8c32-499c-b876-dea7caf7bf7f",
+      "name": "Sticky Note8"
+    },
+    {
+      "parameters": {
+        "content": "## NOVO: fila de pendentes + trava de ocupado\nEnquanto ocupado, mensagem nova so' vai pra fila (nao espera).\nQuando libera, tudo que ficou na fila volta como 1 mensagem nova pro Webhook2.\n**Conferir antes de usar**: formato exato que 'AI Agent' devolve em output.partes (rodar 1x e olhar).\n**2026-08-22: liga ocupado movido pra ANTES da IA (evita corrida quando chegam varias mensagens em sequencia).**\n**2026-08-22: 'e a primeira parte', 'Whats IA' e 'Monta texto do historico' agora leem 'marcar indice da parte' pelo NOME em vez de $json solto (regra do projeto).**\n**2026-08-22: 'Enviar presenca' (node de conector externo) NAO preserva o rastreio de item do n8n — precisou virar ramo paralelo (efeito colateral, sem retorno usado), fora do caminho principal 'e a primeira parte' -> 'Espera entre partes' -> 'Whats IA'. Espera agora sorteia 2-5s.**",
+        "height": 320,
+        "width": 560,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        7264,
+        1584
+      ],
+      "typeVersion": 1,
+      "id": "10eb3975-ad62-4064-bdbb-4e5e1e740696",
+      "name": "Sticky Note9"
+    },
+    {
+      "parameters": {
+        "jsCode": "const resposta = $('AI Agent').item.json.output;\nconst partes = resposta.partes;\nreturn partes.map((texto, i) => ({ json: { output: texto, indice_parte: i, total_partes: partes.length } }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8656,
+        512
+      ],
+      "id": "cd936961-0829-42b4-bf33-a6802ed4b246",
+      "name": "Code Separar Partes"
+    },
+    {
+      "parameters": {
+        "resource": "chat-api",
+        "operation": "send-presence",
+        "instanceName": "={{ $('Webhook2').item.json.body.instance }}",
+        "remoteJid": "={{ $('Webhook2').item.json.body.data.key.remoteJid }}",
+        "delay": 1500
+      },
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        9264,
+        192
+      ],
+      "id": "7e5786cb-9e99-4bc3-9487-7910a3b764c6",
+      "name": "Enviar presenca",
+      "credentials": {
+        "evolutionApi": {
+          "id": "jaiuJNub0XIw5pIQ",
+          "name": "evolution_cloudfy"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Insert": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Webhook2": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "verifica messagetype": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "define sala e vendedor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar mensagem editada": {
+      "main": [
+        [
+          {
+            "node": "Extrair texto editado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair texto editado": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query11",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Buscar mensagem editada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "b64 para bin",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "b64 para bin": {
+      "main": [
+        [
+          {
+            "node": "transcricao de audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If3": {
+      "main": [
+        [
+          {
+            "node": "Insere msg env do celular",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "If4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "transcricao de audio": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "define sala e vendedor": {
+      "main": [
+        [
+          {
+            "node": "verifica_contexto_campanha",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "verifica_sair",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If4": {
+      "main": [
+        [
+          {
+            "node": "buscar info do grupo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "gravar apelido inicial - contato normal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gera bloqueio e nome do grupo": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Verifica Expediente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar info do grupo": {
+      "main": [
+        [
+          {
+            "node": "gera bloqueio e nome do grupo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verifica Expediente": {
+      "main": [
+        [
+          {
+            "node": "Verifica proibicao de IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gravar apelido inicial - contato normal": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Verifica proibicao de IA": {
+      "main": [
+        [
+          {
+            "node": "verifica pausa da IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "verifica pausa da IA": {
+      "main": [
+        [
+          {
+            "node": "checar se remetente é bot proprio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "checar se remetente é bot proprio": {
+      "main": [
+        [
+          {
+            "node": "verifica ocupado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "verifica ocupado": {
+      "main": [
+        [
+          {
+            "node": "pode responder com IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "pode responder com IA": {
+      "main": [
+        [
+          {
+            "node": "está ocupado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "está ocupado": {
+      "main": [
+        [
+          {
+            "node": "grava mensagem pendente",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Insert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "liga ocupado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Busca Prompt": {
+      "main": [
+        [
+          {
+            "node": "Select dados vendedor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Limpeza",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser Partes IA": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select dados vendedor": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "memoria IA": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "liga ocupado": {
+      "main": [
+        [
+          {
+            "node": "Busca Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "marcar indice da parte": {
+      "main": [
+        [
+          {
+            "node": "Loop envio partes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop envio partes": {
+      "main": [
+        [
+          {
+            "node": "libera ocupado e junta pendentes",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Execute a SQL query10",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "é a primeira parte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "é a primeira parte": {
+      "main": [
+        [
+          {
+            "node": "Whats IA",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar presenca",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Espera entre partes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Espera entre partes": {
+      "main": [
+        [
+          {
+            "node": "Whats IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Whats IA": {
+      "main": [
+        [
+          {
+            "node": "Monta texto do historico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Monta texto do historico": {
+      "main": [
+        [
+          {
+            "node": "Insere msg e resposta IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insere msg e resposta IA": {
+      "main": [
+        [
+          {
+            "node": "Loop envio partes",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "libera ocupado e junta pendentes": {
+      "main": [
+        [
+          {
+            "node": "tem pendente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tem pendente": {
+      "main": [
+        [
+          {
+            "node": "montar payload reenvio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "montar payload reenvio": {
+      "main": [
+        [
+          {
+            "node": "reenviar pro webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limpeza": {
+      "main": [
+        [
+          {
+            "node": "Code Separar Partes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge2": {
+      "main": [
+        [
+          {
+            "node": "assinatura HMAC MD5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "assinatura HMAC MD5": {
+      "main": [
+        [
+          {
+            "node": "chama a API do Pusher",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query10": {
+      "main": [
+        [
+          {
+            "node": "If5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If5": {
+      "main": [
+        [
+          {
+            "node": "Redis1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis1": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query13",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query13": {
+      "main": [
+        [
+          {
+            "node": "assinatura HMAC MD6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "assinatura HMAC MD6": {
+      "main": [
+        [
+          {
+            "node": "chama a API do Pusher2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "verifica_contexto_campanha": {
+      "main": [
+        [
+          {
+            "node": "tem_campanha_pra_contextualizar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tem_campanha_pra_contextualizar": {
+      "main": [
+        [
+          {
+            "node": "monta_mensagem_contexto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "verifica messagetype",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "marca_contextualizado": {
+      "main": [
+        [
+          {
+            "node": "verifica messagetype",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "monta_mensagem_contexto": {
+      "main": [
+        [
+          {
+            "node": "insere_contexto_campanha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "insere_contexto_campanha": {
+      "main": [
+        [
+          {
+            "node": "marca_contextualizado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "verifica_sair": {
+      "main": [
+        [
+          {
+            "node": "insere_proibicao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code Separar Partes": {
+      "main": [
+        [
+          {
+            "node": "marcar indice da parte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar presenca": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "pinData": {
+    "Webhook2": [
+      {
+        "headers": {
+          "host": "awkwardgiantpanda-n8n.cloudfy.live",
+          "user-agent": "axios/1.13.2",
+          "content-length": "1877",
+          "accept": "application/json, text/plain, */*",
+          "accept-encoding": "gzip, br",
+          "cdn-loop": "cloudflare; loops=1",
+          "cf-connecting-ip": "167.235.21.139",
+          "cf-ipcountry": "DE",
+          "cf-ray": "a2f49d81f853d086-CDG",
+          "cf-visitor": "{\"scheme\":\"https\"}",
+          "content-type": "application/json",
+          "x-forwarded-for": "172.71.119.81",
+          "x-forwarded-host": "awkwardgiantpanda-n8n.cloudfy.live",
+          "x-forwarded-port": "443",
+          "x-forwarded-proto": "https",
+          "x-forwarded-server": "d9c97efc2a90",
+          "x-real-ip": "172.71.119.81"
+        },
+        "params": {},
+        "query": {},
+        "body": {
+          "event": "messages.upsert",
+          "instance": "Marcelo-1",
+          "data": {
+            "key": {
+              "remoteJid": "5511981880079@s.whatsapp.net",
+              "remoteJidAlt": "5511981880079@s.whatsapp.net",
+              "fromMe": false,
+              "id": "AC259A350F2673F98608C3D603B177AD",
+              "participant": "",
+              "addressingMode": "lid"
+            },
+            "pushName": "Marcelo",
+            "status": "DELIVERY_ACK",
+            "message": {
+              "conversation": "Comer comi muito bem hoje. E você, já almoçou?\nBom dia.  \nQual é o horário de funcionamento? O que vocês fazer? Quer passear comigo? Qual é a fase atual da lua? Você sabe andar de bicicleta? O certo é bolacha ou biscoito?\nQual é a data do seu nascimento?\nQuantos dias tem em um ano?\nQuantas horas tem em um mês?\nQuantos meses tem em um dia?\nQuanto calça um patagão médio?",
+              "messageContextInfo": {
+                "threadId": [],
+                "deviceListMetadata": {
+                  "senderKeyIndexes": [],
+                  "recipientKeyIndexes": [],
+                  "senderKeyHash": {
+                    "0": 239,
+                    "1": 10,
+                    "2": 253,
+                    "3": 253,
+                    "4": 201,
+                    "5": 54,
+                    "6": 108,
+                    "7": 80,
+                    "8": 144,
+                    "9": 176
+                  },
+                  "senderTimestamp": {
+                    "low": 1786974292,
+                    "high": 0,
+                    "unsigned": true
+                  },
+                  "recipientKeyHash": {
+                    "0": 139,
+                    "1": 26,
+                    "2": 135,
+                    "3": 140,
+                    "4": 228,
+                    "5": 10,
+                    "6": 68,
+                    "7": 103,
+                    "8": 133,
+                    "9": 203
+                  },
+                  "recipientTimestamp": {
+                    "low": 1786360642,
+                    "high": 0,
+                    "unsigned": true
+                  }
+                },
+                "deviceListMetadataVersion": 2,
+                "messageSecret": {
+                  "0": 131,
+                  "1": 51,
+                  "2": 179,
+                  "3": 232,
+                  "4": 234,
+                  "5": 251,
+                  "6": 54,
+                  "7": 252,
+                  "8": 249,
+                  "9": 26,
+                  "10": 3,
+                  "11": 132,
+                  "12": 100,
+                  "13": 153,
+                  "14": 240,
+                  "15": 163,
+                  "16": 103,
+                  "17": 51,
+                  "18": 55,
+                  "19": 68,
+                  "20": 20,
+                  "21": 72,
+                  "22": 87,
+                  "23": 190,
+                  "24": 93,
+                  "25": 210,
+                  "26": 84,
+                  "27": 60,
+                  "28": 212,
+                  "29": 103,
+                  "30": 124,
+                  "31": 196
+                }
+              }
+            },
+            "messageType": "conversation",
+            "messageTimestamp": 1787430415,
+            "instanceId": "0e4756ed-cb5f-4c9b-8a68-69dd35d841ad",
+            "source": "android"
+          },
+          "destination": "https://awkwardgiantpanda-n8n.cloudfy.live/webhook/scenty-store-v1-ae48-e0d4599b95e0",
+          "date_time": "2026-08-22T17:26:55.478Z",
+          "sender": "551155490351@s.whatsapp.net",
+          "server_url": "https://awkwardgiantpanda-evolution.cloudfy.live",
+          "apikey": "5042BCD21369-4523-81D2-DD49EDE92C11"
+        },
+        "webhookUrl": "https://awkwardgiantpanda-n8n.cloudfy.live/webhook/scenty-store-v1-ae48-e0d4599b95e0",
+        "executionMode": "production"
+      }
+    ]
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "aa7009a126036bdd1e449c30ff87c0692f244bd1ba5b4b911dbc952a0029ddf8"
+  }
+}

@@ -4,11 +4,14 @@ Lista organizada de próximos passos, em 2026-08-16. Itens específicos do Envio
 
 ## Adiado — sem urgência
 
-1. **Tela de "condições gerais do cliente"** — ainda não existe, nem foi começada; adiada de propósito enquanto o escopo completo não fica claro (evitar construir aos pedaços e ter que refazer). Reúne parâmetros do cliente como um todo, entre eles:
-   - Nome do Bot e distribuição automática/manual — hoje só definidos uma vez, no assistente de instalação inicial (`dashboard.html`), sem tela pra mudar depois.
+1. **Tela de "condições gerais do cliente"** — ainda não existe, nem foi começada; adiada de propósito enquanto o escopo completo não fica claro (evitar construir aos pedaços e ter que refazer). Escopo real (revisado em 2026-08-23), ainda em aberto:
    - `nome_fantasia` (nome da empresa/cliente) — hoje não tem nenhuma tela de criação nem edição; quando for construída, precisa tratar o erro de nome duplicado de forma clara (a trava `UNIQUE` já existe no banco, só falta a tela usar isso pra dar um aviso compreensível em vez de erro genérico).
-   
+   - Nome do Bot — hoje só definido uma vez, no assistente de instalação inicial (`dashboard.html`), sem tela pra mudar depois.
+   - Informações de cobrança — mencionado em 2026-08-23, ainda sem escopo definido (não se sabe se entra nessa mesma tela ou é uma frente separada).
+
    **Escopo corrigido em 2026-08-19**: vendedor (nome/cor/ativo) já é editável em "Cadastro de Consultores", não faz parte disso; renomear sala **não faz parte do projeto**, decisão consciente.
+
+   **Correção em 2026-08-23**: a distribuição automática/manual em salas compartilhadas **já tem tela pra editar depois da instalação** — fica em `consultores.html`, seção `sorteio_vendedor` (escolhe "automático" ou "manual com vendedor fixo" por sala, e salva a qualquer momento). Não faz mais parte desta pendência.
 
 ## Iniciativa grande em desenho — permissão de sala + chat interno
 
@@ -20,10 +23,6 @@ Lista organizada de próximos passos, em 2026-08-16. Itens específicos do Envio
 4. ~~`instancias.html` — buraco na criação de instância~~ — **resolvido em 2026-08-19**: instância nova vinha sem o webhook configurado (desabilitado, sem URL, sem base64, sem o evento `MESSAGES_UPSERT` ligado) — ou seja, existia na Evolution API mas não mandava nenhuma mensagem recebida pro n8n. Node novo `configurar_webhook_instancia` (HTTP Request), ligado logo depois do node que cria a instância, chama `POST /webhook/set/{instância}` na Evolution API direto, ligando os 4 de uma vez. Testado com instância real: confirmado salvo (`enabled`, `MESSAGES_UPSERT`, `base64`, URL certa) via `GET /webhook/find`.
 5. ~~Confirmar cabeçalho `📤 Mensagem enviada por {nome_vendedor}`~~ — **fechado em 2026-08-19**: o mecanismo real de "quem mandou" é a coluna `nome_remetente` (o cabeçalho `📤 Mensagem enviada por` é outra coisa — vai só no texto que o **cliente** recebe no WhatsApp, não tem relação com exibição interna). Confirmado direto na query de todos os 5 nodes de envio (texto/imagem/vídeo/documento/áudio) que todos gravam `nome_remetente` via `JOIN midiabot_login_chat`; texto e áudio confirmados rodando de verdade, os outros 3 confirmados por inspeção direta da query (mesmo padrão idêntico).
 6. ~~Checar bug de vírgula em `enviar_mensagem`~~ — **checado em 2026-08-19, sem bug**: os 5 nodes de envio (texto/imagem/vídeo/documento/áudio) já usam o formato seguro `{{ [ ... ] }}`. **Bug diferente e real encontrado no processo, corrigido e testado**: o node `Insert audio` gravava `messagetype = 'videoMessage'` (copiado do node de vídeo, nunca ajustado) e tinha os parâmetros fora de ordem/faltando um (`mime_type`, `base64` e `wa_message_id` embaralhados entre si) — todo áudio enviado por vendedor gravava dado errado no histórico. Corrigido e confirmado com envio real: `messagetype` certo, `mime_type` certo, e o base64 do áudio conferido byte a byte (mesmo tamanho, mesmo cabeçalho WAV).
-
-## Decisões que dependem do usuário pensar mais (não são só "codar")
-
-7. Onde/como o quadrinho de login do Midiabot Chat vai aparecer fisicamente na tela inicial do `midiabot.com.br` (seção fixa, modal, etc.).
 
 ## Baixo risco, sem solução ainda ou nunca testado — não urgentes
 
