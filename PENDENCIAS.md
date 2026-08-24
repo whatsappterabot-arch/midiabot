@@ -33,5 +33,28 @@ Lista organizada de próximos passos, em 2026-08-16. Itens específicos do Envio
 
 10. Testar campanha atravessando a borda do horário configurado (pausa sozinha ao sair da janela, retoma sozinha no horário seguinte, inclusive de um dia pro outro) — desenhado e implementado, nunca observado rodando de verdade. Adiado de propósito: usuário está aquecendo os números junto à Meta/WhatsApp, não quer arriscar volume num teste maior agora.
 11. Opt-out (`midiabot_proibicao_envioativo`) só é checado na criação da campanha (upload da planilha), não é rechecado no momento do envio real — lacuna aceita, mas vale reavaliar.
+
+## Limite de 10 colaboradores por cliente — precisa virar ilimitado
+
+Levantado em 2026-08-24: o sistema hoje só suporta até 10 colaboradores por cliente — não é um número arbitrário de tela, é uma trava real, repetida em 4 lugares:
+- `midiabot_login_chat` tem um `CHECK (id_vendedor BETWEEN 1 AND 10)` — trava de banco de verdade, nem um INSERT manual passa disso.
+- `resetar_cliente` (procedure) pré-cria exatamente 10 vagas fixas, uma pra cada emoji de uma lista de 10 (🟢🔵🔴🟡🟠🟣⚫🟤⚪🟥).
+- `dashboard.html` (assistente de instalação): o número de cada consultor (`id_vendedor`) é literalmente a posição do emoji escolhido nessa mesma lista de 10 — não existe um 11º emoji.
+- `senhas_chat.html` (gerenciar consultores depois da instalação): `TOTAL_VAGAS = 10`, hardcoded, sempre desenha exatamente 10 linhas.
+
+O que **não** precisa mudar: a lógica de sorteio/rodízio entre consultores em sala compartilhada já é genérica, funciona pra qualquer quantidade.
+
+Mudanças necessárias pra suportar número ilimitado:
+1. **Banco**: remover (ou soltar) o `CHECK` de `midiabot_login_chat`.
+2. **Esquema de identidade visual**: hoje a "cor" de cada consultor (`cor_emoji`) é escolhida a partir de uma lista fixa de 10 emojis, e o número dele deriva dessa escolha — isso não escala. Precisa virar algo sem limite (por exemplo, escolha livre de cor, ou geração automática, sem depender de uma lista fixa pequena), com `id_vendedor` virando um número normal (sequencial), não mais derivado da posição do emoji.
+3. **`resetar_cliente`**: parar de pré-criar um número fixo de vagas vazias — passar a criar consultores sob demanda, conforme forem cadastrados (mesmo modelo de "adicionar/remover" que o próprio assistente já usa pra salas).
+4. **`configurar_cliente`**: o trecho que grava vendedores hoje faz `UPDATE` (presume que a vaga já existe, criada pelo reset) — precisa virar `INSERT`, já que não vai mais existir vaga pré-criada.
+5. **`senhas_chat.html`**: trocar a tabela de tamanho fixo (10 linhas sempre) por uma lista dinâmica (mostra só quem existe de verdade) com um botão "Adicionar consultor".
+6. **`dashboard.html`**: o seletor de emoji no passo de vendedores (hoje limitado às 10 opções da lista, com "em uso" desabilitando repetido) precisa se adaptar ao novo esquema de identidade visual do item 2.
+
+Ainda não desenhado em detalhe — é uma mudança de estrutura, não um ajuste pequeno. Fica pra quando o usuário decidir priorizar.
 12. ~~Painel de "Acompanhamento" da campanha não mostra as configurações iniciais~~ — **resolvido em 2026-08-23**: `busca_campanha` agora traz instância, intervalo, horários (`json_agg` de `midiabot_envioativo_horario`) e início agendado; `renderAcompanhamento` exibe tudo isso. A tela também passou a se atualizar sozinha (sondagem a cada 15s, silenciosa, parando ao chegar em `concluida`/`cancelada` ou ao sair da tela), confirmado funcionando ao vivo em produção.
 13. ~~IA precisa reconhecer quando o cliente está pedindo pra falar com um vendedor/atendente humano~~ — **resolvido em 2026-08-24**: o `AI Agent1` agora devolve um campo `quer_humano` (booleano) no JSON estruturado, junto com `partes`. Quando `true`, um node novo (`verifica_pedido_humano` → `pausa_ia_pedido_humano`) grava a mesma chave Redis já usada pela pausa manual (`midiabot:pausa_ia:...`, TTL 12h), suspendendo a IA pra esse contato. A resposta que chega ao cliente no WhatsApp não tem marcação nenhuma; o que fica gravado no histórico (visível no chat interno) ganha o aviso "🙋 Cliente pediu atendimento humano" na frente. Testado e confirmado funcionando.
+14. **Ajustes pendentes no assistente de instalação (`dashboard.html`), levantados em 2026-08-24** — a tela de permissão de sala (item novo do passo 4) e a correção do texto de "sala compartilhada" já foram feitas; falta:
+    - Trocar "vendedor" por "consultor" em todo o assistente (rótulos, textos — não necessariamente nomes de variável/coluna do banco, que podem continuar como estão).
+    - Opção explícita pra criar uma "sala de conversa interna da equipe" (sem WhatsApp) — hoje isso só existe de forma implícita (sala dedicada, sem telefone, sem dono), o que é fácil de fazer errado sem perceber. Direção combinada: um checkbox tipo "Essa sala é só pra conversa interna (sem WhatsApp)?" que, se marcado, esconde as perguntas de telefone e de dono pra essa sala, e sugere marcar todos os consultores no passo de permissão.
