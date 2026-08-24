@@ -275,12 +275,13 @@
         const idVendedorDoEmoji = (emoji) => PALETA_EMOJI.indexOf(emoji) + 1;
 
         const NOMES_PASSO_Q = {
-            1: 'Passo 1 de 6 — Telefones',
-            2: 'Passo 2 de 6 — Salas',
-            3: 'Passo 3 de 6 — Vendedores',
-            4: 'Passo 4 de 6 — Distribuição nas salas compartilhadas',
-            5: 'Passo 5 de 6 — Donos das salas dedicadas',
-            6: 'Passo 6 de 6 — Revisão'
+            1: 'Passo 1 de 7 — Telefones',
+            2: 'Passo 2 de 7 — Salas',
+            3: 'Passo 3 de 7 — Vendedores',
+            4: 'Passo 4 de 7 — Permissão de sala',
+            5: 'Passo 5 de 7 — Distribuição nas salas compartilhadas',
+            6: 'Passo 6 de 7 — Donos das salas dedicadas',
+            7: 'Passo 7 de 7 — Revisão'
         };
 
         // Reaproveita a mesma ação já usada em instancias.html
@@ -327,9 +328,10 @@
             if (passoAtualQ === 1) el.innerHTML = telaGate();
             else if (passoAtualQ === 2) el.innerHTML = telaSalas();
             else if (passoAtualQ === 3) el.innerHTML = telaVendedores();
-            else if (passoAtualQ === 4) el.innerHTML = telaDistribuicao();
-            else if (passoAtualQ === 5) el.innerHTML = telaDonos();
-            else if (passoAtualQ === 6) el.innerHTML = telaRevisao();
+            else if (passoAtualQ === 4) el.innerHTML = telaPermissoes();
+            else if (passoAtualQ === 5) el.innerHTML = telaDistribuicao();
+            else if (passoAtualQ === 6) el.innerHTML = telaDonos();
+            else if (passoAtualQ === 7) el.innerHTML = telaRevisao();
             ligarEventosQuestionario();
         }
 
@@ -437,11 +439,41 @@
             `;
         }
 
-        // ----- Passo 4 — Distribuição nas salas compartilhadas -----
+        // ----- Passo 4 — Permissão de sala -----
+        function telaPermissoes() {
+            const blocos = dadosQ.salas.map((s, idx) => `
+                <div class="border border-gray-200 rounded-xl p-4 mb-3">
+                    <p class="font-bold text-gray-700 text-sm mb-3">${s.nome || '(sem nome)'}</p>
+                    <div class="flex flex-wrap gap-2">
+                        ${dadosQ.vendedores.map((v) => {
+                            const idVend = idVendedorDoEmoji(v.emoji);
+                            const marcado = (s.permissoes || []).includes(idVend);
+                            return `<label class="flex items-center gap-1.5 text-xs border border-gray-200 rounded-full px-3 py-1.5">
+                                <input type="checkbox" data-sala-permissao="${idx}" value="${idVend}" ${marcado ? 'checked' : ''}>
+                                ${v.emoji} ${v.nome_vendedor || '(sem nome)'}
+                            </label>`;
+                        }).join('')}
+                    </div>
+                </div>
+            `).join('');
+
+            return `
+                <h2 class="text-lg font-bold text-gray-800 mb-2">Quem pode ver cada sala?</h2>
+                <p class="text-sm text-gray-500 mb-6">Marque os vendedores que devem enxergar as conversas de cada sala.</p>
+                ${blocos}
+                <div id="permissao-aviso" class="hidden mb-4 text-xs text-red-600"></div>
+                <div class="flex justify-between mt-4">
+                    <button data-acao="voltar" class="px-5 py-3 text-gray-500 font-bold">Voltar</button>
+                    <button data-acao="proximo-permissoes" class="px-5 py-3 bg-[#00b34d] text-white font-bold rounded-xl hover:bg-green-600">Próximo</button>
+                </div>
+            `;
+        }
+
+        // ----- Passo 5 — Distribuição nas salas compartilhadas -----
         function telaDistribuicao() {
             const salasCompartilhadas = dadosQ.salas.filter(s => s.compartilhada);
             if (salasCompartilhadas.length === 0) {
-                passoAtualQ = 5;
+                passoAtualQ = 6;
                 return telaDonos();
             }
             const blocos = salasCompartilhadas.map((s) => {
@@ -479,11 +511,11 @@
             `;
         }
 
-        // ----- Passo 5 — Donos das salas dedicadas -----
+        // ----- Passo 6 — Donos das salas dedicadas -----
         function telaDonos() {
             const salasDedicadas = dadosQ.salas.filter(s => !s.compartilhada);
             if (salasDedicadas.length === 0) {
-                passoAtualQ = 6;
+                passoAtualQ = 7;
                 return telaRevisao();
             }
             const blocos = salasDedicadas.map((s) => {
@@ -509,13 +541,17 @@
             `;
         }
 
-        // ----- Passo 6 — Revisão e envio -----
+        // ----- Passo 7 — Revisão e envio -----
         function telaRevisao() {
+            const nomeVendedorPorId = (id) => {
+                const v = dadosQ.vendedores.find(v => idVendedorDoEmoji(v.emoji) === id);
+                return v ? `${v.emoji} ${v.nome_vendedor || '(sem nome)'}` : id;
+            };
             return `
                 <h2 class="text-lg font-bold text-gray-800 mb-2">Revisão</h2>
                 <p class="text-sm text-gray-500 mb-6">${dadosQ.salas.length} sala(s), ${dadosQ.vendedores.length} vendedor(es). Confirma a instalação?</p>
                 <ul class="text-sm text-gray-600 space-y-1 mb-6 list-disc list-inside">
-                    ${dadosQ.salas.map(s => `<li>${s.nome} — ${s.compartilhada ? 'compartilhada' : 'dedicada'} — ${s.instancias.join(', ') || 'nenhum telefone'}</li>`).join('')}
+                    ${dadosQ.salas.map(s => `<li>${s.nome} — ${s.compartilhada ? 'compartilhada' : 'dedicada'} — ${s.instancias.join(', ') || 'nenhum telefone'} — acesso: ${(s.permissoes || []).map(nomeVendedorPorId).join(', ') || 'ninguém'}</li>`).join('')}
                 </ul>
                 <div class="flex justify-between">
                     <button data-acao="voltar" class="px-5 py-3 text-gray-500 font-bold">Voltar</button>
@@ -552,7 +588,7 @@
             el.querySelectorAll('[data-acao="gate-sim"]').forEach(b => b.onclick = () => { passoAtualQ = 2; renderQuestionario(); });
             el.querySelectorAll('[data-acao="gate-nao"]').forEach(b => b.onclick = () => document.getElementById('gate-aviso').classList.remove('hidden'));
 
-            el.querySelectorAll('[data-acao="add-sala"]').forEach(b => b.onclick = () => { dadosQ.salas.push({ nome: '', compartilhada: false, instancias: [] }); renderQuestionario(); });
+            el.querySelectorAll('[data-acao="add-sala"]').forEach(b => b.onclick = () => { dadosQ.salas.push({ nome: '', compartilhada: false, instancias: [], permissoes: [] }); renderQuestionario(); });
             el.querySelectorAll('[data-remover-sala]').forEach(b => b.onclick = () => { dadosQ.salas.splice(+b.dataset.removerSala, 1); renderQuestionario(); });
             el.querySelectorAll('[data-sala-nome]').forEach(i => i.oninput = () => { dadosQ.salas[+i.dataset.salaNome].nome = i.value; });
             el.querySelectorAll('[data-sala-compartilhada]').forEach(i => i.onchange = () => { dadosQ.salas[+i.dataset.salaCompartilhada].compartilhada = i.checked; });
@@ -572,6 +608,28 @@
             el.querySelectorAll('[data-vendedor-senha]').forEach(i => i.oninput = () => { dadosQ.vendedores[+i.dataset.vendedorSenha].senha = i.value; });
             el.querySelectorAll('[data-vendedor-emoji]').forEach(i => i.onchange = () => { dadosQ.vendedores[+i.dataset.vendedorEmoji].emoji = i.value; renderQuestionario(); });
             el.querySelectorAll('[data-nome-bot]').forEach(i => i.oninput = () => { dadosQ.nomeBot = i.value; });
+
+            el.querySelectorAll('[data-sala-permissao]').forEach(i => i.onchange = () => {
+                const s = dadosQ.salas[+i.dataset.salaPermissao];
+                const idVend = Number(i.value);
+                if (!s.permissoes) s.permissoes = [];
+                if (i.checked) {
+                    if (!s.permissoes.includes(idVend)) s.permissoes.push(idVend);
+                } else {
+                    s.permissoes = s.permissoes.filter(id => id !== idVend);
+                }
+            });
+            el.querySelectorAll('[data-acao="proximo-permissoes"]').forEach(b => b.onclick = () => {
+                const semPermissao = dadosQ.salas.filter(s => !(s.permissoes || []).length);
+                if (semPermissao.length) {
+                    const aviso = document.getElementById('permissao-aviso');
+                    aviso.classList.remove('hidden');
+                    aviso.innerText = `Marque pelo menos um vendedor pra: ${semPermissao.map(s => s.nome || '(sem nome)').join(', ')}.`;
+                    return;
+                }
+                passoAtualQ = 5;
+                renderQuestionario();
+            });
 
             el.querySelectorAll('[data-sorteio-tipo]').forEach(i => i.onchange = () => { dadosQ.salas[+i.dataset.sorteioTipo].sorteio = i.value; renderQuestionario(); });
             el.querySelectorAll('[data-sorteio-vendedor]').forEach(i => i.onchange = () => { dadosQ.salas[+i.dataset.sorteioVendedor].vendedor_escolhido = i.value; });
@@ -593,6 +651,7 @@
                     nome: s.nome,
                     compartilhada: s.compartilhada,
                     instancias: s.instancias,
+                    permissoes: s.permissoes || [],
                     sorteio: s.sorteio || 'auto',
                     vendedor_escolhido: s.vendedor_escolhido || null,
                     vendedor_dono: s.vendedor_dono || null
