@@ -107,7 +107,7 @@
     <div id="modal-reset" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
         <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
             <h3 class="text-lg font-bold text-gray-800 mb-3">Resetar configuração?</h3>
-            <p class="text-sm text-gray-600 mb-4">Isso vai apagar toda a configuração deste cliente — salas, vendedores e regras de distribuição de atendimento. O histórico de conversas ficará disponível. Essa ação não pode ser desfeita.</p>
+            <p class="text-sm text-gray-600 mb-4">Isso vai apagar toda a configuração deste cliente — salas, consultores e regras de distribuição de atendimento. O histórico de conversas ficará disponível. Essa ação não pode ser desfeita.</p>
             <p class="text-xs text-gray-500 mb-2">Pra confirmar, digite o código abaixo (não dá pra copiar e colar):</p>
             <div id="codigo-confirmacao"
                 class="select-none text-center text-2xl font-mono font-bold tracking-widest text-gray-800 bg-gray-100 rounded-xl py-3 mb-3"
@@ -273,7 +273,7 @@
         const NOMES_PASSO_Q = {
             1: 'Passo 1 de 7 — Telefones',
             2: 'Passo 2 de 7 — Salas',
-            3: 'Passo 3 de 7 — Vendedores',
+            3: 'Passo 3 de 7 — Consultores',
             4: 'Passo 4 de 7 — Permissão de sala',
             5: 'Passo 5 de 7 — Distribuição nas salas compartilhadas',
             6: 'Passo 6 de 7 — Donos das salas dedicadas',
@@ -455,7 +455,7 @@
 
             return `
                 <h2 class="text-lg font-bold text-gray-800 mb-2">Quem pode ver cada sala?</h2>
-                <p class="text-sm text-gray-500 mb-6">Marque os vendedores que devem enxergar as conversas de cada sala.</p>
+                <p class="text-sm text-gray-500 mb-6">Marque os consultores que devem enxergar as conversas de cada sala.</p>
                 ${blocos}
                 <div id="permissao-aviso" class="hidden mb-4 text-xs text-red-600"></div>
                 <div class="flex justify-between mt-4">
@@ -480,16 +480,16 @@
                     <div class="flex gap-4 mb-3">
                         <label class="flex items-center gap-2 text-sm">
                             <input type="radio" name="sorteio-${idx}" value="auto" ${s.sorteio !== 'manual' ? 'checked' : ''} data-sorteio-tipo="${idx}">
-                            Rotaciona automaticamente entre os vendedores ativos
+                            Rotaciona automaticamente entre os consultores ativos
                         </label>
                         <label class="flex items-center gap-2 text-sm">
                             <input type="radio" name="sorteio-${idx}" value="manual" ${s.sorteio === 'manual' ? 'checked' : ''} data-sorteio-tipo="${idx}">
-                            Um vendedor fixo
+                            Um consultor fixo
                         </label>
                     </div>
                     ${s.sorteio === 'manual' ? `
                         <select data-sorteio-vendedor="${idx}" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                            <option value="">Escolha o vendedor</option>
+                            <option value="">Escolha o consultor</option>
                             ${dadosQ.vendedores.map((v) => `<option value="${v.id_vendedor}" ${s.vendedor_escolhido == v.id_vendedor ? 'selected' : ''}>${v.emoji} ${v.nome_vendedor}</option>`).join('')}
                         </select>
                     ` : ''}
@@ -520,7 +520,7 @@
                 <div class="border border-gray-200 rounded-xl p-4 mb-3 flex items-center justify-between">
                     <p class="font-bold text-gray-700 text-sm">${s.nome || '(sem nome)'}</p>
                     <select data-dono="${idx}" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                        <option value="">Escolha o vendedor</option>
+                        <option value="">Escolha o consultor</option>
                         ${dadosQ.vendedores.map((v) => `<option value="${v.id_vendedor}" ${s.vendedor_dono == v.id_vendedor ? 'selected' : ''}>${v.emoji} ${v.nome_vendedor}</option>`).join('')}
                     </select>
                 </div>`;
@@ -545,7 +545,7 @@
             };
             return `
                 <h2 class="text-lg font-bold text-gray-800 mb-2">Revisão</h2>
-                <p class="text-sm text-gray-500 mb-6">${dadosQ.salas.length} sala(s), ${dadosQ.vendedores.length} vendedor(es). Confirma a instalação?</p>
+                <p class="text-sm text-gray-500 mb-6">${dadosQ.salas.length} sala(s), ${dadosQ.vendedores.length} consultor(es). Confirma a instalação?</p>
                 <ul class="text-sm text-gray-600 space-y-1 mb-6 list-disc list-inside">
                     ${dadosQ.salas.map(s => `<li>${s.nome} — ${s.compartilhada ? 'compartilhada' : 'dedicada'} — ${s.instancias.join(', ') || 'nenhum telefone'} — acesso: ${(s.permissoes || []).map(nomeVendedorPorId).join(', ') || 'ninguém'}</li>`).join('')}
                 </ul>
@@ -619,7 +619,7 @@
                 if (semPermissao.length) {
                     const aviso = document.getElementById('permissao-aviso');
                     aviso.classList.remove('hidden');
-                    aviso.innerText = `Marque pelo menos um vendedor pra: ${semPermissao.map(s => s.nome || '(sem nome)').join(', ')}.`;
+                    aviso.innerText = `Marque pelo menos um consultor pra: ${semPermissao.map(s => s.nome || '(sem nome)').join(', ')}.`;
                     return;
                 }
                 passoAtualQ = 5;
