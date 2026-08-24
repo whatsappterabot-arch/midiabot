@@ -95,6 +95,9 @@
                             </tbody>
                         </table>
                     </div>
+                    <button onclick="adicionarConsultor()" class="mt-4 text-sm font-bold text-[#00b34d] hover:underline">
+                        <i class="fas fa-plus mr-1"></i>Adicionar consultor
+                    </button>
                 </div>
             </section>
         </main>
@@ -115,10 +118,10 @@
         import { CONFIG, showToast } from "./config.js";
 
         const API_URL = CONFIG.API_URL;
-        const TOTAL_VAGAS = 10;
 
         let user = null;
         let plataforma = 'whatsapp';
+        let loginsAtuais = [];
 
         // Inicialização e Proteção de Rota
         document.addEventListener('DOMContentLoaded', () => {
@@ -136,6 +139,7 @@
 
             window.setPlataforma = setPlataforma;
             window.salvarLogin = salvarLogin;
+            window.adicionarConsultor = adicionarConsultor;
             window.abrirAjuda = abrirAjuda;
             window.fecharAjuda = fecharAjuda;
             window.logout = logout;
@@ -199,22 +203,25 @@
         async function carregarLogins() {
             try {
                 const data = await chamarApi('listar', {});
-                renderizarTabela(Array.isArray(data) ? data : []);
+                loginsAtuais = Array.isArray(data) ? data : [];
+                renderizarTabela();
             } catch (e) {
                 console.error("Falha ao carregar logins:", e);
                 showToast("Erro ao processar solicitação.", "error");
             }
         }
 
-        function renderizarTabela(dados) {
-            const corpo = document.getElementById('tabela-corpo');
-            const porId = {};
-            dados.forEach(item => { porId[item.id_vendedor] = item; });
+        function adicionarConsultor() {
+            const proximoId = loginsAtuais.reduce((max, item) => Math.max(max, item.id_vendedor), 0) + 1;
+            loginsAtuais.push({ id_vendedor: proximoId, nome_vendedor: '', login: '', cor_emoji: '', ativo: 1, tem_senha: false });
+            renderizarTabela();
+        }
 
-            const linhas = [];
-            for (let i = 1; i <= TOTAL_VAGAS; i++) {
-                const item = porId[i] || {};
-                linhas.push(`
+        function renderizarTabela() {
+            const corpo = document.getElementById('tabela-corpo');
+            const linhas = loginsAtuais.slice().sort((a, b) => a.id_vendedor - b.id_vendedor).map(item => {
+                const i = item.id_vendedor;
+                return (`
                     <tr class="hover:bg-gray-50 transition-colors group">
                         <td class="px-4 py-4 text-center text-sm text-gray-400 font-mono">${i}</td>
                         <td class="px-4 py-4">
@@ -250,7 +257,7 @@
                         </td>
                     </tr>
                 `);
-            }
+            });
             corpo.innerHTML = linhas.join('');
         }
 
