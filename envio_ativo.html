@@ -289,6 +289,7 @@
             document.getElementById('vista-inicial').classList.toggle('hidden', nome !== 'inicial');
             document.getElementById('vista-wizard').classList.toggle('hidden', nome !== 'wizard');
             document.getElementById('vista-acompanhamento').classList.toggle('hidden', nome !== 'acompanhamento');
+            if (nome !== 'acompanhamento') pararTimerAcompanhamento();
             if (nome === 'inicial') carregarInicial();
         }
 
@@ -800,20 +801,35 @@
         }
 
         // ===== Acompanhamento =====
+        let timerAcompanhamento = null;
+
+        function pararTimerAcompanhamento() {
+            if (timerAcompanhamento) {
+                clearInterval(timerAcompanhamento);
+                timerAcompanhamento = null;
+            }
+        }
+
         async function abrirAcompanhamento(id) {
             campanhaAtualId = id;
             mostrarTela('acompanhamento');
             await carregarDetalheCampanha();
         }
 
-        async function carregarDetalheCampanha() {
+        async function carregarDetalheCampanha(silencioso) {
             const el = document.getElementById('conteudo-acompanhamento');
-            el.innerHTML = '<p class="text-sm text-gray-400">Carregando...</p>';
+            if (!silencioso) el.innerHTML = '<p class="text-sm text-gray-400">Carregando...</p>';
             try {
                 const resultado = await chamarApi('detalhe_campanha', { id_campanha: campanhaAtualId });
                 const dados = Array.isArray(resultado) ? resultado[0] : resultado;
                 el.innerHTML = renderAcompanhamento(dados);
                 ligarEventosAcompanhamento();
+
+                if (['concluida', 'cancelada'].includes(dados.campanha.status)) {
+                    pararTimerAcompanhamento();
+                } else if (!timerAcompanhamento) {
+                    timerAcompanhamento = setInterval(() => carregarDetalheCampanha(true), 60000);
+                }
             } catch (e) {
                 console.error('Erro ao carregar campanha:', e);
                 el.innerHTML = '<p class="text-sm text-red-600">Não foi possível carregar essa campanha.</p>';
@@ -888,7 +904,7 @@
 
         function ligarEventosAcompanhamento() {
             const el = document.getElementById('conteudo-acompanhamento');
-            el.querySelectorAll('[data-acao="atualizar"]').forEach(b => b.onclick = carregarDetalheCampanha);
+            el.querySelectorAll('[data-acao="atualizar"]').forEach(b => b.onclick = () => carregarDetalheCampanha());
             el.querySelectorAll('[data-acao="pausar"]').forEach(b => b.onclick = () => acaoCampanha('pausar_campanha'));
             el.querySelectorAll('[data-acao="retomar"]').forEach(b => b.onclick = () => acaoCampanha('retomar_campanha'));
             el.querySelectorAll('[data-acao="cancelar"]').forEach(b => b.onclick = () => {
