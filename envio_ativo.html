@@ -568,7 +568,8 @@
 
         // ----- Passo 3 — Configurações -----
         function passo3Config() {
-            const opcoesInstancia = instanciasDisponiveis.map(i =>
+            const instanciasConectadas = instanciasDisponiveis.filter(i => i.connectionStatus === 'open');
+            const opcoesInstancia = instanciasConectadas.map(i =>
                 `<option value="${escapeHtml(i.nome_instancia)}" ${dadosCampanha.instancia === i.nome_instancia ? 'selected' : ''}>${escapeHtml(i.nome_instancia)}</option>`
             ).join('');
 
@@ -585,10 +586,11 @@
                 <h2 class="text-lg font-bold text-gray-800 mb-6">Configurações do envio</h2>
 
                 <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Instância</label>
-                <select id="input-instancia" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm mb-6">
+                <select id="input-instancia" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm mb-1">
                     <option value="">Selecione...</option>
                     ${opcoesInstancia}
                 </select>
+                ${!instanciasConectadas.length ? '<p class="text-xs text-red-600 mb-5">Nenhuma instância conectada no momento. Conecte uma em "Conectores de Chat" antes de criar a campanha.</p>' : '<div class="mb-5"></div>'}
 
                 <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Intervalo entre envios</label>
                 <div class="flex items-center gap-2 mb-1">
@@ -818,6 +820,19 @@
             }
         }
 
+        function formatarIntervalo(segundos) {
+            if (segundos < 60) return `${segundos} segundos`;
+            const minutos = Math.round(segundos / 60);
+            return `${minutos} ${minutos === 1 ? 'minuto' : 'minutos'}`;
+        }
+
+        function formatarHorarios(horarios) {
+            if (!horarios || !horarios.length) return 'nenhum dia configurado';
+            return horarios
+                .map(h => `${DIAS_LABEL[h.dia_semana]} ${h.hora_inicio.slice(0, 5)}–${h.hora_fim.slice(0, 5)}`)
+                .join(', ');
+        }
+
         function renderAcompanhamento(d) {
             const c = d.campanha;
             const ativa = ['agendada', 'em_andamento', 'pausada'].includes(c.status);
@@ -833,6 +848,13 @@
                 <div class="flex items-center justify-between mb-4">
                     <span class="px-3 py-1 rounded-full text-xs font-bold uppercase ${STATUS_COR[c.status] || 'bg-gray-100'}">${STATUS_LABEL[c.status] || c.status}</span>
                     <button data-acao="atualizar" class="text-xs font-bold text-gray-500 hover:text-gray-700"><i class="fas fa-rotate mr-1"></i>Atualizar</button>
+                </div>
+
+                <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-6 text-sm text-gray-600 space-y-1">
+                    <p>Instância: <strong class="text-gray-800">${escapeHtml(c.instancia)}</strong></p>
+                    <p>Intervalo entre envios: <strong class="text-gray-800">${formatarIntervalo(c.intervalo_segundos)}</strong></p>
+                    <p>Horários: <strong class="text-gray-800">${escapeHtml(formatarHorarios(c.horarios))}</strong></p>
+                    <p>Início agendado: <strong class="text-gray-800">${new Date(c.agendado_para).toLocaleString('pt-BR')}</strong></p>
                 </div>
 
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
