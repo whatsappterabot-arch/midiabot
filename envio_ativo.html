@@ -836,7 +836,7 @@
                 if (['concluida', 'cancelada'].includes(dados.campanha.status)) {
                     pararTimerAcompanhamento();
                 } else if (!timerAcompanhamento) {
-                    timerAcompanhamento = setInterval(() => carregarDetalheCampanha(true), 60000);
+                    timerAcompanhamento = setInterval(() => carregarDetalheCampanha(true), 15000);
                 }
             } catch (e) {
                 console.error('Erro ao carregar campanha:', e);
