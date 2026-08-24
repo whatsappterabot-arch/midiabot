@@ -268,11 +268,7 @@
         // ===== Questionário de instalação — embutido, nunca navega pra fora do dashboard =====
         let passoAtualQ = 1;
         let instanciasDisponiveis = [];
-        let dadosQ = { salas: [], vendedores: [] };
-
-        // Paleta fixa: posição no array = id_vendedor (1 a 10). O emoji escolhido decide o id_vendedor, não a ordem de cadastro.
-        const PALETA_EMOJI = ['🟢', '🔵', '🔴', '🟡', '🟠', '🟣', '⚫', '🟤', '⚪', '🟥'];
-        const idVendedorDoEmoji = (emoji) => PALETA_EMOJI.indexOf(emoji) + 1;
+        let dadosQ = { salas: [], vendedores: [], proximoIdVendedor: 1 };
 
         const NOMES_PASSO_Q = {
             1: 'Passo 1 de 7 — Telefones',
@@ -305,7 +301,7 @@
             document.getElementById('vista-boasvindas').classList.add('hidden');
             document.getElementById('vista-questionario').classList.remove('hidden');
             passoAtualQ = 1;
-            dadosQ = { salas: [], vendedores: [] };
+            dadosQ = { salas: [], vendedores: [], proximoIdVendedor: 1 };
 
             try {
                 const resultado = await chamarApiInstancias('listar_instancias', {});
@@ -400,29 +396,29 @@
             `;
         }
 
-        // ----- Passo 3 — Vendedores -----
+        // ----- Passo 3 — Consultores -----
         function telaVendedores() {
             const linhas = dadosQ.vendedores.map((v, idx) => {
-                const opcoesEmoji = PALETA_EMOJI.map((emoji, i) => {
-                    const usadoPorOutro = dadosQ.vendedores.some((outro, oi) => oi !== idx && outro.emoji === emoji);
-                    return `<option value="${emoji}" ${v.emoji === emoji ? 'selected' : ''} ${usadoPorOutro ? 'disabled' : ''}>${emoji}${usadoPorOutro ? ' (em uso)' : ''}</option>`;
-                }).join('');
-
+                const duplicado = v.emoji && dadosQ.vendedores.some((outro, oi) => oi !== idx && outro.emoji === v.emoji);
                 return `
-                <div class="flex items-center gap-3 mb-3">
-                    <select data-vendedor-emoji="${idx}" class="border border-gray-300 rounded-lg px-2 py-2 text-lg">${opcoesEmoji}</select>
-                    <input type="text" value="${v.nome_vendedor}" data-vendedor-nome="${idx}" placeholder="Nome do vendedor"
-                        class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                    <input type="password" value="${v.senha}" data-vendedor-senha="${idx}" placeholder="Senha"
-                        class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                    <button data-remover-vendedor="${idx}" class="text-gray-400 hover:text-red-500"><i class="fas fa-trash"></i></button>
+                <div class="mb-3">
+                    <div class="flex items-center gap-3">
+                        <input type="text" value="${v.emoji || ''}" data-vendedor-emoji="${idx}" placeholder="🔴" maxlength="4"
+                            class="w-16 text-center border border-gray-300 rounded-lg px-2 py-2 text-lg">
+                        <input type="text" value="${v.nome_vendedor}" data-vendedor-nome="${idx}" placeholder="Nome do consultor"
+                            class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        <input type="password" value="${v.senha}" data-vendedor-senha="${idx}" placeholder="Senha"
+                            class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        <button data-remover-vendedor="${idx}" class="text-gray-400 hover:text-red-500"><i class="fas fa-trash"></i></button>
+                    </div>
+                    ${duplicado ? '<p class="text-xs text-red-600 mt-1 ml-1">Esse emoji já está em uso por outro consultor.</p>' : ''}
                 </div>
             `;
             }).join('');
 
             return `
-                <h2 class="text-lg font-bold text-gray-800 mb-2">Cadastre os vendedores</h2>
-                <p class="text-sm text-gray-500 mb-6">Nome e senha de acesso ao MidiaBot Chat. Até 10 vendedores.</p>
+                <h2 class="text-lg font-bold text-gray-800 mb-2">Cadastre os consultores</h2>
+                <p class="text-sm text-gray-500 mb-6">Nome e senha de acesso ao MidiaBot Chat. Escolha um emoji diferente pra cada um, pra identificar quem é quem no chat.</p>
 
                 <div class="mb-6 pb-6 border-b border-gray-200">
                     <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Nome do Bot</label>
@@ -431,7 +427,7 @@
                 </div>
 
                 ${linhas}
-                ${dadosQ.vendedores.length < 10 ? `<button data-acao="add-vendedor" class="text-sm font-bold text-[#00b34d] hover:underline mb-6"><i class="fas fa-plus mr-1"></i>Adicionar vendedor</button>` : ''}
+                <button data-acao="add-vendedor" class="text-sm font-bold text-[#00b34d] hover:underline mb-6"><i class="fas fa-plus mr-1"></i>Adicionar consultor</button>
                 <div class="flex justify-between mt-4">
                     <button data-acao="voltar" class="px-5 py-3 text-gray-500 font-bold">Voltar</button>
                     <button data-acao="proximo" class="px-5 py-3 bg-[#00b34d] text-white font-bold rounded-xl hover:bg-green-600">Próximo</button>
@@ -446,7 +442,7 @@
                     <p class="font-bold text-gray-700 text-sm mb-3">${s.nome || '(sem nome)'}</p>
                     <div class="flex flex-wrap gap-2">
                         ${dadosQ.vendedores.map((v) => {
-                            const idVend = idVendedorDoEmoji(v.emoji);
+                            const idVend = v.id_vendedor;
                             const marcado = (s.permissoes || []).includes(idVend);
                             return `<label class="flex items-center gap-1.5 text-xs border border-gray-200 rounded-full px-3 py-1.5">
                                 <input type="checkbox" data-sala-permissao="${idx}" value="${idVend}" ${marcado ? 'checked' : ''}>
@@ -494,7 +490,7 @@
                     ${s.sorteio === 'manual' ? `
                         <select data-sorteio-vendedor="${idx}" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
                             <option value="">Escolha o vendedor</option>
-                            ${dadosQ.vendedores.map((v) => `<option value="${idVendedorDoEmoji(v.emoji)}" ${s.vendedor_escolhido == idVendedorDoEmoji(v.emoji) ? 'selected' : ''}>${v.emoji} ${v.nome_vendedor}</option>`).join('')}
+                            ${dadosQ.vendedores.map((v) => `<option value="${v.id_vendedor}" ${s.vendedor_escolhido == v.id_vendedor ? 'selected' : ''}>${v.emoji} ${v.nome_vendedor}</option>`).join('')}
                         </select>
                     ` : ''}
                 </div>`;
@@ -525,7 +521,7 @@
                     <p class="font-bold text-gray-700 text-sm">${s.nome || '(sem nome)'}</p>
                     <select data-dono="${idx}" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
                         <option value="">Escolha o vendedor</option>
-                        ${dadosQ.vendedores.map((v) => `<option value="${idVendedorDoEmoji(v.emoji)}" ${s.vendedor_dono == idVendedorDoEmoji(v.emoji) ? 'selected' : ''}>${v.emoji} ${v.nome_vendedor}</option>`).join('')}
+                        ${dadosQ.vendedores.map((v) => `<option value="${v.id_vendedor}" ${s.vendedor_dono == v.id_vendedor ? 'selected' : ''}>${v.emoji} ${v.nome_vendedor}</option>`).join('')}
                     </select>
                 </div>`;
             }).join('');
@@ -544,7 +540,7 @@
         // ----- Passo 7 — Revisão e envio -----
         function telaRevisao() {
             const nomeVendedorPorId = (id) => {
-                const v = dadosQ.vendedores.find(v => idVendedorDoEmoji(v.emoji) === id);
+                const v = dadosQ.vendedores.find(v => v.id_vendedor === id);
                 return v ? `${v.emoji} ${v.nome_vendedor || '(sem nome)'}` : id;
             };
             return `
@@ -599,8 +595,7 @@
             });
 
             el.querySelectorAll('[data-acao="add-vendedor"]').forEach(b => b.onclick = () => {
-                const emojiLivre = PALETA_EMOJI.find(e => !dadosQ.vendedores.some(v => v.emoji === e));
-                dadosQ.vendedores.push({ nome_vendedor: '', senha: '', emoji: emojiLivre });
+                dadosQ.vendedores.push({ id_vendedor: dadosQ.proximoIdVendedor++, nome_vendedor: '', senha: '', emoji: '' });
                 renderQuestionario();
             });
             el.querySelectorAll('[data-remover-vendedor]').forEach(b => b.onclick = () => { dadosQ.vendedores.splice(+b.dataset.removerVendedor, 1); renderQuestionario(); });
@@ -657,9 +652,10 @@
                     vendedor_dono: s.vendedor_dono || null
                 })),
                 vendedores: dadosQ.vendedores.map((v) => ({
-                    id_vendedor: idVendedorDoEmoji(v.emoji),
+                    id_vendedor: v.id_vendedor,
                     nome_vendedor: v.nome_vendedor,
-                    senha: v.senha
+                    senha: v.senha,
+                    emoji: v.emoji
                 }))
             };
 
