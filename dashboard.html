@@ -373,13 +373,16 @@
                     </label>
                     <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Telefones desta sala</p>
                     <div class="flex flex-wrap gap-2">
-                        ${instanciasDisponiveis.map(i => `
-                            <label class="flex items-center gap-1.5 text-xs border border-gray-200 rounded-full px-3 py-1.5">
-                                <input type="checkbox" data-sala-instancia="${idx}" value="${i.nome_instancia}"
+                        ${instanciasDisponiveis.map(i => {
+                            const conectado = i.connectionStatus === 'open' || !!i.sender;
+                            return `
+                            <label class="flex items-center gap-1.5 text-xs border rounded-full px-3 py-1.5 ${conectado ? 'border-gray-200' : 'border-gray-100 text-gray-400'}">
+                                <input type="checkbox" data-sala-instancia="${idx}" value="${i.nome_instancia}" ${conectado ? '' : 'disabled'}
                                     ${s.instancias.includes(i.nome_instancia) ? 'checked' : ''}>
-                                ${i.nome_instancia}
+                                ${i.nome_instancia}${conectado ? '' : ' (não conectado ainda)'}
                             </label>
-                        `).join('')}
+                        `;
+                        }).join('')}
                     </div>
                 </div>
             `).join('');
