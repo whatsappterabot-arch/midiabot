@@ -810,6 +810,14 @@
             }
         }
 
+        // Se o navegador atrasar/pausar o setInterval com a aba em segundo plano,
+        // isso força uma atualização assim que a aba volta a ficar visível.
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && timerAcompanhamento) {
+                carregarDetalheCampanha(true);
+            }
+        });
+
         async function abrirAcompanhamento(id) {
             campanhaAtualId = id;
             mostrarTela('acompanhamento');
