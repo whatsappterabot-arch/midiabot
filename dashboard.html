@@ -268,7 +268,7 @@
         // ===== Questionário de instalação — embutido, nunca navega pra fora do dashboard =====
         let passoAtualQ = 1;
         let instanciasDisponiveis = [];
-        let dadosQ = { salas: [], vendedores: [], proximoIdVendedor: 1 };
+        let dadosQ = { salas: [], vendedores: [], proximoIdVendedor: 1, permissoesAutoPreenchidas: false };
 
         const NOMES_PASSO_Q = {
             1: 'Passo 1 de 7 — Telefones',
@@ -301,7 +301,7 @@
             document.getElementById('vista-boasvindas').classList.add('hidden');
             document.getElementById('vista-questionario').classList.remove('hidden');
             passoAtualQ = 1;
-            dadosQ = { salas: [], vendedores: [], proximoIdVendedor: 1 };
+            dadosQ = { salas: [], vendedores: [], proximoIdVendedor: 1, permissoesAutoPreenchidas: false };
 
             try {
                 const resultado = await chamarApiInstancias('listar_instancias', {});
@@ -368,6 +368,11 @@
                         <button data-remover-sala="${idx}" class="text-gray-400 hover:text-red-500"><i class="fas fa-trash"></i></button>
                     </div>
                     <label class="flex items-center gap-2 text-sm text-gray-600 mb-3">
+                        <input type="checkbox" data-sala-interna="${idx}" ${s.interna ? 'checked' : ''}>
+                        Essa sala é só pra conversa interna da equipe (sem WhatsApp)
+                    </label>
+                    ${s.interna ? '' : `
+                    <label class="flex items-center gap-2 text-sm text-gray-600 mb-3">
                         <input type="checkbox" data-sala-compartilhada="${idx}" ${s.compartilhada ? 'checked' : ''}>
                         Sala compartilhada (sem dono fixo — você decide como distribuir os atendimentos no próximo passo)
                     </label>
@@ -384,6 +389,7 @@
                         `;
                         }).join('')}
                     </div>
+                    `}
                 </div>
             `).join('');
 
@@ -440,9 +446,15 @@
 
         // ----- Passo 4 — Permissão de sala -----
         function telaPermissoes() {
+            if (!dadosQ.permissoesAutoPreenchidas) {
+                dadosQ.salas.forEach(s => {
+                    if (s.interna) s.permissoes = dadosQ.vendedores.map(v => v.id_vendedor);
+                });
+                dadosQ.permissoesAutoPreenchidas = true;
+            }
             const blocos = dadosQ.salas.map((s, idx) => `
                 <div class="border border-gray-200 rounded-xl p-4 mb-3">
-                    <p class="font-bold text-gray-700 text-sm mb-3">${s.nome || '(sem nome)'}</p>
+                    <p class="font-bold text-gray-700 text-sm mb-3">${s.nome || '(sem nome)'}${s.interna ? ' <span class="text-xs font-normal text-gray-400">(conversa interna — sugerimos todos)</span>' : ''}</p>
                     <div class="flex flex-wrap gap-2">
                         ${dadosQ.vendedores.map((v) => {
                             const idVend = v.id_vendedor;
@@ -512,7 +524,7 @@
 
         // ----- Passo 6 — Donos das salas dedicadas -----
         function telaDonos() {
-            const salasDedicadas = dadosQ.salas.filter(s => !s.compartilhada);
+            const salasDedicadas = dadosQ.salas.filter(s => !s.compartilhada && !s.interna);
             if (salasDedicadas.length === 0) {
                 passoAtualQ = 7;
                 return telaRevisao();
@@ -550,7 +562,7 @@
                 <h2 class="text-lg font-bold text-gray-800 mb-2">Revisão</h2>
                 <p class="text-sm text-gray-500 mb-6">${dadosQ.salas.length} sala(s), ${dadosQ.vendedores.length} consultor(es). Confirma a instalação?</p>
                 <ul class="text-sm text-gray-600 space-y-1 mb-6 list-disc list-inside">
-                    ${dadosQ.salas.map(s => `<li>${s.nome} — ${s.compartilhada ? 'compartilhada' : 'dedicada'} — ${s.instancias.join(', ') || 'nenhum telefone'} — acesso: ${(s.permissoes || []).map(nomeVendedorPorId).join(', ') || 'ninguém'}</li>`).join('')}
+                    ${dadosQ.salas.map(s => `<li>${s.nome} — ${s.interna ? 'conversa interna da equipe' : (s.compartilhada ? 'compartilhada' : 'dedicada')} — ${s.instancias.join(', ') || 'nenhum telefone'} — acesso: ${(s.permissoes || []).map(nomeVendedorPorId).join(', ') || 'ninguém'}</li>`).join('')}
                 </ul>
                 <div class="flex justify-between">
                     <button data-acao="voltar" class="px-5 py-3 text-gray-500 font-bold">Voltar</button>
@@ -587,10 +599,19 @@
             el.querySelectorAll('[data-acao="gate-sim"]').forEach(b => b.onclick = () => { passoAtualQ = 2; renderQuestionario(); });
             el.querySelectorAll('[data-acao="gate-nao"]').forEach(b => b.onclick = () => document.getElementById('gate-aviso').classList.remove('hidden'));
 
-            el.querySelectorAll('[data-acao="add-sala"]').forEach(b => b.onclick = () => { dadosQ.salas.push({ nome: '', compartilhada: false, instancias: [], permissoes: [] }); renderQuestionario(); });
+            el.querySelectorAll('[data-acao="add-sala"]').forEach(b => b.onclick = () => { dadosQ.salas.push({ nome: '', compartilhada: false, interna: false, instancias: [], permissoes: [] }); renderQuestionario(); });
             el.querySelectorAll('[data-remover-sala]').forEach(b => b.onclick = () => { dadosQ.salas.splice(+b.dataset.removerSala, 1); renderQuestionario(); });
             el.querySelectorAll('[data-sala-nome]').forEach(i => i.oninput = () => { dadosQ.salas[+i.dataset.salaNome].nome = i.value; });
             el.querySelectorAll('[data-sala-compartilhada]').forEach(i => i.onchange = () => { dadosQ.salas[+i.dataset.salaCompartilhada].compartilhada = i.checked; });
+            el.querySelectorAll('[data-sala-interna]').forEach(i => i.onchange = () => {
+                const s = dadosQ.salas[+i.dataset.salaInterna];
+                s.interna = i.checked;
+                if (i.checked) {
+                    s.compartilhada = false;
+                    s.instancias = [];
+                }
+                renderQuestionario();
+            });
             el.querySelectorAll('[data-sala-instancia]').forEach(i => i.onchange = () => {
                 const s = dadosQ.salas[+i.dataset.salaInstancia];
                 if (i.checked) s.instancias.push(i.value);
