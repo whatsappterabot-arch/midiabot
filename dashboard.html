@@ -270,6 +270,17 @@
         let instanciasDisponiveis = [];
         let dadosQ = { salas: [], vendedores: [], proximoIdVendedor: 1, permissoesAutoPreenchidas: false };
 
+        const PALETA_CORES = ['🔴', '🟠', '🟡', '🟢', '🔵', '🟣', '🟤', '⚫', '⚪'];
+        const PALETA_EXTRA = {
+            'Rostos': ['😀', '😎', '🤓', '🥳', '😇', '🤠'],
+            'Animais': ['🐶', '🐱', '🦁', '🐼', '🦊', '🐸'],
+            'Símbolos': ['⭐', '❤️', '🔥', '💎', '🌈', '✨']
+        };
+        function proximaCorLivre() {
+            const usadas = new Set(dadosQ.vendedores.map(v => v.emoji));
+            return PALETA_CORES.find(c => !usadas.has(c)) || PALETA_CORES[dadosQ.vendedores.length % PALETA_CORES.length];
+        }
+
         const NOMES_PASSO_Q = {
             1: 'Passo 1 de 7 — Telefones',
             2: 'Passo 2 de 7 — Salas',
@@ -409,18 +420,34 @@
         function telaVendedores() {
             const linhas = dadosQ.vendedores.map((v, idx) => {
                 const duplicado = v.emoji && dadosQ.vendedores.some((outro, oi) => oi !== idx && outro.emoji === v.emoji);
+                const swatch = (emoji) => `
+                    <button type="button" data-vendedor-swatch="${idx}" data-emoji="${emoji}"
+                        class="w-8 h-8 flex items-center justify-center text-lg rounded-full border-2 ${v.emoji === emoji ? 'border-[#00b34d]' : 'border-transparent hover:border-gray-200'}">${emoji}</button>
+                `;
                 return `
-                <div class="mb-3">
-                    <div class="flex items-center gap-3">
-                        <input type="text" value="${v.emoji || ''}" data-vendedor-emoji="${idx}" placeholder="?" maxlength="4"
-                            class="w-16 text-center border border-gray-300 rounded-lg px-2 py-2 text-lg">
+                <div class="mb-4 pb-4 border-b border-gray-100">
+                    <div class="flex items-center gap-3 mb-2">
                         <input type="text" value="${v.nome_vendedor}" data-vendedor-nome="${idx}" placeholder="Nome do consultor"
                             class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm">
                         <input type="password" value="${v.senha}" data-vendedor-senha="${idx}" placeholder="Senha"
                             class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm">
                         <button data-remover-vendedor="${idx}" class="text-gray-400 hover:text-red-500"><i class="fas fa-trash"></i></button>
                     </div>
-                    ${duplicado ? '<p class="text-xs text-red-600 mt-1 ml-1">Esse emoji já está em uso por outro consultor.</p>' : ''}
+                    <div class="flex items-center flex-wrap gap-1 ml-1">
+                        ${PALETA_CORES.map(swatch).join('')}
+                        <button type="button" data-vendedor-mais="${idx}" class="text-xs text-gray-400 hover:text-gray-600 ml-2 underline">${v._maisEmojis ? 'menos emojis' : 'mais emojis'}</button>
+                    </div>
+                    ${v._maisEmojis ? `
+                    <div class="mt-2 ml-1 space-y-1.5">
+                        ${Object.entries(PALETA_EXTRA).map(([grupo, emojis]) => `
+                            <div class="flex items-center flex-wrap gap-1">
+                                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest w-14">${grupo}</span>
+                                ${emojis.map(swatch).join('')}
+                            </div>
+                        `).join('')}
+                    </div>
+                    ` : ''}
+                    ${duplicado ? '<p class="text-xs text-red-600 mt-2 ml-1">Esse emoji já está em uso por outro consultor.</p>' : ''}
                 </div>
             `;
             }).join('');
@@ -619,13 +646,21 @@
             });
 
             el.querySelectorAll('[data-acao="add-vendedor"]').forEach(b => b.onclick = () => {
-                dadosQ.vendedores.push({ id_vendedor: dadosQ.proximoIdVendedor++, nome_vendedor: '', senha: '', emoji: '' });
+                dadosQ.vendedores.push({ id_vendedor: dadosQ.proximoIdVendedor++, nome_vendedor: '', senha: '', emoji: proximaCorLivre() });
                 renderQuestionario();
             });
             el.querySelectorAll('[data-remover-vendedor]').forEach(b => b.onclick = () => { dadosQ.vendedores.splice(+b.dataset.removerVendedor, 1); renderQuestionario(); });
             el.querySelectorAll('[data-vendedor-nome]').forEach(i => i.oninput = () => { dadosQ.vendedores[+i.dataset.vendedorNome].nome_vendedor = i.value; });
             el.querySelectorAll('[data-vendedor-senha]').forEach(i => i.oninput = () => { dadosQ.vendedores[+i.dataset.vendedorSenha].senha = i.value; });
-            el.querySelectorAll('[data-vendedor-emoji]').forEach(i => i.onchange = () => { dadosQ.vendedores[+i.dataset.vendedorEmoji].emoji = i.value; renderQuestionario(); });
+            el.querySelectorAll('[data-vendedor-swatch]').forEach(b => b.onclick = () => {
+                dadosQ.vendedores[+b.dataset.vendedorSwatch].emoji = b.dataset.emoji;
+                renderQuestionario();
+            });
+            el.querySelectorAll('[data-vendedor-mais]').forEach(b => b.onclick = () => {
+                const v = dadosQ.vendedores[+b.dataset.vendedorMais];
+                v._maisEmojis = !v._maisEmojis;
+                renderQuestionario();
+            });
             el.querySelectorAll('[data-nome-bot]').forEach(i => i.oninput = () => { dadosQ.nomeBot = i.value; });
 
             el.querySelectorAll('[data-sala-permissao]').forEach(i => i.onchange = () => {

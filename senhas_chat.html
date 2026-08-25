@@ -123,6 +123,25 @@
         let plataforma = 'whatsapp';
         let loginsAtuais = [];
 
+        const PALETA_CORES = ['🔴', '🟠', '🟡', '🟢', '🔵', '🟣', '🟤', '⚫', '⚪'];
+        const PALETA_EXTRA = {
+            'Rostos': ['😀', '😎', '🤓', '🥳', '😇', '🤠'],
+            'Animais': ['🐶', '🐱', '🦁', '🐼', '🦊', '🐸'],
+            'Símbolos': ['⭐', '❤️', '🔥', '💎', '🌈', '✨']
+        };
+        function proximaCorLivre() {
+            const usadas = new Set(loginsAtuais.map(item => item.cor_emoji));
+            return PALETA_CORES.find(c => !usadas.has(c)) || PALETA_CORES[loginsAtuais.length % PALETA_CORES.length];
+        }
+        function selecionarCor(idVendedor, botao) {
+            document.getElementById(`cor-${idVendedor}`).value = botao.dataset.emoji;
+            document.querySelectorAll(`[data-swatch-row="${idVendedor}"]`).forEach(btn => {
+                const selecionado = btn === botao;
+                btn.classList.toggle('border-[#00b34d]', selecionado);
+                btn.classList.toggle('border-transparent', !selecionado);
+            });
+        }
+
         // Inicialização e Proteção de Rota
         document.addEventListener('DOMContentLoaded', () => {
             const userData = localStorage.getItem('midiabot_user');
@@ -140,6 +159,7 @@
             window.setPlataforma = setPlataforma;
             window.salvarLogin = salvarLogin;
             window.adicionarConsultor = adicionarConsultor;
+            window.selecionarCor = selecionarCor;
             window.abrirAjuda = abrirAjuda;
             window.fecharAjuda = fecharAjuda;
             window.logout = logout;
@@ -213,7 +233,7 @@
 
         function adicionarConsultor() {
             const proximoId = loginsAtuais.reduce((max, item) => Math.max(max, item.id_vendedor), 0) + 1;
-            loginsAtuais.push({ id_vendedor: proximoId, nome_vendedor: '', login: '', cor_emoji: '', ativo: 1, tem_senha: false });
+            loginsAtuais.push({ id_vendedor: proximoId, nome_vendedor: '', login: '', cor_emoji: proximaCorLivre(), ativo: 1, tem_senha: false });
             renderizarTabela();
         }
 
@@ -242,8 +262,25 @@
                             </label>
                         </td>
                         <td class="px-4 py-4 text-center">
-                            <input type="text" id="cor-${i}" value="${item.cor_emoji || ''}" placeholder="?" maxlength="4"
-                                class="w-14 text-center bg-gray-50 border border-gray-200 rounded-lg px-2 py-2 text-lg focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                            <input type="hidden" id="cor-${i}" value="${item.cor_emoji || ''}">
+                            <div class="flex flex-wrap justify-center gap-1 max-w-[130px] mx-auto">
+                                ${PALETA_CORES.map(emoji => `
+                                    <button type="button" data-swatch-row="${i}" data-emoji="${emoji}" onclick="selecionarCor(${i}, this)"
+                                        class="w-7 h-7 flex items-center justify-center text-base rounded-full border-2 ${item.cor_emoji === emoji ? 'border-[#00b34d]' : 'border-transparent hover:border-gray-200'}">${emoji}</button>
+                                `).join('')}
+                            </div>
+                            <button type="button" onclick="document.getElementById('extra-${i}').classList.toggle('hidden')"
+                                class="text-[10px] text-gray-400 hover:text-gray-600 underline mt-1">mais emojis</button>
+                            <div id="extra-${i}" class="hidden mt-1 space-y-1">
+                                ${Object.entries(PALETA_EXTRA).map(([grupo, emojis]) => `
+                                    <div class="flex flex-wrap justify-center gap-1">
+                                        ${emojis.map(emoji => `
+                                            <button type="button" data-swatch-row="${i}" data-emoji="${emoji}" onclick="selecionarCor(${i}, this)"
+                                                class="w-7 h-7 flex items-center justify-center text-base rounded-full border-2 ${item.cor_emoji === emoji ? 'border-[#00b34d]' : 'border-transparent hover:border-gray-200'}">${emoji}</button>
+                                        `).join('')}
+                                    </div>
+                                `).join('')}
+                            </div>
                         </td>
                         <td class="px-4 py-4 text-center">
                             <input type="checkbox" id="ativo-${i}" ${item.ativo === 1 ? 'checked' : ''}
