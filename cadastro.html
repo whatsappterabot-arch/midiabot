@@ -76,6 +76,7 @@
             plano_id: null, termos_aceitos: false
         };
         let termosTexto = null;
+        let termosVersaoId = null;
 
         function render() {
             document.getElementById('passo-indicador').innerText = NOMES_PASSO[passo] || '';
@@ -170,6 +171,7 @@
                         const resultado = await chamarApi('buscar_termos', {});
                         const linha = Array.isArray(resultado) ? resultado[0] : resultado;
                         termosTexto = linha?.texto || 'Não foi possível carregar os termos agora.';
+                        termosVersaoId = linha?.id || null;
                     } catch (e) {
                         console.error(e);
                         termosTexto = 'Não foi possível carregar os termos agora.';
@@ -184,11 +186,15 @@
                     document.getElementById('termos-aviso').classList.remove('hidden');
                     return;
                 }
+                if (!termosVersaoId) {
+                    showToast('Não foi possível confirmar a versão dos termos. Recarregue a página e tente de novo.', 'error');
+                    return;
+                }
                 const botao = document.getElementById('btn-finalizar');
                 botao.disabled = true;
                 botao.innerText = 'Enviando...';
                 try {
-                    const resultado = await chamarApi('completar_cadastro', dados);
+                    const resultado = await chamarApi('completar_cadastro', { ...dados, termos_versao_aceita_id: termosVersaoId });
                     const atualizado = Array.isArray(resultado) ? resultado[0] : resultado;
                     // Atualiza o localStorage pra não precisar logar de novo pra liberar o dashboard
                     const userAtualizado = { ...user, ...atualizado, plano_id: dados.plano_id, termos_aceitos_em: new Date().toISOString() };
