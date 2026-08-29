@@ -6,6 +6,9 @@ export const CONFIG = {
     // Webhook para todas as outras atividades (CRUD, listagem, etc)
     API_URL: 'https://awkwardgiantpanda-n8n.cloudfy.live/webhook/df72b1bc-ce3b-456b-a0b6-dfa8ecc34408',
 
+    // Webhook exclusivo para o cadastro público (cadastro.html) - preencher quando o workflow no n8n existir
+    CADASTRO_URL: 'COLE_AQUI_A_URL_DO_WEBHOOK_DE_CADASTRO_PUBLICO',
+
     APP_NAME: 'MidiaBot'
 };
 
