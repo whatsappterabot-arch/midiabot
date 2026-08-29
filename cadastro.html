@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MidiaBot - Contratar</title>
+    <title>MidiaBot - Complete seu cadastro</title>
     <link rel="icon" type="image/png" href="./logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,7 +19,7 @@
         <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full border-t-4 border-[#00b34d] p-8">
             <div class="flex items-center justify-center gap-3 mb-6">
                 <img src="./logo.png" alt="MidiaBot" class="w-10">
-                <h1 class="text-xl font-bold text-[#001f3f]">Contratar o MidiaBot</h1>
+                <h1 class="text-xl font-bold text-[#001f3f]">Falta pouco</h1>
             </div>
             <p id="passo-indicador" class="text-center text-xs font-bold text-gray-400 uppercase tracking-widest mb-6"></p>
             <div id="conteudo"></div>
@@ -27,75 +27,69 @@
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { CONFIG, showToast } from "./config.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyC3G7lgHMj6l_GiRWuPbo082eyzPQiqO6k",
-            authDomain: "midiabot-fe4d5.firebaseapp.com",
-            projectId: "midiabot-fe4d5",
-            storageBucket: "midiabot-fe4d5.firebasestorage.app",
-            messagingSenderId: "193828659008",
-            appId: "1:193828659008:web:25c8e11b1e303274e8e4a5"
-        };
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const provider = new GoogleAuthProvider();
-        provider.addScope('https://www.googleapis.com/auth/userinfo.profile');
-        provider.addScope('https://www.googleapis.com/auth/userinfo.email');
+        let user = null;
 
-        let passo = 1;
-        const NOMES_PASSO = {
-            1: 'Passo 1 de 4 — Cadastro',
-            2: 'Passo 2 de 4 — Plano',
-            3: 'Passo 3 de 4 — Termos',
-            4: 'Passo 4 de 4 — Confirmação'
-        };
+        document.addEventListener('DOMContentLoaded', () => {
+            const userData = localStorage.getItem('midiabot_user');
+            if (!userData || userData === "undefined") {
+                window.location.href = 'index.html';
+                return;
+            }
+            try {
+                const rawUser = JSON.parse(userData);
+                user = Array.isArray(rawUser) ? rawUser[0] : rawUser;
+            } catch (e) {
+                window.location.href = 'index.html';
+                return;
+            }
 
-        let dados = {
-            idToken: null, accessToken: null,
-            email: '', nome: '', whatsapp: '', nome_fantasia: '', razao_social: '',
-            cnpj_cpf: '', cpf_responsavel: '', endereco: '',
-            plano_id: null, termos_aceitos: false
-        };
-        let planosDisponiveis = [];
+            // Já completou cadastro antes? Não deveria estar aqui de novo (a não ser que tenha vindo pelo link direto).
+            if (user.termos_aceitos_em) {
+                window.location.href = 'dashboard.html';
+                return;
+            }
 
-        async function chamarApiCadastro(acao, dadosExtra) {
-            const res = await fetch(CONFIG.CADASTRO_URL, {
+            render();
+        });
+
+        async function chamarApi(acao, dadosExtra) {
+            const res = await fetch(CONFIG.API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ acao, ...dadosExtra })
+                body: JSON.stringify({ origem: 'cadastro', acao, id_cliente: user.id_cliente ?? user.id, dados: dadosExtra })
             });
             return res.json();
         }
 
+        let passo = 1;
+        const NOMES_PASSO = {
+            1: 'Passo 1 de 3 — Dados da empresa',
+            2: 'Passo 2 de 3 — Plano',
+            3: 'Passo 3 de 3 — Termos'
+        };
+
+        let dados = {
+            whatsapp: '', nome_fantasia: '', razao_social: '',
+            cnpj_cpf: '', cpf_responsavel: '', endereco: '',
+            plano_id: null, termos_aceitos: false
+        };
+
         function render() {
             document.getElementById('passo-indicador').innerText = NOMES_PASSO[passo] || '';
             const el = document.getElementById('conteudo');
-            if (passo === 1) el.innerHTML = telaCadastro();
+            if (passo === 1) el.innerHTML = telaDados();
             else if (passo === 2) el.innerHTML = telaPlano();
             else if (passo === 3) el.innerHTML = telaTermos();
-            else if (passo === 4) el.innerHTML = telaConfirmacao();
             ligarEventos();
         }
 
-        // ----- Passo 1 — Login Google + dados contratuais -----
-        function telaCadastro() {
-            if (!dados.idToken) {
-                return `
-                    <p class="text-sm text-gray-500 mb-6 text-center">Comece entrando com a conta Google que vai administrar o MidiaBot.</p>
-                    <button data-acao="login-google" class="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 py-2.5 px-4 rounded-lg hover:bg-gray-50 transition font-medium text-gray-700">
-                        <svg class="w-4 h-4" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
-                        Entrar com Google
-                    </button>
-                `;
-            }
+        // ----- Passo 1 — Dados da empresa -----
+        function telaDados() {
             return `
-                <p class="text-sm text-gray-500 mb-4">Conectado como <strong>${dados.email}</strong>.</p>
+                <p class="text-sm text-gray-500 mb-4">Oi, ${user.nome || user.email}. Antes de continuar, preciso de alguns dados da sua empresa.</p>
                 <div class="space-y-3">
-                    <input type="text" value="${dados.nome}" data-campo="nome" placeholder="Seu nome"
-                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                     <input type="text" value="${dados.whatsapp}" data-campo="whatsapp" placeholder="WhatsApp de contato"
                         class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                     <input type="text" value="${dados.nome_fantasia}" data-campo="nome_fantasia" placeholder="Nome fantasia da empresa"
@@ -104,36 +98,33 @@
                         class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                     <input type="text" value="${dados.cnpj_cpf}" data-campo="cnpj_cpf" placeholder="CNPJ (ou CPF, se MEI/pessoa física)"
                         class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                    <input type="text" value="${dados.cpf_responsavel}" data-campo="cpf_responsavel" placeholder="CPF do responsável"
+                    <input type="text" value="${dados.cpf_responsavel}" data-campo="cpf_responsavel" placeholder="Seu CPF (responsável)"
                         class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                     <input type="text" value="${dados.endereco}" data-campo="endereco" placeholder="Endereço completo"
                         class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                 </div>
-                <button data-acao="proximo-cadastro" class="w-full mt-6 px-5 py-3 bg-[#00b34d] text-white font-bold rounded-xl hover:bg-green-600">Próximo</button>
+                <button data-acao="proximo-dados" class="w-full mt-6 px-5 py-3 bg-[#00b34d] text-white font-bold rounded-xl hover:bg-green-600">Próximo</button>
             `;
         }
 
-        // ----- Passo 2 — Plano -----
+        // ----- Passo 2 — Plano (só o teste grátis é clicável por enquanto) -----
         function telaPlano() {
-            const cartoes = planosDisponiveis.map(p => {
-                const selecionado = dados.plano_id === p.id;
-                const preco = Number(p.preco) === 0 ? 'Grátis' : `R$ ${Number(p.preco).toFixed(2).replace('.', ',')}/mês`;
-                const validade = p.duracao_dias ? `por ${p.duracao_dias} dias` : 'sem validade fixa';
-                return `
-                <button type="button" data-plano="${p.id}" class="w-full text-left border-2 rounded-xl p-4 mb-3 transition-all ${selecionado ? 'border-[#00b34d] bg-green-50' : 'border-gray-200 hover:border-gray-300'}">
-                    <div class="flex justify-between items-center mb-1">
-                        <span class="font-bold text-gray-800">${p.nome}</span>
-                        <span class="font-bold text-[#00b34d]">${preco}</span>
-                    </div>
-                    <p class="text-xs text-gray-500 mb-1">${p.descricao || ''}</p>
-                    <p class="text-[10px] text-gray-400 uppercase tracking-widest">${validade}${p.whatsapp ? ' · WhatsApp' : ''}${p.instagram ? ' · Instagram' : ''}</p>
-                </button>
-                `;
-            }).join('');
-
+            const trialSelecionado = dados.plano_id === 4;
             return `
-                <p class="text-sm text-gray-500 mb-4">Escolha o plano pra começar.</p>
-                ${cartoes || '<p class="text-sm text-gray-400">Carregando planos...</p>'}
+                <button type="button" data-plano="4" class="w-full text-left border-2 rounded-xl p-5 mb-4 transition-all ${trialSelecionado ? 'border-[#00b34d] bg-green-50' : 'border-gray-200 hover:border-gray-300'}">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-bold text-gray-800 text-lg">Teste Grátis — 30 dias</span>
+                        <span class="font-bold text-[#00b34d]">R$ 0</span>
+                    </div>
+                    <p class="text-xs text-gray-500">Mensagens ilimitadas por 30 dias, sem cartão de crédito. Comece agora.</p>
+                </button>
+                <div class="border-2 border-dashed border-gray-200 rounded-xl p-5 mb-4 opacity-60">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-bold text-gray-500">Planos Bronze / Prata / Ouro</span>
+                        <span class="text-xs font-bold text-gray-400 uppercase">Em breve</span>
+                    </div>
+                    <p class="text-xs text-gray-400">Disponíveis assim que o pagamento online estiver pronto.</p>
+                </div>
                 <div class="flex justify-between mt-4">
                     <button data-acao="voltar" class="px-5 py-3 text-gray-500 font-bold">Voltar</button>
                     <button data-acao="proximo-plano" class="px-5 py-3 bg-[#00b34d] text-white font-bold rounded-xl hover:bg-green-600">Próximo</button>
@@ -154,134 +145,51 @@
                 <div id="termos-aviso" class="hidden mb-4 text-xs text-red-600">Marque a caixa pra continuar.</div>
                 <div class="flex justify-between mt-4">
                     <button data-acao="voltar" class="px-5 py-3 text-gray-500 font-bold">Voltar</button>
-                    <button data-acao="proximo-termos" class="px-5 py-3 bg-[#00b34d] text-white font-bold rounded-xl hover:bg-green-600">Próximo</button>
+                    <button data-acao="finalizar" id="btn-finalizar" class="px-5 py-3 bg-[#00b34d] text-white font-bold rounded-xl hover:bg-green-600">Começar meu teste grátis</button>
                 </div>
             `;
-        }
-
-        // ----- Passo 4 — Confirmação / Compra -----
-        function telaConfirmacao() {
-            const plano = planosDisponiveis.find(p => p.id === dados.plano_id);
-            return `
-                <h2 class="text-sm font-bold text-gray-700 uppercase tracking-widest mb-3">Resumo</h2>
-                <ul class="text-sm text-gray-600 space-y-1 mb-6">
-                    <li><strong>Empresa:</strong> ${dados.nome_fantasia || '(sem nome)'}</li>
-                    <li><strong>Responsável:</strong> ${dados.nome} (${dados.email})</li>
-                    <li><strong>Plano:</strong> ${plano ? plano.nome : '-'}</li>
-                </ul>
-                <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-6 text-xs text-amber-800">
-                    O pagamento ainda não está disponível. Seu cadastro fica registrado como pendente e você recebe as instruções por e-mail assim que o pagamento for liberado.
-                </div>
-                <div class="flex justify-between mt-4">
-                    <button data-acao="voltar" class="px-5 py-3 text-gray-500 font-bold">Voltar</button>
-                    <button data-acao="finalizar" id="btn-finalizar" class="px-5 py-3 bg-[#00b34d] text-white font-bold rounded-xl hover:bg-green-600">Confirmar cadastro</button>
-                </div>
-            `;
-        }
-
-        function telaSucesso() {
-            document.getElementById('conteudo').innerHTML = `
-                <div class="text-center">
-                    <p class="text-lg font-bold text-gray-800 mb-2">Cadastro recebido!</p>
-                    <p class="text-sm text-gray-500">Assim que o pagamento estiver disponível, você recebe as instruções por e-mail em <strong>${dados.email}</strong>.</p>
-                </div>
-            `;
-            document.getElementById('passo-indicador').innerText = 'Concluído';
         }
 
         function ligarEventos() {
             const el = document.getElementById('conteudo');
-
-            el.querySelectorAll('[data-acao="login-google"]').forEach(b => b.onclick = async () => {
-                try {
-                    const result = await signInWithPopup(auth, provider);
-                    const credential = GoogleAuthProvider.credentialFromResult(result);
-                    dados.idToken = credential.idToken;
-                    dados.accessToken = credential.accessToken;
-                    dados.email = result.user.email;
-                    dados.nome = result.user.displayName || '';
-                    render();
-                } catch (e) {
-                    console.error(e);
-                    showToast('Erro ao entrar com Google: ' + e.message, 'error');
-                }
-            });
 
             el.querySelectorAll('[data-campo]').forEach(i => {
                 const evento = i.type === 'checkbox' ? 'onchange' : 'oninput';
                 i[evento] = () => { dados[i.dataset.campo] = i.type === 'checkbox' ? i.checked : i.value; };
             });
 
-            el.querySelectorAll('[data-acao="proximo-cadastro"]').forEach(b => b.onclick = async () => {
-                passo = 2;
-                render();
-                if (!planosDisponiveis.length) {
-                    try {
-                        const resultado = await chamarApiCadastro('listar_planos', {});
-                        planosDisponiveis = Array.isArray(resultado) ? resultado : [];
-                        render();
-                    } catch (e) {
-                        console.error(e);
-                        showToast('Não foi possível carregar os planos.', 'error');
-                    }
-                }
-            });
-
+            el.querySelectorAll('[data-acao="proximo-dados"]').forEach(b => b.onclick = () => { passo = 2; render(); });
             el.querySelectorAll('[data-plano]').forEach(b => b.onclick = () => { dados.plano_id = Number(b.dataset.plano); render(); });
             el.querySelectorAll('[data-acao="proximo-plano"]').forEach(b => b.onclick = () => {
-                if (!dados.plano_id) { showToast('Escolha um plano pra continuar.', 'warning'); return; }
+                if (!dados.plano_id) { showToast('Escolha o teste grátis pra continuar.', 'warning'); return; }
                 passo = 3;
                 render();
             });
+            el.querySelectorAll('[data-acao="voltar"]').forEach(b => b.onclick = () => { passo--; render(); });
 
-            el.querySelectorAll('[data-acao="proximo-termos"]').forEach(b => b.onclick = () => {
+            el.querySelectorAll('[data-acao="finalizar"]').forEach(b => b.onclick = async () => {
                 if (!dados.termos_aceitos) {
                     document.getElementById('termos-aviso').classList.remove('hidden');
                     return;
                 }
-                passo = 4;
-                render();
-            });
-
-            el.querySelectorAll('[data-acao="voltar"]').forEach(b => b.onclick = () => { passo--; render(); });
-
-            el.querySelectorAll('[data-acao="finalizar"]').forEach(b => b.onclick = async () => {
                 const botao = document.getElementById('btn-finalizar');
                 botao.disabled = true;
                 botao.innerText = 'Enviando...';
                 try {
-                    const resultado = await chamarApiCadastro('cadastrar', {
-                        token: dados.idToken,
-                        access_token: dados.accessToken,
-                        dados: {
-                            email: dados.email,
-                            nome: dados.nome,
-                            whatsapp: dados.whatsapp,
-                            nome_fantasia: dados.nome_fantasia,
-                            razao_social: dados.razao_social,
-                            cnpj_cpf: dados.cnpj_cpf,
-                            cpf_responsavel: dados.cpf_responsavel,
-                            endereco: dados.endereco,
-                            plano_id: dados.plano_id
-                        }
-                    });
-                    if (resultado && resultado.erro === 'EMAIL_JA_CADASTRADO') {
-                        showToast('Esse e-mail já tem cadastro. Faça login normalmente.', 'warning');
-                        botao.disabled = false;
-                        botao.innerText = 'Confirmar cadastro';
-                        return;
-                    }
-                    telaSucesso();
+                    const resultado = await chamarApi('completar_cadastro', dados);
+                    const atualizado = Array.isArray(resultado) ? resultado[0] : resultado;
+                    // Atualiza o localStorage pra não precisar logar de novo pra liberar o dashboard
+                    const userAtualizado = { ...user, ...atualizado, plano_id: dados.plano_id, termos_aceitos_em: new Date().toISOString() };
+                    localStorage.setItem('midiabot_user', JSON.stringify(userAtualizado));
+                    window.location.href = 'dashboard.html';
                 } catch (e) {
                     console.error(e);
-                    showToast('Não foi possível concluir o cadastro. Tenta de novo.', 'error');
+                    showToast('Não foi possível concluir. Tenta de novo.', 'error');
                     botao.disabled = false;
-                    botao.innerText = 'Confirmar cadastro';
+                    botao.innerText = 'Começar meu teste grátis';
                 }
             });
         }
-
-        render();
     </script>
 </body>
 </html>

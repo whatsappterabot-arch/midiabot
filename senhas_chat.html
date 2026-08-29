@@ -153,6 +153,8 @@
             const rawUser = JSON.parse(userData);
             user = Array.isArray(rawUser) ? rawUser[0] : rawUser;
 
+            if (!user.termos_aceitos_em) { window.location.href = 'cadastro.html'; return; }
+
             document.getElementById('user-name').innerText = user.nome || 'Usuário';
             document.getElementById('user-id').innerText = `ID: ${user.id_cliente}`;
 
