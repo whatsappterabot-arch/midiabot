@@ -75,6 +75,7 @@
             cnpj_cpf: '', cpf_responsavel: '', endereco: '',
             plano_id: null, termos_aceitos: false
         };
+        let termosTexto = null;
 
         function render() {
             document.getElementById('passo-indicador').innerText = NOMES_PASSO[passo] || '';
@@ -135,8 +136,8 @@
         // ----- Passo 3 — Termos -----
         function telaTermos() {
             return `
-                <div class="border border-gray-200 rounded-xl p-4 mb-4 h-48 overflow-y-auto text-xs text-gray-500 leading-relaxed">
-                    [SUBSTITUIR pelo texto real dos termos de uso e política de privacidade do MidiaBot antes de publicar esta tela.]
+                <div class="border border-gray-200 rounded-xl p-4 mb-4 h-48 overflow-y-auto text-xs text-gray-500 leading-relaxed whitespace-pre-line">
+                    ${termosTexto === null ? 'Carregando...' : termosTexto}
                 </div>
                 <label class="flex items-center gap-2 text-sm text-gray-600 mb-6">
                     <input type="checkbox" data-campo="termos_aceitos" ${dados.termos_aceitos ? 'checked' : ''}>
@@ -160,10 +161,21 @@
 
             el.querySelectorAll('[data-acao="proximo-dados"]').forEach(b => b.onclick = () => { passo = 2; render(); });
             el.querySelectorAll('[data-plano]').forEach(b => b.onclick = () => { dados.plano_id = Number(b.dataset.plano); render(); });
-            el.querySelectorAll('[data-acao="proximo-plano"]').forEach(b => b.onclick = () => {
+            el.querySelectorAll('[data-acao="proximo-plano"]').forEach(b => b.onclick = async () => {
                 if (!dados.plano_id) { showToast('Escolha o teste grátis pra continuar.', 'warning'); return; }
                 passo = 3;
                 render();
+                if (termosTexto === null) {
+                    try {
+                        const resultado = await chamarApi('buscar_termos', {});
+                        const linha = Array.isArray(resultado) ? resultado[0] : resultado;
+                        termosTexto = linha?.texto || 'Não foi possível carregar os termos agora.';
+                    } catch (e) {
+                        console.error(e);
+                        termosTexto = 'Não foi possível carregar os termos agora.';
+                    }
+                    render();
+                }
             });
             el.querySelectorAll('[data-acao="voltar"]').forEach(b => b.onclick = () => { passo--; render(); });
 
