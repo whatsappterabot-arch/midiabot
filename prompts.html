@@ -87,6 +87,7 @@
                                 </select>
                             </div>
                         </div>
+                        <div id="aviso-salas-incompletas" class="hidden mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700"></div>
                     </div>
 
                     <!-- PROMPTS -->
@@ -253,7 +254,19 @@
                 const salas = (Array.isArray(data) ? data : []).filter(item => item && item.chat_id != null);
                 selectChatId.disabled = false;
                 selectChatId.innerHTML = '<option value="">Selecione uma sala...</option>' +
-                    salas.map(item => `<option value="${item.chat_id}">${item.chat_id_nome || item.chat_id}</option>`).join('');
+                    salas.map(item => {
+                        const incompleta = Number(item.prompts_configurados) < 2;
+                        return `<option value="${item.chat_id}">${incompleta ? '⚠️ ' : ''}${item.chat_id_nome || item.chat_id}</option>`;
+                    }).join('');
+
+                const incompletas = salas.filter(item => Number(item.prompts_configurados) < 2);
+                const avisoEl = document.getElementById('aviso-salas-incompletas');
+                if (incompletas.length > 0) {
+                    avisoEl.classList.remove('hidden');
+                    avisoEl.innerHTML = `<strong>⚠️ Atenção:</strong> ${incompletas.length} sala(s) sem os dois prompts configurados (dentro e fora do expediente) — a IA não vai responder automaticamente nelas: ${incompletas.map(s => s.chat_id_nome || s.chat_id).join(', ')}.`;
+                } else {
+                    avisoEl.classList.add('hidden');
+                }
             } catch (e) {
                 console.error("Falha ao carregar salas:", e);
                 showToast("Erro ao processar solicitação.", "error");
