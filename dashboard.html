@@ -64,6 +64,11 @@
 
             <!-- ÁREA DE BOAS-VINDAS -->
             <section class="p-8 overflow-y-auto flex-1">
+                <div id="aviso-prompts-faltando" class="hidden max-w-4xl mx-auto mb-4 p-4 bg-red-50 border-2 border-red-400 rounded-2xl text-sm text-red-800 font-bold flex items-center gap-3">
+                    <i class="fas fa-triangle-exclamation text-red-500 text-lg"></i>
+                    <span id="texto-aviso-prompts-faltando"></span>
+                    <a href="prompts.html" class="underline whitespace-nowrap">Configurar agora</a>
+                </div>
                 <div class="max-w-4xl mx-auto" id="vista-boasvindas">
                     <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 text-center">
                         <div class="w-16 h-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
@@ -205,6 +210,16 @@
                 document.getElementById('btn-resetar').classList.toggle('hidden', !temSalaAtiva);
                 document.getElementById('sem-reset-texto').classList.toggle('hidden', temSalaAtiva);
                 document.getElementById('btn-questionario').classList.toggle('hidden', temSalaAtiva);
+
+                const salasSemPrompt = Number(dados?.salas_sem_prompt) || 0;
+                const avisoEl = document.getElementById('aviso-prompts-faltando');
+                if (salasSemPrompt > 0) {
+                    avisoEl.classList.remove('hidden');
+                    document.getElementById('texto-aviso-prompts-faltando').innerText =
+                        `Atenção: ${salasSemPrompt} sala(s) ativa(s) sem prompt configurado — a IA não vai atender direito nelas.`;
+                } else {
+                    avisoEl.classList.add('hidden');
+                }
             } catch (e) {
                 console.error('Erro ao verificar status do cliente:', e);
             }
