@@ -58,7 +58,7 @@
             const res = await fetch(CONFIG.API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ origem: 'cadastro', acao, id_cliente: user.id_cliente ?? user.id, dados: dadosExtra })
+                body: JSON.stringify({ origem: 'cadastro', plataforma: 'whatsapp', acao, id_cliente: user.id_cliente ?? user.id, dados: dadosExtra })
             });
             return res.json();
         }
