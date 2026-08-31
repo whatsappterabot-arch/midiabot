@@ -486,11 +486,9 @@
             try {
                 const acao = modoArquivadas ? 'listar_arquivadas' : 'listar_conversas';
                 const data = await chamarApi(acao, { chat_id: salaSelecionada });
-                const conversas = (Array.isArray(data) ? data : []).filter(item => item && item.remotejid != null);
-
-                if (conversas.some(c => ehContatoInterno(c.remotejid))) {
-                    await garantirTodasSalasCache();
-                }
+                const conversas = (Array.isArray(data) ? data : [])
+                    .filter(item => item && item.remotejid != null)
+                    .filter(item => !ehContatoInterno(item.remotejid));
 
                 if (conversas.length === 0) {
                     const mensagemVazio = modoArquivadas ? 'Nenhuma conversa arquivada' : 'Nenhuma conversa nessa sala';
@@ -1009,7 +1007,7 @@
                         </div>
                     ` : '';
                     const interno = ehContatoInterno(conversaSelecionada);
-                    const remetenteHtml = (m.from_me && m.nome_remetente)
+                    const remetenteHtml = ((m.from_me || interno) && m.nome_remetente)
                         ? `<div class="text-[10px] font-bold text-blue-600 mb-0.5">${escapeHtml(m.nome_remetente)}</div>`
                         : '';
                     const botaoResponder = interno ? '' : `
