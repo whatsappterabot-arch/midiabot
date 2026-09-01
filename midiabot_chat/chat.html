@@ -1029,8 +1029,10 @@
                             ${formatarWhatsApp(escapeHtml(resumoMensagemCitada(citada)))}
                         </div>
                     ` : '';
-                    const interno = ehContatoInterno(conversaSelecionada) || ehGrupo(conversaSelecionada);
-                    const remetenteHtml = (m.from_me && m.nome_remetente)
+                    const grupo = ehGrupo(conversaSelecionada);
+                    const interno = ehContatoInterno(conversaSelecionada) || grupo;
+                    const ehMinha = grupo ? (m.nome_remetente === sessao.nome_vendedor) : m.from_me;
+                    const remetenteHtml = ((grupo || m.from_me) && m.nome_remetente)
                         ? `<div class="text-[10px] font-bold text-blue-600 mb-0.5">${escapeHtml(m.nome_remetente)}</div>`
                         : '';
                     const botaoResponder = interno ? '' : `
@@ -1038,8 +1040,8 @@
                                     <i class="fas fa-reply text-[10px]"></i>
                                 </button>`;
                     return `
-                    <div class="flex ${m.from_me ? 'justify-end' : 'justify-start'}">
-                        <div data-msg-id="${m.id}" data-messagetype="${escapeHtml(m.messagetype || '')}" data-mime-type="${escapeHtml(m.mime_type || '')}" data-nome-arquivo="${escapeHtml(m.midia || '')}" data-caption="${escapeHtml(m.caption || '')}" data-mensagem="${escapeHtml(m.mensagem || '')}" class="max-w-[90%] rounded-2xl px-4 py-2 text-sm text-black ${m.from_me ? 'bg-[#dcf8c6]' : 'bg-white'}">
+                    <div class="flex ${ehMinha ? 'justify-end' : 'justify-start'}">
+                        <div data-msg-id="${m.id}" data-messagetype="${escapeHtml(m.messagetype || '')}" data-mime-type="${escapeHtml(m.mime_type || '')}" data-nome-arquivo="${escapeHtml(m.midia || '')}" data-caption="${escapeHtml(m.caption || '')}" data-mensagem="${escapeHtml(m.mensagem || '')}" class="max-w-[90%] rounded-2xl px-4 py-2 text-sm text-black ${ehMinha ? 'bg-[#dcf8c6]' : 'bg-white'}">
                             ${remetenteHtml}
                             ${citacaoHtml}
                             <div class="conteudo-mensagem">${renderizarConteudoMensagem(m)}</div>
