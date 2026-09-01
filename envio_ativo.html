@@ -185,7 +185,7 @@
                 { icon: 'fa-paper-plane', label: 'Envio Ativo', active: true },
                 { icon: 'fa-server', label: 'Instâncias', href: 'instancias.html' },
                 { icon: 'fa-ban', label: 'Proibições de IA', href: 'proibicoes.html' },
-                { icon: 'fa-paper-plane', label: 'Conectores de Chat', href: 'telegram_sender.html' },
+                { icon: 'fa-paper-plane', label: 'Configurar Salas', href: 'configurar_salas.html' },
                 { icon: 'fa-user-tie', label: 'Atribuição a Consultores', href: 'consultores.html' },
                 { icon: 'fa-users', label: 'Telefones dos Consultores', href: 'vendedores.html' },
                 { icon: 'fa-clock', label: 'Horários', href: 'horarios.html' },
@@ -594,7 +594,7 @@
                     <option value="">Selecione...</option>
                     ${opcoesInstancia}
                 </select>
-                ${!instanciasConectadas.length ? '<p class="text-xs text-red-600 mb-5">Nenhuma instância conectada no momento. Conecte uma em "Conectores de Chat" antes de criar a campanha.</p>' : '<div class="mb-5"></div>'}
+                ${!instanciasConectadas.length ? '<p class="text-xs text-red-600 mb-5">Nenhuma instância conectada no momento. Conecte uma em "Configurar Salas" antes de criar a campanha.</p>' : '<div class="mb-5"></div>'}
 
                 <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Intervalo entre envios</label>
                 <div class="flex items-center gap-2 mb-1">
