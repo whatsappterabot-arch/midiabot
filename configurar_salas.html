@@ -470,6 +470,11 @@
                                 class="inline-block mt-2 text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full transition-all hover:opacity-75 ${sala.sala_compartilhada == 1 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'}">
                                 ${sala.sala_compartilhada == 1 ? 'Compartilhada' : 'Dedicada'}
                             </button>
+                            ${Number(sala.eh_grupo) === 1 ? `
+                            <span class="inline-block mt-2 ml-1 text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full bg-purple-100 text-purple-700">
+                                Grupo
+                            </span>
+                            ` : ''}
                         </div>
                         <button onclick="apagarSala(${sala.chat_id})" title="Apagar sala"
                             class="text-gray-300 hover:text-red-500 transition-colors p-2">
