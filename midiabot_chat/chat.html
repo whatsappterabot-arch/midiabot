@@ -291,6 +291,14 @@
             return !!remotejid && remotejid.endsWith('@midiabot.interno');
         }
 
+        function ehGrupo(remotejid) {
+            return !!remotejid && remotejid.endsWith('@midiabot.grupo');
+        }
+
+        function remotejidDoGrupo(chatId) {
+            return `grupo-${chatId}@midiabot.grupo`;
+        }
+
         function extrairChatIdOutraSala(remotejid) {
             const m = remotejid.match(/^interno-(-?\d+)-(-?\d+)-(-?\d+)@midiabot\.interno$/);
             return m ? m[3] : null;
@@ -476,9 +484,14 @@
 
             const salaAtual = salas.find(s => String(s.chat_id) === String(chatId));
             const compartilhada = !!salaAtual && Number(salaAtual.sala_compartilhada) === 1;
-            document.getElementById('btn-conversa-interna').classList.toggle('hidden', compartilhada);
+            const grupo = !!salaAtual && Number(salaAtual.eh_grupo) === 1;
+            document.getElementById('btn-conversa-interna').classList.toggle('hidden', compartilhada || grupo);
 
-            await carregarConversas();
+            if (grupo) {
+                await abrirConversa(remotejidDoGrupo(chatId));
+            } else {
+                await carregarConversas();
+            }
         }
 
         async function carregarConversas() {
@@ -600,14 +613,18 @@
             painelConversa.classList.remove('hidden');
             painelConversa.style.display = 'flex';
             const interno = ehContatoInterno(remotejid);
-            if (interno) {
+            const grupo = ehGrupo(remotejid);
+            if (grupo) {
+                const salaGrupo = salas.find(s => String(s.chat_id) === String(salaSelecionada));
+                document.getElementById('titulo-conversa').innerText = '👥 ' + (salaGrupo ? salaGrupo.chat_id_nome : 'Grupo');
+            } else if (interno) {
                 await garantirTodasSalasCache();
                 document.getElementById('titulo-conversa').innerText = '🏢 ' + nomeSalaPorChatId(extrairChatIdOutraSala(remotejid));
             } else {
                 document.getElementById('titulo-conversa').innerText = numeroSemSufixo(remotejid);
             }
-            document.getElementById('btn-encaminhar').classList.toggle('hidden', interno);
-            document.getElementById('btn-suspender-ia').classList.toggle('hidden', interno);
+            document.getElementById('btn-encaminhar').classList.toggle('hidden', interno || grupo);
+            document.getElementById('btn-suspender-ia').classList.toggle('hidden', interno || grupo);
             destacarConversaAtiva();
             carregarMensagens();
             marcarLida(remotejid);
@@ -1008,7 +1025,7 @@
                             ${formatarWhatsApp(escapeHtml(resumoMensagemCitada(citada)))}
                         </div>
                     ` : '';
-                    const interno = ehContatoInterno(conversaSelecionada);
+                    const interno = ehContatoInterno(conversaSelecionada) || ehGrupo(conversaSelecionada);
                     const remetenteHtml = (m.from_me && m.nome_remetente)
                         ? `<div class="text-[10px] font-bold text-blue-600 mb-0.5">${escapeHtml(m.nome_remetente)}</div>`
                         : '';
@@ -1047,7 +1064,12 @@
 
             input.disabled = true;
             try {
-                if (ehContatoInterno(conversaSelecionada)) {
+                if (ehGrupo(conversaSelecionada)) {
+                    await chamarApi('enviar_mensagem_grupo', {
+                        chat_id_grupo: salaSelecionada,
+                        mensagem: texto
+                    });
+                } else if (ehContatoInterno(conversaSelecionada)) {
                     await chamarApi('enviar_mensagem_interna', {
                         chat_id_origem: salaSelecionada,
                         chat_id_destino: extrairChatIdOutraSala(conversaSelecionada),
@@ -1125,7 +1147,7 @@
 
         function processarArquivoSelecionado(arquivo) {
             if (!arquivo || !conversaSelecionada) return;
-            if (ehContatoInterno(conversaSelecionada)) {
+            if (ehContatoInterno(conversaSelecionada) || ehGrupo(conversaSelecionada)) {
                 showToast("Envio de arquivo ainda não é suportado em conversa interna.", "warning");
                 return;
             }
@@ -1209,7 +1231,7 @@
                 showToast("Selecione uma conversa primeiro.", "warning");
                 return;
             }
-            if (ehContatoInterno(conversaSelecionada)) {
+            if (ehContatoInterno(conversaSelecionada) || ehGrupo(conversaSelecionada)) {
                 showToast("Áudio ainda não é suportado em conversa interna.", "warning");
                 return;
             }
