@@ -111,6 +111,10 @@
                                 </button>
                             </div>
                         </div>
+                        <label class="flex items-center gap-2 mt-4 text-xs text-gray-600 cursor-pointer">
+                            <input type="checkbox" id="input-nova-sala-grupo" class="w-4 h-4 accent-[#00b34d] cursor-pointer">
+                            Esta sala é um Grupo (conversa central única entre salas-membro, sem WhatsApp real)
+                        </label>
                     </div>
 
                     <!-- LISTA DE SALAS -->
@@ -143,6 +147,7 @@
         let compartilhadaNovaSala = false;
         let colaboradores = [];
         let permissoes = [];
+        let membrosGrupo = {};
 
         // Inicialização e Proteção de Rota
         document.addEventListener('DOMContentLoaded', () => {
@@ -169,6 +174,7 @@
             window.apagarSala = apagarSala;
             window.alternarCompartilhada = alternarCompartilhada;
             window.alternarPermissaoSala = alternarPermissaoSala;
+            window.alternarMembroGrupo = alternarMembroGrupo;
             window.abrirAjuda = abrirAjuda;
             window.fecharAjuda = fecharAjuda;
             window.logout = logout;
@@ -322,12 +328,14 @@
                     workflow_name: workflow,
                     chat_id_nome: inputNome.value.trim(),
                     sender: sender || null,
-                    sala_compartilhada: compartilhadaNovaSala ? 1 : 0
+                    sala_compartilhada: compartilhadaNovaSala ? 1 : 0,
+                    eh_grupo: document.getElementById('input-nova-sala-grupo').checked ? 1 : 0
                 });
                 inputNome.value = '';
                 document.getElementById('select-novo-workflow').value = '';
                 document.getElementById('select-novo-sender').disabled = true;
                 document.getElementById('select-novo-sender').innerHTML = '<option value="">Selecione um fluxo primeiro...</option>';
+                document.getElementById('input-nova-sala-grupo').checked = false;
                 setCompartilhadaNovaSala(false);
                 showToast("Sala criada com sucesso.", "success");
                 await carregarSalas();
@@ -376,7 +384,7 @@
 
                 const workflowsUnicos = [...new Set(salas.map(s => s.workflow_name))];
                 await Promise.all(workflowsUnicos.map(w => carregarOrfaos(w)));
-                await Promise.all([carregarColaboradores(), carregarPermissoes()]);
+                await Promise.all([carregarColaboradores(), carregarPermissoes(), carregarMembrosGrupos()]);
 
                 renderizarSalas();
                 await sincronizarSenderNovaSala();
@@ -428,6 +436,35 @@
             }
         }
 
+        async function carregarMembrosGrupos() {
+            membrosGrupo = {};
+            const grupos = salas.filter(s => Number(s.eh_grupo) === 1);
+            await Promise.all(grupos.map(async g => {
+                try {
+                    const data = await chamarApi('listar_membros_grupo', { chat_id_grupo: g.chat_id });
+                    membrosGrupo[g.chat_id] = (Array.isArray(data) ? data : []).filter(item => item && item.chat_id_sala_membro != null);
+                } catch (e) {
+                    console.error("Falha ao carregar membros do grupo:", e);
+                    membrosGrupo[g.chat_id] = [];
+                }
+            }));
+        }
+
+        function temMembro(chatIdGrupo, chatIdSala) {
+            return (membrosGrupo[chatIdGrupo] || []).some(m => Number(m.chat_id_sala_membro) === Number(chatIdSala));
+        }
+
+        async function alternarMembroGrupo(chatIdGrupo, chatIdSala, incluir) {
+            try {
+                await chamarApi(incluir ? 'adicionar_membro_grupo' : 'remover_membro_grupo', { chat_id_grupo: chatIdGrupo, chat_id_sala_membro: chatIdSala });
+                await carregarMembrosGrupos();
+                renderizarSalas();
+            } catch (e) {
+                console.error("Falha ao alterar membro do grupo:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
         function agruparSalas(linhas) {
             const porChatId = {};
             linhas.forEach(row => {
@@ -437,6 +474,7 @@
                         chat_id_nome: row.chat_id_nome,
                         workflow_name: row.workflow_name,
                         sala_compartilhada: row.sala_compartilhada,
+                        eh_grupo: row.eh_grupo,
                         senders: []
                     };
                 }
@@ -507,6 +545,23 @@
                                 `).join('')}
                         </div>
                     </div>
+                    ${Number(sala.eh_grupo) === 1 ? `
+                    <div class="mt-4 pt-4 border-t border-gray-100">
+                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Salas-membro deste Grupo</p>
+                        <div class="flex flex-wrap gap-3">
+                            ${salas.filter(s => s.chat_id !== sala.chat_id).length === 0
+                                ? '<span class="text-xs text-gray-300">Nenhuma outra sala cadastrada</span>'
+                                : salas.filter(s => s.chat_id !== sala.chat_id).map(s => `
+                                    <label class="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+                                        <input type="checkbox" class="w-4 h-4 accent-[#00b34d] cursor-pointer"
+                                            ${temMembro(sala.chat_id, s.chat_id) ? 'checked' : ''}
+                                            onchange="alternarMembroGrupo(${sala.chat_id}, ${s.chat_id}, this.checked)">
+                                        ${escapeHtml(s.chat_id_nome || s.chat_id)}
+                                    </label>
+                                `).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
                 </div>
             `).join('');
         }
