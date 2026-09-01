@@ -608,7 +608,9 @@
 
         async function abrirConversa(remotejid) {
             conversaSelecionada = remotejid;
-            document.getElementById('painel-lista').classList.add('hidden');
+            const painelLista = document.getElementById('painel-lista');
+            painelLista.classList.add('hidden');
+            painelLista.style.display = 'none';
             const painelConversa = document.getElementById('painel-conversa');
             painelConversa.classList.remove('hidden');
             painelConversa.style.display = 'flex';
@@ -821,7 +823,9 @@
 
         function fecharConversa() {
             conversaSelecionada = null;
-            document.getElementById('painel-lista').classList.remove('hidden');
+            const painelLista = document.getElementById('painel-lista');
+            painelLista.classList.remove('hidden');
+            painelLista.style.display = '';
             const painelConversa = document.getElementById('painel-conversa');
             painelConversa.classList.add('hidden');
             painelConversa.style.display = 'none';
