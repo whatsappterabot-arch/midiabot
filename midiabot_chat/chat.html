@@ -608,14 +608,18 @@
 
         async function abrirConversa(remotejid) {
             conversaSelecionada = remotejid;
+            const interno = ehContatoInterno(remotejid);
+            const grupo = ehGrupo(remotejid);
             const painelLista = document.getElementById('painel-lista');
             painelLista.classList.add('hidden');
-            painelLista.style.display = 'none';
+            if (grupo) {
+                // Grupo nao tem lista de conversas — precisa esconder de verdade, mesmo no desktop
+                // (onde sm:flex normalmente mantem o painel visivel ao lado da conversa aberta).
+                painelLista.style.display = 'none';
+            }
             const painelConversa = document.getElementById('painel-conversa');
             painelConversa.classList.remove('hidden');
             painelConversa.style.display = 'flex';
-            const interno = ehContatoInterno(remotejid);
-            const grupo = ehGrupo(remotejid);
             if (grupo) {
                 const salaGrupo = salas.find(s => String(s.chat_id) === String(salaSelecionada));
                 document.getElementById('titulo-conversa').innerText = '👥 ' + (salaGrupo ? salaGrupo.chat_id_nome : 'Grupo');
