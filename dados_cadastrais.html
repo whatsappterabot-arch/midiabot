@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MidiaBot - Dados Cadastrais</title>
+    <link rel="icon" type="image/png" href="./logo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] } } } };
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-gray-100 font-sans overflow-hidden">
+
+    <div class="flex h-screen">
+        <!-- SIDEBAR: Menu Lateral Dinâmico -->
+        <aside class="w-64 bg-[#001f3f] text-white flex flex-col shadow-xl">
+            <div class="p-6 text-center border-b border-blue-900">
+                <img src="./logo.png" alt="Logo" class="w-12 mx-auto mb-2">
+                <h2 class="font-black tracking-tighter text-xl">MÍDIABOT</h2>
+            </div>
+
+            <!-- TOGGLE DE PLATAFORMA -->
+            <div class="p-4">
+                <div class="flex bg-gray-800 rounded-full p-1 shadow-inner">
+                    <button onclick="setPlataforma('whatsapp')" id="btn-wa"
+                        class="flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all bg-[#00b34d] text-white shadow-md">
+                        WHATSAPP
+                    </button>
+                    <button onclick="setPlataforma('instagram')" id="btn-ig"
+                        class="flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all text-gray-400 hover:bg-gray-700">
+                        INSTAGRAM
+                    </button>
+                </div>
+            </div>
+
+            <nav class="flex-1 px-4 space-y-1 mt-4" id="menu-dinamico">
+                <!-- Injetado via Java -->
+            </nav>
+        </aside>
+
+        <!-- CONTEÚDO PRINCIPAL -->
+        <main class="flex-1 flex flex-col">
+            <!-- HEADER -->
+            <header class="bg-white border-b p-4 flex justify-between items-center px-8 shadow-sm">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-id-card text-gray-400"></i>
+                    <h1 class="text-sm font-bold text-gray-500 uppercase tracking-widest" id="page-title">Dados Cadastrais (WhatsApp)</h1>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="text-right">
+                        <p id="user-name" class="text-sm font-bold text-gray-800">Carregando...</p>
+                        <p id="user-id" class="text-[10px] text-gray-400 font-mono"></p>
+                    </div>
+                    <button onclick="logout()" class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- ÁREA DE GESTÃO -->
+            <section class="p-8 overflow-y-auto flex-1">
+                <div class="max-w-2xl mx-auto">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Dados da empresa</label>
+                        <div class="space-y-3">
+                            <input type="text" id="input-nome_fantasia" placeholder="Nome fantasia da empresa"
+                                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                            <input type="text" id="input-razao_social" placeholder="Razão social"
+                                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                            <input type="text" id="input-cnpj_cpf" placeholder="CNPJ (ou CPF, se MEI/pessoa física)"
+                                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                            <input type="text" id="input-cpf_responsavel" placeholder="CPF do responsável"
+                                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                            <input type="text" id="input-endereco" placeholder="Endereço completo"
+                                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                            <input type="text" id="input-whatsapp" placeholder="WhatsApp de contato"
+                                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                        </div>
+
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 mt-8">Assistente virtual</label>
+                        <input type="text" id="input-nome_bot" placeholder="Nome do bot (como a IA se apresenta pro cliente)"
+                            class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+
+                        <div id="form-aviso" class="hidden mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700"></div>
+
+                        <button onclick="salvar()" id="btn-salvar"
+                            class="w-full mt-6 px-5 py-3 bg-[#00b34d] text-white font-bold rounded-xl hover:bg-green-600 transition-colors">
+                            Salvar alterações
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script type="module">
+        import { CONFIG, showToast } from "./config.js";
+
+        const API_URL = CONFIG.API_URL;
+
+        let user = null;
+        let plataforma = 'whatsapp';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const userData = localStorage.getItem('midiabot_user');
+            if (!userData) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const rawUser = JSON.parse(userData);
+            user = Array.isArray(rawUser) ? rawUser[0] : rawUser;
+
+            if (!user.termos_aceitos_em) { window.location.href = 'cadastro.html'; return; }
+
+            document.getElementById('user-name').innerText = user.nome || 'Usuário';
+            document.getElementById('user-id').innerText = `ID: ${user.id_cliente}`;
+
+            window.setPlataforma = setPlataforma;
+            window.salvar = salvar;
+            window.logout = logout;
+
+            renderMenu();
+            carregarDados();
+        });
+
+        function renderMenu() {
+            const menu = document.getElementById('menu-dinamico');
+            const waItems = [
+                { icon: 'fa-id-card', label: 'Dados Cadastrais', active: true },
+                { icon: 'fa-paper-plane', label: 'Envio Ativo', href: 'envio_ativo.html' },
+                { icon: 'fa-server', label: 'Instâncias', href: 'instancias.html' },
+                { icon: 'fa-ban', label: 'Proibições de IA', href: 'proibicoes.html' },
+                { icon: 'fa-paper-plane', label: 'Configurar Salas', href: 'configurar_salas.html' },
+                { icon: 'fa-user-tie', label: 'Atribuição a Consultores', href: 'consultores.html' },
+                { icon: 'fa-users', label: 'Telefones dos Consultores', href: 'vendedores.html' },
+                { icon: 'fa-clock', label: 'Horários', href: 'horarios.html' },
+                { icon: 'fa-robot', label: 'Prompts', href: 'prompts.html' },
+                { icon: 'fa-key', label: 'Cadastro de Consultores', href: 'senhas_chat.html' },
+                { icon: 'fa-comments', label: 'Atribuição de Chat', href: 'atribuicao_chat.html' }
+            ];
+            const igItems = [
+                { icon: 'fa-hashtag', label: 'Hashtags' },
+                { icon: 'fa-users', label: 'Públicos' },
+                { icon: 'fa-chart-line', label: 'Métricas' },
+                { icon: 'fa-comments', label: 'Directs' }
+            ];
+
+            const items = plataforma === 'whatsapp' ? waItems : igItems;
+            menu.innerHTML = items.map(item => `
+                <a href="${item.href || '#'}" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${item.active ? 'bg-[#00b34d] text-white shadow-lg' : 'text-blue-200 hover:bg-blue-900 hover:text-white'}">
+                    <i class="fas ${item.icon} w-5 text-center"></i>
+                    <span class="text-xs font-bold uppercase tracking-tighter">${item.label}</span>
+                </a>
+            `).join('');
+        }
+
+        async function chamarApi(acao, dadosExtra) {
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ origem: 'cadastro', plataforma, acao, id_cliente: user.id_cliente, dados: dadosExtra })
+            });
+            if (!res.ok) throw new Error("Erro na API");
+            return res.json();
+        }
+
+        const CAMPOS = ['nome_fantasia', 'razao_social', 'cnpj_cpf', 'cpf_responsavel', 'endereco', 'whatsapp', 'nome_bot'];
+
+        async function carregarDados() {
+            try {
+                const resultado = await chamarApi('buscar_dados_cadastrais', {});
+                const linha = Array.isArray(resultado) ? resultado[0] : resultado;
+                CAMPOS.forEach(campo => {
+                    document.getElementById(`input-${campo}`).value = linha?.[campo] || '';
+                });
+            } catch (e) {
+                console.error('Erro ao carregar dados cadastrais:', e);
+                showToast('Não foi possível carregar seus dados agora.', 'error');
+            }
+        }
+
+        async function salvar() {
+            const botao = document.getElementById('btn-salvar');
+            const aviso = document.getElementById('form-aviso');
+            aviso.classList.add('hidden');
+
+            const dados = {};
+            CAMPOS.forEach(campo => { dados[campo] = document.getElementById(`input-${campo}`).value.trim() || null; });
+
+            botao.disabled = true;
+            botao.innerText = 'Salvando...';
+            try {
+                const resultado = await chamarApi('salvar_dados_cadastrais', dados);
+                const linha = Array.isArray(resultado) ? resultado[0] : resultado;
+                if (linha?.sucesso === false) {
+                    aviso.innerText = linha.erro || 'Não foi possível salvar.';
+                    aviso.classList.remove('hidden');
+                    return;
+                }
+                showToast('Dados salvos com sucesso.', 'success');
+            } catch (e) {
+                console.error('Erro ao salvar dados cadastrais:', e);
+                showToast('Não foi possível salvar. Tenta de novo.', 'error');
+            } finally {
+                botao.disabled = false;
+                botao.innerText = 'Salvar alterações';
+            }
+        }
+
+        function setPlataforma(p) {
+            plataforma = p;
+            const isWA = p === 'whatsapp';
+
+            document.getElementById('btn-wa').className = isWA
+                ? "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all bg-[#00b34d] text-white shadow-md"
+                : "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all text-gray-400 hover:bg-gray-700";
+
+            document.getElementById('btn-ig').className = !isWA
+                ? "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
+                : "flex-1 py-1.5 text-[10px] font-bold rounded-full transition-all text-gray-400 hover:bg-gray-700";
+
+            document.getElementById('page-title').innerText = `Dados Cadastrais (${isWA ? 'WhatsApp' : 'Instagram'})`;
+            renderMenu();
+        }
+
+        function logout() {
+            localStorage.removeItem('midiabot_user');
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>
