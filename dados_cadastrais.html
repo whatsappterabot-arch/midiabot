@@ -66,25 +66,46 @@
             <section class="p-8 overflow-y-auto flex-1">
                 <div class="max-w-2xl mx-auto">
                     <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
-                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Dados da empresa</label>
-                        <div class="space-y-3">
-                            <input type="text" id="input-nome_fantasia" placeholder="Nome fantasia da empresa"
-                                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
-                            <input type="text" id="input-razao_social" placeholder="Razão social"
-                                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
-                            <input type="text" id="input-cnpj_cpf" placeholder="CNPJ (ou CPF, se MEI/pessoa física)"
-                                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
-                            <input type="text" id="input-cpf_responsavel" placeholder="CPF do responsável"
-                                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
-                            <input type="text" id="input-endereco" placeholder="Endereço completo"
-                                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
-                            <input type="text" id="input-whatsapp" placeholder="WhatsApp de contato"
-                                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Dados da empresa</p>
+                        <div class="space-y-4">
+                            <div>
+                                <label for="input-nome_fantasia" class="block text-xs font-bold text-gray-600 mb-1">Nome fantasia</label>
+                                <input type="text" id="input-nome_fantasia" placeholder="Nome fantasia da empresa"
+                                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                            </div>
+                            <div>
+                                <label for="input-razao_social" class="block text-xs font-bold text-gray-600 mb-1">Razão social</label>
+                                <input type="text" id="input-razao_social" placeholder="Razão social da empresa"
+                                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                            </div>
+                            <div>
+                                <label for="input-cnpj_cpf" class="block text-xs font-bold text-gray-600 mb-1">CNPJ (ou CPF, se MEI/pessoa física)</label>
+                                <input type="text" id="input-cnpj_cpf" placeholder="Ex: 12.345.678/0001-90"
+                                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                            </div>
+                            <div>
+                                <label for="input-cpf_responsavel" class="block text-xs font-bold text-gray-600 mb-1">CPF do responsável</label>
+                                <input type="text" id="input-cpf_responsavel" placeholder="Ex: 123.456.789-00"
+                                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                            </div>
+                            <div>
+                                <label for="input-endereco" class="block text-xs font-bold text-gray-600 mb-1">Endereço</label>
+                                <input type="text" id="input-endereco" placeholder="Endereço completo"
+                                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                            </div>
+                            <div>
+                                <label for="input-whatsapp" class="block text-xs font-bold text-gray-600 mb-1">WhatsApp de contato</label>
+                                <input type="text" id="input-whatsapp" placeholder="Ex: 11999999999"
+                                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                            </div>
                         </div>
 
-                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 mt-8">Assistente virtual</label>
-                        <input type="text" id="input-nome_bot" placeholder="Nome do bot (como a IA se apresenta pro cliente)"
-                            class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 mt-8">Assistente virtual</p>
+                        <div>
+                            <label for="input-nome_bot" class="block text-xs font-bold text-gray-600 mb-1">Nome do bot</label>
+                            <input type="text" id="input-nome_bot" placeholder="Como a IA se apresenta pro cliente"
+                                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                        </div>
 
                         <div id="form-aviso" class="hidden mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700"></div>
 
