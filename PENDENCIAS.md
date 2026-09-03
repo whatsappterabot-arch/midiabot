@@ -11,10 +11,8 @@ Lista organizada de próximos passos, em 2026-08-16. Itens específicos do Envio
 
 ## Adiado — sem urgência
 
-1. **Tela de "condições gerais do cliente"** — ainda não existe, nem foi começada; adiada de propósito enquanto o escopo completo não fica claro (evitar construir aos pedaços e ter que refazer). Escopo real (revisado em 2026-08-23), ainda em aberto:
-   - `nome_fantasia` (nome da empresa/cliente) — hoje não tem nenhuma tela de criação nem edição; quando for construída, precisa tratar o erro de nome duplicado de forma clara (a trava `UNIQUE` já existe no banco, só falta a tela usar isso pra dar um aviso compreensível em vez de erro genérico).
-   - Nome do Bot — hoje só definido uma vez, no assistente de instalação inicial (`dashboard.html`), sem tela pra mudar depois.
-   - Informações de cobrança — mencionado em 2026-08-23, ainda sem escopo definido (não se sabe se entra nessa mesma tela ou é uma frente separada).
+1. ~~Tela de "condições gerais do cliente"~~ — **resolvido e testado em 2026-09-02**: descoberto que já existia `cadastro.html` (assistente de cadastro inicial, uma vez só, pós-login Google) com todos os campos, mas nenhuma tela de edição posterior. Construída `dados_cadastrais.html`, acessível pelo menu de todas as telas do painel — edita nome_fantasia, razão social, CNPJ/CPF, CPF responsável, endereço, WhatsApp e nome do bot. Nova procedure `editar_dados_cadastrais_cliente` (separada da `completar_cadastro_cliente`, que não podia ser reaproveitada pois sempre reseta `plano_id`/`termos_aceitos_em`) trata duplicidade de nome fantasia e CNPJ/CPF com mensagem de erro clara (as travas `UNIQUE` já existiam no banco). **Bug achado e corrigido no processo**: a procedure nova dava erro "column reference is ambiguous" — armadilha do PL/pgSQL onde nomes de `RETURNS TABLE` colidem com nomes de coluna não qualificados dentro de subqueries `EXISTS`; corrigido qualificando todas as referências com alias de tabela. Testado ao vivo: carregou dados reais, salvou uma edição, confirmado no banco, revertido depois do teste.
+   - Informações de cobrança — ainda sem escopo definido; segue bloqueado pelo gateway de pagamento (ver item 4 da lista de segunda fase).
 
    **Escopo corrigido em 2026-08-19**: vendedor (nome/cor/ativo) já é editável em "Cadastro de Consultores", não faz parte disso; renomear sala **não faz parte do projeto**, decisão consciente.
 
