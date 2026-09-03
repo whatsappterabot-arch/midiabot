@@ -8,6 +8,12 @@ Lista organizada de próximos passos, em 2026-08-16. Itens específicos do Envio
 2. **Agendamento de mensagens no chat** — ainda não escopado.
 3. **Transformar a ferramenta de chat em app** — ainda não escopado.
 4. **Gateway de pagamento** — ainda não escopado; premissa: não fazer cadastro de cliente sem gateway real (ver `[[project_no_sale_without_gateway]]` na memória). Bloqueia parte do item 1 (cobrança na tela de Cadastro) e do item 18 (preço dos planos).
+5. **Limpeza de código morto no workflow `Midiabot painel config`** — varredura feita em 2026-09-02 cruzando cada `acao` de cada Switch contra o que os `.html` realmente chamam. Já removido: `Execute a SQL query5`/regra "listar_workflows" do `Switch4` (sorteio_vendedor), duplicava exatamente a query do `Execute a SQL query42`. Falta remover:
+   - `Switch3` (conect_telegram) — regras "incluir" e "excluir" órfãs (só `proibicoes.html` usa essas ações, em outro Switch); nós órfãos: `Execute a SQL query4`, `Select rows from a table4`, `Delete table or rows2`, `Select rows from a table5`.
+   - `Sw Instancias` — regra "buscar_instrucao" órfã (nenhum `.html` chama; duplicava o mecanismo genérico de tooltips via `origem: instrucoes`); nó órfão: `Execute a SQL query17`.
+   - `Switch_cadastro` (sem o "1") — subgrafo inteiro desconectado do `Switch1`, superado por `Switch_cadastro1` quando os campos de dados cadastrais foram adicionados; nós órfãos: `Switch_cadastro`, `buscar_termos`, `completar_cadastro`, `Respond to Webhook24`, `Respond to Webhook25`.
+   
+   Passo a passo de remoção (ordem de risco crescente, com pontos de verificação pra não quebrar as regras que continuam vivas) já desenhado em conversa — pedir de novo se for retomar. Ainda falta fazer a mesma varredura no workflow `MidiaChat Chat - ramo IA multiparte`.
 
 ## Adiado — sem urgência
 
