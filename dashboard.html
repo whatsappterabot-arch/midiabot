@@ -407,7 +407,7 @@
                         <input type="checkbox" data-sala-compartilhada="${idx}" ${s.compartilhada ? 'checked' : ''}>
                         Sala compartilhada (sem dono fixo — você decide como distribuir os atendimentos no próximo passo)
                     </label>
-                    <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Telefones desta sala</p>
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Conexões (WhatsApps) desta sala</p>
                     <div class="flex flex-wrap gap-2">
                         ${instanciasDisponiveis.map(i => {
                             const conectado = i.connectionStatus === 'open' || !!i.sender;
