@@ -171,7 +171,14 @@
                 };
             });
 
-            el.querySelectorAll('[data-acao="proximo-dados"]').forEach(b => b.onclick = () => { passo = 2; render(); });
+            el.querySelectorAll('[data-acao="proximo-dados"]').forEach(b => b.onclick = () => {
+                if (!dados.nome_empresa_login) {
+                    showToast('Preencha o identificador de login antes de continuar.', 'warning');
+                    return;
+                }
+                passo = 2;
+                render();
+            });
             el.querySelectorAll('[data-plano]').forEach(b => b.onclick = () => { dados.plano_id = Number(b.dataset.plano); render(); });
             el.querySelectorAll('[data-acao="proximo-plano"]').forEach(b => b.onclick = async () => {
                 if (!dados.plano_id) { showToast('Escolha o teste grátis pra continuar.', 'warning'); return; }
