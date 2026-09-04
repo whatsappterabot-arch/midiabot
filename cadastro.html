@@ -73,6 +73,7 @@
         let dados = {
             whatsapp: '', nome_fantasia: '', razao_social: '',
             cnpj_cpf: '', cpf_responsavel: '', endereco: '',
+            nome_empresa_login: '',
             plano_id: null, termos_aceitos: false
         };
         let termosTexto = null;
@@ -96,6 +97,11 @@
                         class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                     <input type="text" value="${dados.nome_fantasia}" data-campo="nome_fantasia" placeholder="Nome fantasia da empresa"
                         class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    <div>
+                        <input type="text" value="${dados.nome_empresa_login}" data-campo="nome_empresa_login" placeholder="Identificador de login (uma palavra)"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        <p class="text-[11px] text-gray-400 mt-1">Sem espaço, acento ou caractere especial — é isso que sua equipe vai digitar pra entrar na ferramenta de chat. Ex: estacionamento3irmaos</p>
+                    </div>
                     <input type="text" value="${dados.razao_social}" data-campo="razao_social" placeholder="Razão social"
                         class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                     <input type="text" value="${dados.cnpj_cpf}" data-campo="cnpj_cpf" placeholder="CNPJ (ou CPF, se MEI/pessoa física)"
@@ -157,7 +163,12 @@
 
             el.querySelectorAll('[data-campo]').forEach(i => {
                 const evento = i.type === 'checkbox' ? 'onchange' : 'oninput';
-                i[evento] = () => { dados[i.dataset.campo] = i.type === 'checkbox' ? i.checked : i.value; };
+                i[evento] = () => {
+                    if (i.dataset.campo === 'nome_empresa_login') {
+                        i.value = i.value.replace(/[^A-Za-z0-9]/g, '');
+                    }
+                    dados[i.dataset.campo] = i.type === 'checkbox' ? i.checked : i.value;
+                };
             });
 
             el.querySelectorAll('[data-acao="proximo-dados"]').forEach(b => b.onclick = () => { passo = 2; render(); });
@@ -196,6 +207,12 @@
                 try {
                     const resultado = await chamarApi('completar_cadastro', { ...dados, termos_versao_aceita_id: termosVersaoId });
                     const atualizado = Array.isArray(resultado) ? resultado[0] : resultado;
+                    if (!atualizado?.sucesso) {
+                        showToast(atualizado?.erro || 'Não foi possível concluir. Tenta de novo.', 'error');
+                        botao.disabled = false;
+                        botao.innerText = 'Começar meu teste grátis';
+                        return;
+                    }
                     // Atualiza o localStorage pra não precisar logar de novo pra liberar o dashboard
                     const userAtualizado = { ...user, ...atualizado, plano_id: dados.plano_id, termos_aceitos_em: new Date().toISOString() };
                     localStorage.setItem('midiabot_user', JSON.stringify(userAtualizado));

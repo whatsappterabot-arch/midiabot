@@ -74,6 +74,12 @@
                                     class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
                             </div>
                             <div>
+                                <label for="input-nome_empresa_login" class="block text-xs font-bold text-gray-600 mb-1">Identificador de login (uma palavra)</label>
+                                <input type="text" id="input-nome_empresa_login" placeholder="Ex: estacionamento3irmaos"
+                                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                                <p class="text-[11px] text-gray-400 mt-1">Sem espaço, acento ou caractere especial — é isso que sua equipe vai digitar pra entrar na ferramenta de chat.</p>
+                            </div>
+                            <div>
                                 <label for="input-razao_social" class="block text-xs font-bold text-gray-600 mb-1">Razão social</label>
                                 <input type="text" id="input-razao_social" placeholder="Razão social da empresa"
                                     class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
@@ -148,6 +154,9 @@
 
             renderMenu();
             carregarDados();
+
+            const inputLogin = document.getElementById('input-nome_empresa_login');
+            inputLogin.oninput = () => { inputLogin.value = inputLogin.value.replace(/[^A-Za-z0-9]/g, ''); };
         });
 
         function renderMenu() {
@@ -191,7 +200,7 @@
             return res.json();
         }
 
-        const CAMPOS = ['nome_fantasia', 'razao_social', 'cnpj_cpf', 'cpf_responsavel', 'endereco', 'whatsapp', 'nome_bot'];
+        const CAMPOS = ['nome_fantasia', 'nome_empresa_login', 'razao_social', 'cnpj_cpf', 'cpf_responsavel', 'endereco', 'whatsapp', 'nome_bot'];
 
         async function carregarDados() {
             try {
