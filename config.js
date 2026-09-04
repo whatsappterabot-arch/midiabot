@@ -16,6 +16,30 @@ const TOAST_COLORS = {
     info: 'bg-[#001f3f]'
 };
 
+export async function verificarLinkConfiguracao(idCliente) {
+    const link = document.getElementById('link-completar-config');
+    if (!link) return;
+    try {
+        const res = await fetch(CONFIG.API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                origem: 'dashboard',
+                plataforma: 'whatsapp',
+                acao: 'verificar_status_cliente',
+                id_cliente: idCliente,
+                dados: {}
+            })
+        });
+        const resultado = await res.json();
+        const dados = Array.isArray(resultado) ? resultado[0] : resultado;
+        const naoConfigurado = Number(dados?.salas_ativas) === 0;
+        link.classList.toggle('hidden', !naoConfigurado);
+    } catch (e) {
+        console.error('Falha ao verificar status de configuração:', e);
+    }
+}
+
 export function showToast(message, type = 'info') {
     let container = document.getElementById('midiabot-toast-container');
     if (!container) {

@@ -54,7 +54,7 @@
                 <div class="flex items-center gap-4">
                     <div class="text-right">
                         <p id="user-name" class="text-sm font-bold text-gray-800">Carregando...</p>
-                        <p id="user-id" class="text-[10px] text-gray-400 font-mono"></p>
+                        <a id="link-completar-config" href="dashboard.html" class="hidden text-[10px] text-red-500 font-bold hover:underline">Complete sua configuração</a>
                     </div>
                     <button onclick="logout()" class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors">
                         <i class="fas fa-sign-out-alt"></i>
@@ -115,7 +115,7 @@
     </div>
 
     <script type="module">
-        import { CONFIG, showToast } from "./config.js";
+        import { CONFIG, showToast, verificarLinkConfiguracao } from "./config.js";
 
         const API_URL = CONFIG.API_URL;
 
@@ -137,7 +137,7 @@
             if (!user.termos_aceitos_em) { window.location.href = 'cadastro.html'; return; }
 
             document.getElementById('user-name').innerText = user.nome || 'Usuário';
-            document.getElementById('user-id').innerText = `ID: ${user.id_cliente}`;
+            verificarLinkConfiguracao(user.id_cliente);
 
             window.setPlataforma = setPlataforma;
             window.criarInstancia = criarInstancia;

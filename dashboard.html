@@ -54,7 +54,6 @@
                 <div class="flex items-center gap-4">
                     <div class="text-right">
                         <p id="user-name" class="text-sm font-bold text-gray-800">Carregando...</p>
-                        <p id="user-id" class="text-[10px] text-gray-400 font-mono"></p>
                     </div>
                     <button onclick="logout()" class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors">
                         <i class="fas fa-sign-out-alt"></i>
@@ -161,7 +160,6 @@
                 }
 
                 document.getElementById('user-name').innerText = user.nome || user.email || 'Usuário';
-                document.getElementById('user-id').innerText = `ID: ${user.id_cliente ?? user.id}`;
             } catch (e) {
                 console.error("Erro ao processar JSON do usuário:", e);
                 window.location.href = 'index.html';
@@ -364,6 +362,16 @@
 
         // ----- Passo 1 — Gate das instâncias -----
         function telaGate() {
+            if (instanciasDisponiveis.length === 0) {
+                return `
+                    <h2 class="text-lg font-bold text-gray-800 mb-2">Você ainda não tem nenhuma instância de WhatsApp conectada</h2>
+                    <p class="text-sm text-gray-500 mb-6">Antes de continuar a instalação, você precisa criar e conectar pelo menos um número. É rápido.</p>
+                    <a href="instancias.html" class="block text-center px-5 py-3 bg-[#00b34d] text-white font-bold rounded-xl hover:bg-green-600 transition-colors">
+                        Ir para Instâncias e criar a primeira
+                    </a>
+                `;
+            }
+
             const linhas = instanciasDisponiveis.map(i => {
                 const conectado = i.connectionStatus === 'open' || !!i.sender;
                 return `<div class="flex items-center justify-between border border-gray-200 rounded-xl px-4 py-3">

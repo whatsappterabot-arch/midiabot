@@ -54,7 +54,7 @@
                 <div class="flex items-center gap-4">
                     <div class="text-right">
                         <p id="user-name" class="text-sm font-bold text-gray-800">Carregando...</p>
-                        <p id="user-id" class="text-[10px] text-gray-400 font-mono"></p>
+                        <a id="link-completar-config" href="dashboard.html" class="hidden text-[10px] text-red-500 font-bold hover:underline">Complete sua configuração</a>
                     </div>
                     <button onclick="logout()" class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors">
                         <i class="fas fa-sign-out-alt"></i>
@@ -112,7 +112,7 @@
     </div>
 
     <script type="module">
-        import { CONFIG, showToast } from "./config.js";
+        import { CONFIG, showToast, verificarLinkConfiguracao } from "./config.js";
 
         let user = null;
         let plataforma = 'whatsapp';
@@ -162,7 +162,7 @@
                 if (!user.termos_aceitos_em) { window.location.href = 'cadastro.html'; return; }
 
                 document.getElementById('user-name').innerText = user.nome || user.email || 'Usuário';
-                document.getElementById('user-id').innerText = `ID: ${user.id_cliente ?? user.id}`;
+                verificarLinkConfiguracao(user.id_cliente ?? user.id);
             } catch (e) {
                 console.error('Erro ao processar usuário:', e);
                 window.location.href = 'index.html';
