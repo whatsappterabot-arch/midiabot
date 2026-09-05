@@ -130,6 +130,7 @@
         let workflowSelecionado = '';
         let chatIdSelecionado = '';
         let salasDoWorkflow = [];
+        let salasDestino = [];
 
         // Inicialização e Proteção de Rota
         document.addEventListener('DOMContentLoaded', () => {
@@ -243,9 +244,11 @@
             try {
                 const data = await chamarApi('listar_chatids', { workflow_name: workflowSelecionado });
                 salasDoWorkflow = (Array.isArray(data) ? data : []).filter(item => item && item.chat_id != null);
+                const salasCompartilhadas = salasDoWorkflow.filter(item => Number(item.sala_compartilhada) === 1);
+                salasDestino = salasDoWorkflow.filter(item => Number(item.sala_compartilhada) !== 1);
                 selectChatId.disabled = false;
                 selectChatId.innerHTML = '<option value="">Selecione uma sala...</option>' +
-                    salasDoWorkflow.map(item => `<option value="${item.chat_id}">${item.chat_id_nome || item.chat_id}</option>`).join('');
+                    salasCompartilhadas.map(item => `<option value="${item.chat_id}">${item.chat_id_nome || item.chat_id}</option>`).join('');
             } catch (e) {
                 console.error("Falha ao carregar salas:", e);
                 showToast("Erro ao processar solicitação.", "error");
@@ -287,7 +290,7 @@
                 return;
             }
 
-            const opcoesSalas = salasDoWorkflow.map(item => `
+            const opcoesSalas = '<option value="">Selecione a sala de destino...</option>' + salasDestino.map(item => `
                 <option value="${item.chat_id}">${item.chat_id_nome || item.chat_id}</option>
             `).join('');
 
@@ -308,16 +311,15 @@
                     </td>
                 </tr>
             `).join('');
-
-            // Pré-seleciona a sala atual de cada cliente
-            dados.forEach(item => {
-                const select = document.getElementById(`mover-${item.remote_jid}`);
-                if (select) select.value = chatIdSelecionado;
-            });
         }
 
         async function salvarAtribuicao(remoteJid) {
             const select = document.getElementById(`mover-${remoteJid}`);
+
+            if (!select.value) {
+                showToast("Escolha a sala de destino.", "warning");
+                return;
+            }
 
             try {
                 await chamarApi('salvar_atribuicao', {
