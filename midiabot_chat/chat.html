@@ -83,6 +83,13 @@
                     <span class="hidden sm:inline">Suspender resposta da IA por 12 horas</span>
                 </button>
             </div>
+            <div id="banner-devolver" class="hidden items-center justify-between gap-2 px-4 py-2 bg-blue-50 border-b border-blue-200 flex-shrink-0">
+                <p class="text-xs text-blue-700 min-w-0 truncate"><i class="fas fa-share"></i> Encaminhado de <span id="banner-devolver-origem" class="font-bold"></span></p>
+                <button onclick="devolverConversaAtual()"
+                    class="flex-shrink-0 text-[10px] font-bold uppercase tracking-widest text-blue-700 hover:text-blue-900 border border-blue-300 hover:bg-blue-100 rounded-full px-3 py-1.5 transition-all whitespace-nowrap">
+                    Devolver
+                </button>
+            </div>
             <div id="mensagens" class="flex-1 overflow-y-auto p-4 space-y-2 min-h-0 scroll-touch"></div>
             <div id="preview-resposta" class="hidden items-center justify-between gap-2 px-3 py-2 bg-gray-50 border-t border-gray-200 flex-shrink-0">
                 <div class="flex-1 min-w-0 border-l-4 border-[#00b34d] pl-2 text-xs text-gray-600 truncate" id="preview-resposta-texto"></div>
@@ -355,7 +362,7 @@
             });
             const canal = pusher.subscribe(`private-cliente-${sessao.id_cliente}`);
             canal.bind('nova-mensagem', (dados) => {
-                if (String(dados.chat_id) === String(salaSelecionada)) {
+                if ([dados.chat_id, dados.chat_id_origem, dados.chat_id_destino].some(c => String(c) === String(salaSelecionada))) {
                     carregarConversas();
                 }
                 if (dados.remote_jid === conversaSelecionada) {
@@ -632,9 +639,51 @@
             }
             document.getElementById('btn-encaminhar').classList.toggle('hidden', interno || grupo);
             document.getElementById('btn-suspender-ia').classList.toggle('hidden', interno || grupo);
+            esconderBannerDevolver();
+            if (!interno && !grupo) {
+                checarEncaminhamentoPendente(remotejid);
+            }
             destacarConversaAtiva();
             carregarMensagens();
             marcarLida(remotejid);
+        }
+
+        let encaminhamentoPendenteAtual = null;
+
+        async function checarEncaminhamentoPendente(remotejid) {
+            try {
+                const data = await chamarApi('verificar_encaminhamento_pendente', { remotejid: remotejid, chat_id: salaSelecionada });
+                const item = Array.isArray(data) ? data[0] : data;
+                if (item && item.id_encaminhamento != null) {
+                    encaminhamentoPendenteAtual = item.id_encaminhamento;
+                    document.getElementById('banner-devolver-origem').textContent = item.nome_sala_origem || item.chat_id_origem;
+                    const banner = document.getElementById('banner-devolver');
+                    banner.classList.remove('hidden');
+                    banner.classList.add('flex');
+                } else {
+                    esconderBannerDevolver();
+                }
+            } catch (e) {
+                console.error("Falha ao checar encaminhamento pendente:", e);
+                esconderBannerDevolver();
+            }
+        }
+
+        function esconderBannerDevolver() {
+            encaminhamentoPendenteAtual = null;
+            const banner = document.getElementById('banner-devolver');
+            banner.classList.add('hidden');
+            banner.classList.remove('flex');
+        }
+
+        window.devolverConversaAtual = devolverConversaAtual;
+
+        async function devolverConversaAtual() {
+            if (!encaminhamentoPendenteAtual) return;
+            const id = encaminhamentoPendenteAtual;
+            esconderBannerDevolver();
+            await trazerDeVolta(id);
+            fecharConversa();
         }
 
         async function marcarLida(remotejid) {
@@ -705,7 +754,7 @@
 
             try {
                 const data = await chamarApi('listar_todas_salas', {});
-                const todasSalas = (Array.isArray(data) ? data : []).filter(item => item && item.chat_id != null && String(item.chat_id) !== String(salaSelecionada));
+                const todasSalas = (Array.isArray(data) ? data : []).filter(item => item && item.chat_id != null && String(item.chat_id) !== String(salaSelecionada) && !item.eh_grupo);
                 select.innerHTML = '<option value="">Selecione uma sala...</option>' +
                     todasSalas.map(s => `<option value="${s.chat_id}">${escapeHtml(s.chat_id_nome || s.chat_id)}</option>`).join('');
             } catch (e) {
