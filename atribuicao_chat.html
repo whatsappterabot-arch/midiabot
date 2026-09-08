@@ -104,6 +104,26 @@
                             </tbody>
                         </table>
                     </div>
+
+                    <!-- ATRIBUIÇÕES EM VIGOR -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mt-8">
+                        <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                            <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Atribuições em vigor</label>
+                        </div>
+                        <table class="w-full text-left">
+                            <thead class="bg-gray-50 border-b border-gray-200">
+                                <tr>
+                                    <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Cliente (Remote JID)</th>
+                                    <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Sala de origem</th>
+                                    <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Sala de destino</th>
+                                    <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabela-vigor-corpo" class="divide-y divide-gray-100">
+                                <tr><td colspan="4" class="p-8 text-center text-gray-300 text-xs font-bold uppercase tracking-widest">Selecione um fluxo</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </section>
         </main>
@@ -152,6 +172,7 @@
             window.onWorkflowChange = onWorkflowChange;
             window.onChatIdChange = onChatIdChange;
             window.salvarAtribuicao = salvarAtribuicao;
+            window.desfazerAtribuicao = desfazerAtribuicao;
             window.abrirAjuda = abrirAjuda;
             window.fecharAjuda = fecharAjuda;
             window.logout = logout;
@@ -238,6 +259,8 @@
             if (!workflowSelecionado) {
                 selectChatId.disabled = true;
                 selectChatId.innerHTML = '<option value="">Selecione um fluxo primeiro...</option>';
+                document.getElementById('tabela-vigor-corpo').innerHTML =
+                    '<tr><td colspan="4" class="p-8 text-center text-gray-300 text-xs font-bold uppercase tracking-widest">Selecione um fluxo</td></tr>';
                 return;
             }
 
@@ -253,6 +276,8 @@
                 console.error("Falha ao carregar salas:", e);
                 showToast("Erro ao processar solicitação.", "error");
             }
+
+            carregarAtribuicoesVigor();
         }
 
         function onChatIdChange() {
@@ -335,8 +360,66 @@
                 }
                 showToast("Cliente movido com sucesso.", "success");
                 carregarRemoteJids();
+                carregarAtribuicoesVigor();
             } catch (e) {
                 console.error("Falha ao salvar atribuição:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
+        async function carregarAtribuicoesVigor() {
+            if (!workflowSelecionado) return;
+            try {
+                const data = await chamarApi('listar_atribuicoes_vigor', { workflow_name: workflowSelecionado });
+                const lista = (Array.isArray(data) ? data : []).filter(item => item && item.remotejid != null);
+                renderizarAtribuicoesVigor(lista);
+            } catch (e) {
+                console.error("Falha ao carregar atribuições em vigor:", e);
+                showToast("Erro ao processar solicitação.", "error");
+            }
+        }
+
+        function renderizarAtribuicoesVigor(dados) {
+            const corpo = document.getElementById('tabela-vigor-corpo');
+            if (!dados || dados.length === 0) {
+                corpo.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-gray-300 text-xs font-bold uppercase tracking-widest">Nenhuma atribuição em vigor</td></tr>';
+                return;
+            }
+
+            corpo.innerHTML = dados.map(item => `
+                <tr class="hover:bg-gray-50 transition-colors group">
+                    <td class="px-6 py-4 text-sm text-gray-600 font-mono">${item.remotejid}</td>
+                    <td class="px-6 py-4 text-sm text-gray-600">${item.sala_origem}</td>
+                    <td class="px-6 py-4 text-sm text-gray-600">${item.sala_destino}</td>
+                    <td class="px-6 py-4 text-right">
+                        <button onclick="desfazerAtribuicao('${item.remotejid}', ${item.chat_id_origem}, ${item.chat_id})"
+                            class="bg-gray-100 text-gray-500 px-4 py-2 rounded-lg font-bold text-xs hover:bg-red-50 hover:text-red-500 transition-all">
+                            DESFAZER
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function desfazerAtribuicao(remotejid, chatIdOrigem, chatIdAtual) {
+            try {
+                const data = await chamarApi('salvar_atribuicao', {
+                    remotejid: remotejid,
+                    chat_id: chatIdOrigem,
+                    chat_id_origem: chatIdAtual,
+                    workflow_name: workflowSelecionado,
+                    desfazer: true
+                });
+                const item = Array.isArray(data) ? data[0] : data;
+                if (item?.erro) {
+                    showToast(item.erro, "warning");
+                    return;
+                }
+                showToast("Atribuição desfeita.", "success");
+                carregarAtribuicoesVigor();
+                if (chatIdSelecionado) carregarRemoteJids();
+            } catch (e) {
+                console.error("Falha ao desfazer atribuição:", e);
                 showToast("Erro ao processar solicitação.", "error");
             }
         }
