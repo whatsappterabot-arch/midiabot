@@ -215,7 +215,7 @@
                 const data = await res.json();
 
                 if (acao === 'listar') {
-                    renderizarTabela(data);
+                    renderizarTabela(data.lista);
                 } else {
                     input.value = '';
                     executarAcao('listar'); // Recarrega a lista após alteração
