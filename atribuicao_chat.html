@@ -322,12 +322,17 @@
             }
 
             try {
-                await chamarApi('salvar_atribuicao', {
+                const data = await chamarApi('salvar_atribuicao', {
                     remotejid: remoteJid,
                     chat_id: select.value,
                     chat_id_origem: chatIdSelecionado,
                     workflow_name: workflowSelecionado
                 });
+                const item = Array.isArray(data) ? data[0] : data;
+                if (item?.erro) {
+                    showToast(item.erro, "warning");
+                    return;
+                }
                 showToast("Cliente movido com sucesso.", "success");
                 carregarRemoteJids();
             } catch (e) {
