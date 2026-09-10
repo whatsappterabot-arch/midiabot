@@ -122,9 +122,7 @@
     </div>
 
     <script type="module">
-        import { CONFIG, showToast, verificarLinkConfiguracao } from "./config.js";
-
-        const API_URL = CONFIG.API_URL;
+        import { CONFIG, showToast, verificarLinkConfiguracao, chamarApi as chamarApiCompartilhado } from "./config.js";
 
         let user = null;
         let plataforma = 'whatsapp';
@@ -207,22 +205,7 @@
 
         // Função Central de Comunicação com n8n
         async function chamarApi(acao, dadosExtra) {
-            const payload = {
-                origem: 'sorteio_vendedor',
-                plataforma: plataforma,
-                acao: acao, // 'listar_workflows', 'buscar_config', 'salvar'
-                id_cliente: user.id_cliente,
-                dados: dadosExtra
-            };
-
-            const res = await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (!res.ok) throw new Error("Erro na API");
-            return await res.json();
+            return chamarApiCompartilhado('sorteio_vendedor', acao, dadosExtra, user, plataforma);
         }
 
         async function carregarSalas() {
@@ -336,19 +319,7 @@
 
         async function carregarAjuda() {
             try {
-                const res = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        origem: 'instrucoes',
-                        plataforma: plataforma,
-                        acao: 'buscar',
-                        id_cliente: user.id_cliente,
-                        dados: { info_pagina: 'consultores' }
-                    })
-                });
-                if (!res.ok) throw new Error("Erro na API");
-                const data = await res.json();
+                const data = await chamarApiCompartilhado('instrucoes', 'buscar', { info_pagina: 'consultores' }, user, plataforma);
                 const item = Array.isArray(data) ? data[0] : data;
                 document.getElementById('ajuda-conteudo').innerHTML = item?.texto_instrucao || 'Instrução ainda não cadastrada.';
             } catch (e) {

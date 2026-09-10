@@ -127,7 +127,7 @@
     </div>
 
     <script type="module">
-        import { CONFIG, showToast } from "./config.js";
+        import { CONFIG, showToast, chamarApi as chamarApiCompartilhado } from "./config.js";
 
         let plataforma = 'whatsapp';
         let user = null;
@@ -181,21 +181,7 @@
 
         // Função Central de Comunicação com n8n
         async function chamarApi(acao, dadosExtra) {
-            const payload = {
-                origem: 'dashboard',
-                plataforma: plataforma,
-                acao: acao,
-                id_cliente: user.id_cliente ?? user.id,
-                dados: dadosExtra
-            };
-
-            const res = await fetch(CONFIG.API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            return res.json();
+            return chamarApiCompartilhado('dashboard', acao, dadosExtra, user, plataforma);
         }
 
         // Verifica se o cliente tem sala ativa, pra decidir se mostra o botão de reset
@@ -311,19 +297,7 @@
 
         // Reaproveita a mesma ação já usada em instancias.html
         async function chamarApiInstancias(acao, dadosExtra) {
-            const payload = {
-                origem: 'instancias',
-                plataforma: plataforma,
-                acao: acao,
-                id_cliente: user.id_cliente ?? user.id,
-                dados: dadosExtra
-            };
-            const res = await fetch(CONFIG.API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            return res.json();
+            return chamarApiCompartilhado('instancias', acao, dadosExtra, user, plataforma);
         }
 
         async function iniciarQuestionario() {

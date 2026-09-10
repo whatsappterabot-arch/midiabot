@@ -126,9 +126,7 @@
     </div>
 
     <script type="module">
-        import { CONFIG, showToast, verificarLinkConfiguracao } from "./config.js";
-
-        const API_URL = CONFIG.API_URL;
+        import { CONFIG, showToast, verificarLinkConfiguracao, chamarApi as chamarApiCompartilhado } from "./config.js";
 
         let user = null;
         let plataforma = 'whatsapp';
@@ -191,13 +189,7 @@
         }
 
         async function chamarApi(acao, dadosExtra) {
-            const res = await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ origem: 'cadastro', plataforma, acao, id_cliente: user.id_cliente, dados: dadosExtra })
-            });
-            if (!res.ok) throw new Error("Erro na API");
-            return res.json();
+            return chamarApiCompartilhado('cadastro', acao, dadosExtra, user, plataforma);
         }
 
         const CAMPOS = ['nome_fantasia', 'nome_empresa_login', 'razao_social', 'cnpj_cpf', 'cpf_responsavel', 'endereco', 'whatsapp', 'nome_bot'];

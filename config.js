@@ -16,6 +16,25 @@ const TOAST_COLORS = {
     info: 'bg-[#001f3f]'
 };
 
+export async function chamarApi(origem, acao, dadosExtra, user, plataforma = 'whatsapp') {
+    const payload = {
+        origem,
+        plataforma,
+        acao,
+        id_cliente: user?.id_cliente ?? user?.id,
+        dados: dadosExtra
+    };
+
+    const res = await fetch(CONFIG.API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) throw new Error('Erro na API');
+    return res.json();
+}
+
 export async function verificarLinkConfiguracao(idCliente) {
     const link = document.getElementById('link-completar-config');
     if (!link) return;

@@ -169,9 +169,7 @@
     </div>
 
     <script type="module">
-        import { CONFIG, showToast, verificarLinkConfiguracao } from "./config.js";
-
-        const API_URL = CONFIG.API_URL;
+        import { CONFIG, showToast, verificarLinkConfiguracao, chamarApi as chamarApiCompartilhado } from "./config.js";
 
         const DIAS_SEMANA = {
             0: 'Domingo', 1: 'Segunda-feira', 2: 'Terça-feira', 3: 'Quarta-feira',
@@ -246,22 +244,7 @@
 
         // Função Central de Comunicação com n8n
         async function chamarApi(acao, dadosExtra) {
-            const payload = {
-                origem: 'horarios',
-                plataforma: plataforma,
-                acao: acao,
-                id_cliente: user.id_cliente,
-                dados: dadosExtra
-            };
-
-            const res = await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (!res.ok) throw new Error("Erro na API");
-            return await res.json();
+            return chamarApiCompartilhado('horarios', acao, dadosExtra, user, plataforma);
         }
 
         async function carregarWorkflows() {
@@ -454,19 +437,7 @@
 
         async function carregarAjuda() {
             try {
-                const res = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        origem: 'instrucoes',
-                        plataforma: plataforma,
-                        acao: 'buscar',
-                        id_cliente: user.id_cliente,
-                        dados: { info_pagina: 'horarios' }
-                    })
-                });
-                if (!res.ok) throw new Error("Erro na API");
-                const data = await res.json();
+                const data = await chamarApiCompartilhado('instrucoes', 'buscar', { info_pagina: 'horarios' }, user, plataforma);
                 const item = Array.isArray(data) ? data[0] : data;
                 document.getElementById('ajuda-conteudo').innerHTML = item?.texto_instrucao || 'Instrução ainda não cadastrada.';
             } catch (e) {

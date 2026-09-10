@@ -112,7 +112,7 @@
     </div>
 
     <script type="module">
-        import { CONFIG, showToast, verificarLinkConfiguracao } from "./config.js";
+        import { CONFIG, showToast, verificarLinkConfiguracao, chamarApi as chamarApiCompartilhado } from "./config.js";
 
         let user = null;
         let plataforma = 'whatsapp';
@@ -230,36 +230,12 @@
 
         // Comunicação com o n8n — workflow "Midiabot painel config"
         async function chamarApi(acao, dadosExtra) {
-            const payload = {
-                origem: 'envioativo',
-                plataforma,
-                acao,
-                id_cliente: user.id_cliente ?? user.id,
-                dados: dadosExtra
-            };
-            const res = await fetch(CONFIG.API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            return res.json();
+            return chamarApiCompartilhado('envioativo', acao, dadosExtra, user, plataforma);
         }
 
         // listar_instancias já existe hoje, sob origem "instancias"
         async function chamarApiInstancias(acao, dadosExtra) {
-            const payload = {
-                origem: 'instancias',
-                plataforma,
-                acao,
-                id_cliente: user.id_cliente ?? user.id,
-                dados: dadosExtra
-            };
-            const res = await fetch(CONFIG.API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            return res.json();
+            return chamarApiCompartilhado('instancias', acao, dadosExtra, user, plataforma);
         }
 
         function escapeHtml(texto) {
