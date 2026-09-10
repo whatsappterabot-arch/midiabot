@@ -59,9 +59,9 @@
 
                 const data = await response.json();
                 if (response.ok && data.autorizado) {
-                        // 1. Salva com a chave que os outros arquivos esperam
-                    localStorage.setItem('midiabot_user', JSON.stringify(data.usuario));
-                    
+                        // 1. Salva com a chave que os outros arquivos esperam, incluindo o token de sessao
+                    localStorage.setItem('midiabot_user', JSON.stringify({ ...data.usuario, token: data.token }));
+
                     // 2. Sai do index e vai para o dashboard real
                     window.location.href = 'dashboard.html';
                 } else {
