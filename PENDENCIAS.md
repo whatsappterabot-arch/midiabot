@@ -2,6 +2,10 @@
 
 Lista organizada de próximos passos, em 2026-08-16. Itens específicos do Envio Ativo têm mais detalhe em `ENVIO_ATIVO.md`.
 
+## Prioridade — infraestrutura (2026-09-24)
+
+28. **Isolamento de contas GitHub (MidiaBot/whatsappterabot-arch vs PredCripto/mtannuri) quebrou de novo** — o esquema de `GH_CONFIG_DIR` por projeto (pasta isolada + atalho na área de trabalho pra cada um) foi montado em 2026-09-08 pra permitir trabalhar nos dois projetos ao mesmo tempo sem a conta ativa de um atrapalhar o outro. Já quebrou uma vez (2026-09-10) e o workaround usado então (pegar token da conta certa via `gh auth token` e injetar num askpass temporário pra cada `git push`) segue funcionando, mas é remendo, não conserto. Ver `[[project_dois_projetos_github]]` e `[[reference_midiabot_git_push_auth]]` na memória pra reconstruir o que foi feito e o que quebrou.
+
 ## Segunda fase — iniciativas grandes, ainda sem escopo (anotado em 2026-09-02)
 
 1. **IA pra ajudar o vendedor** — ainda não escopado.
