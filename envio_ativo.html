@@ -162,7 +162,7 @@
                 if (!user.termos_aceitos_em) { window.location.href = 'cadastro.html'; return; }
 
                 document.getElementById('user-name').innerText = user.nome || user.email || 'Usuário';
-                verificarLinkConfiguracao(user.id_cliente ?? user.id);
+                verificarLinkConfiguracao(user);
             } catch (e) {
                 console.error('Erro ao processar usuário:', e);
                 window.location.href = 'index.html';

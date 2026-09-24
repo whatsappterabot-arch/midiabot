@@ -153,7 +153,7 @@
 
             // Hidratação da UI
             document.getElementById('user-name').innerText = user.nome || 'Usuário';
-            verificarLinkConfiguracao(user.id_cliente);
+            verificarLinkConfiguracao(user);
 
             // Exposição de funções para o escopo global (necessário para onclick em módulos)
             window.setPlataforma = setPlataforma;

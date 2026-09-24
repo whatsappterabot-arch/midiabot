@@ -22,6 +22,7 @@ export async function chamarApi(origem, acao, dadosExtra, user, plataforma = 'wh
         plataforma,
         acao,
         id_cliente: user?.id_cliente ?? user?.id,
+        token: user?.token,
         dados: dadosExtra
     };
 
@@ -35,7 +36,7 @@ export async function chamarApi(origem, acao, dadosExtra, user, plataforma = 'wh
     return res.json();
 }
 
-export async function verificarLinkConfiguracao(idCliente) {
+export async function verificarLinkConfiguracao(user) {
     const link = document.getElementById('link-completar-config');
     if (!link) return;
     try {
@@ -46,7 +47,8 @@ export async function verificarLinkConfiguracao(idCliente) {
                 origem: 'dashboard',
                 plataforma: 'whatsapp',
                 acao: 'verificar_status_cliente',
-                id_cliente: idCliente,
+                id_cliente: user?.id_cliente ?? user?.id,
+                token: user?.token,
                 dados: {}
             })
         });
