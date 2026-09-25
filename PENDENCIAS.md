@@ -7,10 +7,13 @@ Lista organizada de próximos passos, em 2026-08-16. Itens específicos do Envio
 28. **Isolamento de contas GitHub (MidiaBot/whatsappterabot-arch vs PredCripto/mtannuri) quebrou de novo** — o esquema de `GH_CONFIG_DIR` por projeto (pasta isolada + atalho na área de trabalho pra cada um) foi montado em 2026-09-08 pra permitir trabalhar nos dois projetos ao mesmo tempo sem a conta ativa de um atrapalhar o outro. Já quebrou uma vez (2026-09-10) e o workaround usado então (pegar token da conta certa via `gh auth token` e injetar num askpass temporário pra cada `git push`) segue funcionando, mas é remendo, não conserto. Ver `[[project_dois_projetos_github]]` e `[[reference_midiabot_git_push_auth]]` na memória pra reconstruir o que foi feito e o que quebrou.
 29. **Item 6, Passo 6 (fechamento da autenticação) — planejado pra 2026-09-25/26.** Quatro partes, qualquer ordem:
     1. Tirar o `id_cliente` cru do payload do `config.js` (virou decorativo depois do Passo 5, não é urgente).
-    2. Mover as chaves da Pusher (app secret) e da Evolution API pra Credential do n8n (hoje em texto puro em nodes de Código/HTTP Request) e rotacionar as duas depois.
-    3. Corrigir `allowedOrigins: '*'` no `Webhook1` do `Midiabot painel config` (e checar se o webhook de login tem o mesmo problema) — trocar pelo domínio real `https://www.midiabot.com.br`.
-    4. Avaliar rate-limit no login de consultor (`senhas_chat`/chat) — login com usuário+senha simples, força-bruteável, sem trava hoje.
+    2. Corrigir `allowedOrigins: '*'` no `Webhook1` do `Midiabot painel config` (e checar se o webhook de login tem o mesmo problema) — trocar pelo domínio real `https://www.midiabot.com.br`.
+    3. Avaliar rate-limit no login de consultor (`senhas_chat`/chat) — login com usuário+senha simples, força-bruteável, sem trava hoje.
     Ver `[[project_item6_auth_token_painel]]` na memória.
+
+## Risco menor, sem pressa (2026-09-25)
+
+30. **Mover as chaves da Pusher (app secret) e da Evolution API pra Credential do n8n** — hoje em texto puro em nodes de Código/HTTP Request (`Desconecta a instância`, `configurar_webhook_instancia`, e prováveis nodes da Pusher no workflow `MidiaBot Chat`, ainda não localizados). Decisão do usuário em 2026-09-25: não é bloqueador de lançamento, adiado de propósito — rotacionar a chave também adiado (a exposição em texto puro em arquivos locais/backups não preocupa o usuário, ver `[[feedback_no_key_rotation_paranoia]]`).
 
 ## Segunda fase — iniciativas grandes, ainda sem escopo (anotado em 2026-09-02)
 
