@@ -147,7 +147,7 @@
                 const item = Array.isArray(data) ? data[0] : data;
 
                 if (!item || !item.token) {
-                    showToast("Empresa, login ou senha incorretos.", "error");
+                    showToast(item?.erro || "Empresa, login ou senha incorretos.", "error");
                     return;
                 }
 
