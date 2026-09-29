@@ -787,7 +787,8 @@
                 await chamarApi('encaminhar_conversa', {
                     remotejid: conversaSelecionada.remotejid,
                     chat_id_origem: salaSelecionada,
-                    chat_id_destino: chatIdDestino
+                    chat_id_destino: chatIdDestino,
+                    id_relacionamento: conversaSelecionada.id
                 });
                 fecharEncaminhar();
                 showToast("Conversa encaminhada.", "success");
