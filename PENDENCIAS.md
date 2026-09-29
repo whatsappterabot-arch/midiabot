@@ -11,6 +11,10 @@ Lista organizada de próximos passos, em 2026-08-16. Itens específicos do Envio
     3. Avaliar rate-limit no login de consultor (`senhas_chat`/chat) — login com usuário+senha simples, força-bruteável, sem trava hoje.
     Ver `[[project_item6_auth_token_painel]]` na memória.
 
+## Prioridade — resolver logo após o bug de instância no envio (2026-09-29)
+
+31. **Como um colaborador de uma sala sem instância própria (ex.: "Financeiro") inicia uma conversa nova?** — achado investigando o bug de instância errada no envio de mensagens. Existe pelo menos um caso real no banco (`chat_id = -40`, sala "Financeiro", `id_cliente = 2`) sem instância vinculada, sem encaminhamento ativo apontando pra lá e sem origem de atribuição registrada — ou seja, não há como rastrear fisicamente qual número de WhatsApp deveria mandar uma mensagem nova a partir dessa sala. Não é dado de teste a ser limpo: histórico e linhas de `midiabot_remotejid_chatid` persistem de propósito (encaminhamento nunca apaga nada). Precisa decidir, pensando nas possibilidades (não vasculhando o banco à toa): esse tipo de sala consegue de fato iniciar conversa nova pela UI hoje? Se sim, com qual instância deveria sair? Se não for um caminho alcançável de verdade, só documentar que não precisa de solução.
+
 ## Risco menor, sem pressa (2026-09-25)
 
 30. **Mover as chaves da Pusher (app secret) e da Evolution API pra Credential do n8n** — hoje em texto puro em nodes de Código/HTTP Request (`Desconecta a instância`, `configurar_webhook_instancia`, e prováveis nodes da Pusher no workflow `MidiaBot Chat`, ainda não localizados). Decisão do usuário em 2026-09-25: não é bloqueador de lançamento, adiado de propósito — rotacionar a chave também adiado (a exposição em texto puro em arquivos locais/backups não preocupa o usuário, ver `[[feedback_no_key_rotation_paranoia]]`).
