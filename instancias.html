@@ -76,6 +76,9 @@
                         <div class="flex gap-3">
                             <input type="text" id="input-nome-instancia" placeholder="Ex: Loja Centro"
                                 class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                            <select id="select-nova-instancia-workflow"
+                                class="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#00b34d] focus:bg-white outline-none transition-all">
+                            </select>
                             <button onclick="criarInstancia()"
                                 class="bg-[#001f3f] text-white px-8 rounded-xl font-bold text-xs hover:bg-black transition-all shadow-lg active:scale-95">
                                 CRIAR INSTÂNCIA
@@ -195,6 +198,8 @@
             try {
                 const data = await chamarApi('listar_catalogo_workflows', {});
                 catalogoWorkflows = Array.isArray(data) ? data.map(item => item.nome) : [];
+                const selectNova = document.getElementById('select-nova-instancia-workflow');
+                selectNova.innerHTML = catalogoWorkflows.map(nome => `<option value="${nome}">${nome}</option>`).join('');
             } catch (e) {
                 console.error("Falha ao carregar catálogo de workflows:", e);
                 showToast("Erro ao processar solicitação.", "error");
@@ -291,13 +296,18 @@
 
         async function criarInstancia() {
             const input = document.getElementById('input-nome-instancia');
+            const selectWorkflow = document.getElementById('select-nova-instancia-workflow');
             if (!input.value.trim()) {
                 showToast("Digite um nome para a instância.", "warning");
                 return;
             }
+            if (!selectWorkflow.value) {
+                showToast("Selecione um workflow.", "warning");
+                return;
+            }
 
             try {
-                await chamarApi('criar_instancia', { nome: input.value.trim() });
+                await chamarApi('criar_instancia', { nome: input.value.trim(), workflow_name: selectWorkflow.value });
                 input.value = '';
                 showToast("Instância criada.", "success");
                 carregarInstancias();
