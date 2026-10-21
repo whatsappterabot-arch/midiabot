@@ -52,6 +52,12 @@
                     <h1 class="text-sm font-bold text-gray-500 uppercase tracking-widest" id="page-title">Painel (WhatsApp)</h1>
                 </div>
                 <div class="flex items-center gap-4">
+                    <div id="seletor-suporte-wrap" class="hidden">
+                        <select id="seletor-suporte" onchange="entrarComoClienteSelecionado(this.value)"
+                            class="text-xs border border-gray-300 rounded-lg px-2 py-2 font-bold text-gray-600">
+                            <option value="">Ver como cliente...</option>
+                        </select>
+                    </div>
                     <div class="text-right">
                         <p id="user-name" class="text-sm font-bold text-gray-800">Carregando...</p>
                     </div>
@@ -60,6 +66,12 @@
                     </button>
                 </div>
             </header>
+
+            <!-- FAIXA DE MODO SUPORTE -->
+            <div id="banner-modo-suporte" class="hidden bg-amber-500 text-white text-sm font-bold px-8 py-2 flex items-center justify-between">
+                <span><i class="fas fa-user-shield mr-2"></i>Vendo como <span id="banner-nome-cliente"></span> — modo suporte</span>
+                <button onclick="sairModoSuporte()" class="underline hover:no-underline">Sair do modo suporte</button>
+            </div>
 
             <!-- ÁREA DE BOAS-VINDAS -->
             <section class="p-8 overflow-y-auto flex-1">
@@ -127,7 +139,7 @@
     </div>
 
     <script type="module">
-        import { CONFIG, showToast, chamarApi as chamarApiCompartilhado } from "./config.js";
+        import { CONFIG, showToast, chamarApi as chamarApiCompartilhado, listarClientesSuporte, entrarComoCliente, sairDoModoSuporte } from "./config.js";
 
         let plataforma = 'whatsapp';
         let user = null;
@@ -160,6 +172,13 @@
                 }
 
                 document.getElementById('user-name').innerText = user.nome || user.email || 'Usuário';
+
+                if (user.modo_suporte) {
+                    document.getElementById('banner-modo-suporte').classList.remove('hidden');
+                    document.getElementById('banner-nome-cliente').innerText = user.nome_fantasia || user.nome || user.email || ('#' + (user.id_cliente ?? user.id));
+                } else if (user.is_admin) {
+                    carregarSeletorSuporte();
+                }
             } catch (e) {
                 console.error("Erro ao processar JSON do usuário:", e);
                 window.location.href = 'index.html';
@@ -174,10 +193,46 @@
             window.confirmarReset = confirmarReset;
             window.iniciarQuestionario = iniciarQuestionario;
             window.cancelarQuestionario = cancelarQuestionario;
+            window.entrarComoClienteSelecionado = entrarComoClienteSelecionado;
+            window.sairModoSuporte = sairModoSuporte;
 
             renderMenu();
             verificarStatus();
         });
+
+        // ===== Modo suporte (admin "ver como cliente") =====
+        async function carregarSeletorSuporte() {
+            try {
+                const clientes = await listarClientesSuporte(user);
+                const lista = Array.isArray(clientes) ? clientes : [];
+                const idProprio = user.id_cliente ?? user.id;
+                const select = document.getElementById('seletor-suporte');
+                select.innerHTML = '<option value="">Ver como cliente...</option>' +
+                    lista.filter(c => c.id !== idProprio)
+                        .map(c => `<option value="${c.id}">${c.nome_fantasia || c.email}</option>`).join('');
+                document.getElementById('seletor-suporte-wrap').classList.remove('hidden');
+            } catch (e) {
+                console.error('Erro ao carregar lista de clientes (modo suporte):', e);
+            }
+        }
+
+        async function entrarComoClienteSelecionado(idCliente) {
+            if (!idCliente) return;
+            try {
+                const data = await entrarComoCliente(user, Number(idCliente));
+                localStorage.setItem('midiabot_admin_original', JSON.stringify(user));
+                localStorage.setItem('midiabot_user', JSON.stringify({ ...data.usuario, token: data.token, modo_suporte: true }));
+                window.location.href = 'dashboard.html';
+            } catch (e) {
+                console.error('Erro ao entrar como cliente:', e);
+                showToast('Não foi possível entrar como esse cliente.', 'error');
+            }
+        }
+
+        function sairModoSuporte() {
+            sairDoModoSuporte();
+            window.location.href = 'dashboard.html';
+        }
 
         // Função Central de Comunicação com n8n
         async function chamarApi(acao, dadosExtra) {

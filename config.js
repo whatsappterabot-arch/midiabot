@@ -6,6 +6,9 @@ export const CONFIG = {
     // Webhook para todas as outras atividades (CRUD, listagem, etc)
     API_URL: 'https://awkwardgiantpanda-n8n.cloudfy.live/webhook/df72b1bc-ce3b-456b-a0b6-dfa8ecc34408',
 
+    // Webhook exclusivo do modo suporte (admin "ver como cliente")
+    SUPORTE_URL: 'https://awkwardgiantpanda-n8n.cloudfy.live/webhook/3cd95c6d-b704-488c-841e-765f3fbbf740',
+
     APP_NAME: 'MidiaBot'
 };
 
@@ -59,6 +62,36 @@ export async function verificarLinkConfiguracao(user) {
     } catch (e) {
         console.error('Falha ao verificar status de configuração:', e);
     }
+}
+
+export async function listarClientesSuporte(user) {
+    const res = await fetch(CONFIG.SUPORTE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acao: 'listar_clientes', token: user?.token })
+    });
+    if (!res.ok) throw new Error('Erro ao listar clientes');
+    return res.json();
+}
+
+export async function entrarComoCliente(user, idCliente) {
+    const res = await fetch(CONFIG.SUPORTE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acao: 'entrar_como_cliente', token: user?.token, dados: { id_cliente: idCliente } })
+    });
+    const data = await res.json();
+    if (!res.ok || !data?.autorizado) throw new Error(data?.erro || 'Erro ao entrar como cliente');
+    return data;
+}
+
+// Restaura a sessão original do admin guardada antes de entrar em modo suporte. Retorna false se não havia nenhuma.
+export function sairDoModoSuporte() {
+    const original = localStorage.getItem('midiabot_admin_original');
+    if (!original) return false;
+    localStorage.setItem('midiabot_user', original);
+    localStorage.removeItem('midiabot_admin_original');
+    return true;
 }
 
 export function showToast(message, type = 'info') {
